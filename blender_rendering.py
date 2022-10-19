@@ -91,6 +91,10 @@ if __name__ == '__main__':
         viewing_angles = butils.random_unit_vectors(config.samples_per_model)*np.asarray(config.view_angle_max)
         emissions = np.random.uniform(*config.emission_range, config.samples_per_model)
 
+        # set the name of the stl as part of the file name. index is automatically appended
+        depth_node.file_slots[0].path = stl_obj.name
+        image_node.file_slots[0].path = stl_obj.name
+
         # record setups for rendering
         for i in range(config.samples_per_model):
             random_position.rotation_euler = start_directions[i]
