@@ -28,6 +28,11 @@ try:
 except ValueError:
     pass
 
+prefs = bpy.context.preferences.addons['cycles'].preferences
+prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
+for dev in prefs.devices:
+    dev.use = True
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -88,7 +93,8 @@ if __name__ == '__main__':
         # get random values for all things to vary
         start_directions = butils.random_unit_vectors(config.samples_per_model)*360
         distances = np.random.uniform(*config.distance_range, config.samples_per_model)
-        viewing_angles = butils.random_unit_vectors(config.samples_per_model)*np.asarray(config.view_angle_max)
+        viewing_angles = butils.random_unit_vectors(config.samples_per_model)\
+                         *np.expand_dims(np.asarray(config.view_angle_max), axis=0)
         emissions = np.random.uniform(*config.emission_range, config.samples_per_model)
 
         # set the name of the stl as part of the file name. index is automatically appended

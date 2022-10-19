@@ -18,7 +18,7 @@ def random_unit_vectors(num_points: int, ndim: int = 3) -> np.ndarray:
     """
     vec = np.random.randn(ndim, num_points)
     vec /= np.linalg.norm(vec, axis=0)
-    return vec
+    return vec.T
 
 
 def init_blender(configuration: BlenderConfig) -> bpy.types.Scene:

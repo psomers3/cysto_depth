@@ -3,7 +3,7 @@ bladder_model_regex: '.*smooth.'
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # ml
 output_folder: test/output
-samples_per_model: 3
+samples_per_model: 100
 distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [10, 50]
