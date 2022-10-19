@@ -1,9 +1,9 @@
 models_dir: /Users/peter/isys/bladder_models
 bladder_model_regex: '.*smooth.'
 camera_intrinsics: test/cam_params.json
-bladder_volume: .0004  # ml
+bladder_volume: .0004  # m^3
 output_folder: test/output
-samples_per_model: 100
+samples_per_model: 3
 distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [10, 50]
@@ -37,6 +37,8 @@ blender:
     image_settings:
       color_mode: 'RGB'
     engine: 'CYCLES'
+    threads_mode: 'FIXED'
+    threads: 6
   cycles:
     adaptive_min_samples: 64
     adaptive_max_samples: 128

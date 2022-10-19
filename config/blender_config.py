@@ -28,13 +28,19 @@ class ImageSettingsConfig:
     color_mode: str = ImageColorMode.RGB
 
 
+class ThreadMode:
+    AUTO = 'AUTO'
+    FIXED = "FIXED"
+
+
 @dataclass
 class RenderConfig:
     resolution_x: int = 256
     resolution_y: int = 256
     image_settings: ImageSettingsConfig = ImageSettingsConfig()
-    # The engine to use for rendering options: BLENDER_EEVEE, CYCLES
     engine: str = RenderEngine.BLENDER_EEVEE
+    threads_mode: str = ThreadMode.AUTO
+    threads: int = 6
 
 
 class LengthUnits:
@@ -55,6 +61,11 @@ class ShrinkwrapConfig:
     track_axis: str = "TRACK_NEGATIVE_Z"
     shrinkwrap_type: str = "PROJECT"
     project_axis: str = "POS_Z"
+
+
+
+bpy.context.scene.render.threads_mode = 'FIXED'
+bpy.context.scene.render.threads = 6
 
 
 @dataclass
