@@ -63,11 +63,6 @@ class ShrinkwrapConfig:
     project_axis: str = "POS_Z"
 
 
-
-bpy.context.scene.render.threads_mode = 'FIXED'
-bpy.context.scene.render.threads = 6
-
-
 @dataclass
 class BlenderConfig:
     render: RenderConfig = RenderConfig()
