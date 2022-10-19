@@ -31,7 +31,8 @@ except ValueError:
 prefs = bpy.context.preferences.addons['cycles'].preferences
 prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
 for dev in prefs.devices:
-    dev.use = True
+    if dev.type == "CPU":
+        dev.use = True
 
 
 if __name__ == '__main__':
@@ -40,7 +41,17 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true', help='Will start the remote debugging on port 5678')
     parser.add_argument('--sample', action='store_true', help='run the code using a single random model')
     parser.add_argument('--render', action='store_true', help='perform rendering')
+    parser.add_argument('--gpu', type=int, default=-1, help='specify gpu to use. defaults to all available')
     args = parser.parse_args(arg_string)
+    gpu_num = 0
+    for dev in prefs.devices:
+        if dev.type != "CPU":
+            if args.gpu == -1:
+                dev.use = True
+            else:
+                dev.use = gpu_num == args.gpu
+            gpu_num += 1
+
     cfg = yaml.safe_load(open(args.config, 'r'))
     config: MainConfig = OmegaConf.structured(cfg, DictConfig(MainConfig))
 
