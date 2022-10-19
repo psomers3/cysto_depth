@@ -1,0 +1,46 @@
+models_dir: /Users/peter/isys/bladder_models
+bladder_model_regex: '.*smooth.'
+camera_intrinsics: test/cam_params.json
+bladder_volume: .0004  # ml
+output_folder: test/output
+samples_per_model: 3
+distance_range: [0.005, 0.04]
+view_angle_max: [45, 45, 45]
+emission_range: [10, 50]
+
+endo_light:
+  stl_file: /Users/peter/isys/endo_lights/ITO_light.stl
+  emission_color: [1.0, 1.0, 1.0, 1.0]
+  emission_strength: 50
+  scaling_factor: .001
+  euler_rotation: [90, 0, 90]
+
+#displacement_modifier:
+#  texture_coords: "UV"
+#  strength: 0.01
+#  texture: "Texture"
+#  mid_level: 0.1
+
+shrinkwrap:
+  wrap_mode: "ON_SURFACE"
+  distance: .01
+  use_track_normal: false
+  shrinkwrap_type: "PROJECT"
+  project_axis: "POS_Z"
+
+blender:
+  unit_settings:
+    length_unit: "MILLIMETERS"
+  render:
+    resolution_x: 256
+    resolution_y: 256
+    image_settings:
+      color_mode: 'RGB'
+    engine: 'CYCLES'
+  cycles:
+    adaptive_min_samples: 64
+    adaptive_max_samples: 128
+    denoiser: "OPENIMAGEDENOISE"
+    device: 'GPU'
+  use_nodes: true
+
