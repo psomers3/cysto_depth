@@ -68,7 +68,7 @@ def rf_rq(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
 def get_blender_camera_from_3x3_P(P, scale, scene: bpy.types.Scene = None) -> Tuple[bpy.types.Object, bpy.types.Camera]:
     """
-    Creates a blender camera consistent with a given 3x4 computer vision P matrix.
+    Creates a blender camera consistent with a given 3x3 computer vision P matrix.
 
     :param P: numpy 3x3 projection matrix. Expected as the transpose of the format given by the matlab calibration
               toolbox
