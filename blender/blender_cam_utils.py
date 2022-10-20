@@ -66,18 +66,27 @@ def rf_rq(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return r, q
 
 
-def get_blender_camera_from_3x3_P(P, clip_limits: List[float] = None) -> Tuple[bpy.types.Object, bpy.types.Camera]:
+def get_blender_camera_from_3x3_P(P,
+                                  scene: bpy.types.Scene = None,
+                                  clip_limits: List[float] = None,
+                                  scale: float = 1) -> Tuple[bpy.types.Object, bpy.types.Camera]:
     """
-    Creates a blender camera consistent with a given 3x3 computer vision P matrix.
+    Creates a blender camera consistent with a given 3x3 computer vision P matrix. This function will set the
+    render resolution to match the camera matrix. If you want to reduce the resolution for faster rendering, use the
+    scale parameter.
 
     :param P: numpy 3x3 projection matrix. Expected as the transpose of the format given by the matlab calibration
               toolbox
     :param scene: the blender scene to use for making the camera. Defaults to current scene.
     :param clip_limits: the Z clipping limits for the camera. defaults to [0.001, 0.5]
+    :param scale: factor to scale the rendering resolution by.
     :returns: the camera object, the camera's data
     """
     if clip_limits is None:
         clip_limits = [0.001, 0.5]
+    if scene is None:
+        scene = bpy.context.scene
+
     # get krt
     K, R_world2cv, T_world2cv = KRT_from_P(np.matrix(P))
 
@@ -90,6 +99,9 @@ def get_blender_camera_from_3x3_P(P, clip_limits: List[float] = None) -> Tuple[b
     # s_v = resolution_y_in_px / sensor_height_in_mm
     # TODO include aspect ratio
     f_in_mm = K[0, 0] / s_u
+    scene.render.resolution_x = int(resolution_x_in_px * scale)
+    scene.render.resolution_y = int(resolution_y_in_px * scale)
+    scene.render.resolution_percentage = int(scale * 100)
 
     # Use this if the projection matrix follows the convention listed in my answer to
     # https://blender.stackexchange.com/questions/38009/3x4-camera-matrix-from-blender-camera

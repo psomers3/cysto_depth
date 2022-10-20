@@ -41,3 +41,4 @@ class MainConfig:
     view_angle_max: List[float] = field(default_factory=lambda: [60, 60, 60])
     emission_range: List[float] = field(default_factory=lambda: [10, 50])
     render_normals: bool = False
+    endo_image_size: List[float] = field(default_factory=lambda: [1920, 1080])
