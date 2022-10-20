@@ -149,6 +149,8 @@ visual_models/bladder.blend1
 annotations/kitti_annotations.csv
 ._*
 
+#PyCharm
+.idea
 
 test
 outputs
