@@ -20,7 +20,7 @@ class MainConfig:
     models_dir: str = MISSING
     # the regex term to use for finding bladder models
     bladder_model_regex: str = 'smooth'
-    # file storing the 3x3 camera instrinsics matrix
+    # file storing the 3x3 camera intrinsics matrix
     camera_intrinsics: str = MISSING
     bladder_volume: float = 400
     endo_light: EndoLightConfig = EndoLightConfig()
@@ -31,4 +31,4 @@ class MainConfig:
     # the maximum angles in degrees to randomly rotate the endoscope after positioning it.
     view_angle_max: List[float] = field(default_factory=lambda: [60, 60, 60])
     emission_range: List[float] = field(default_factory=lambda: [10, 50])
-
+    render_normals: bool = False

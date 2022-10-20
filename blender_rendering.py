@@ -83,9 +83,11 @@ if __name__ == '__main__':
         stl_files = [stl_files[0]]
 
     # set paths for rendering outputs
-    depth_node, image_node = butils.add_render_output_nodes(scene)
-    depth_node.base_path = os.path.join(config.output_folder, 'depth')
-    image_node.base_path = os.path.join(config.output_folder, 'color')
+    output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
+    output_nodes[0].base_path = os.path.join(config.output_folder, 'color')
+    output_nodes[1].base_path = os.path.join(config.output_folder, 'depth')
+    if config.render_normals:
+        output_nodes[2].base_path = os.path.join(config.output_folder, 'normal')
 
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
@@ -106,8 +108,7 @@ if __name__ == '__main__':
         emissions = np.random.uniform(*config.emission_range, config.samples_per_model)
 
         # set the name of the stl as part of the file name. index is automatically appended
-        depth_node.file_slots[0].path = stl_obj.name
-        image_node.file_slots[0].path = stl_obj.name
+        [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]
 
         # record setups for rendering
         for i in range(config.samples_per_model):
