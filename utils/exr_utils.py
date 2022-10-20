@@ -1,6 +1,3 @@
-import OpenEXR
-import Imath
-import array
 import numpy as np
 import pims
 import os
@@ -160,37 +157,51 @@ def reject_outliers(data, m=2):
     return np.all(s < m, axis=1)
 
 
-def exr2numpy(exr, factor=1000, maxvalue=1., normalize=True):
-    """ converts 1-channel exr-data to 2D numpy arrays """
-    file = OpenEXR.InputFile(exr)
+def depth_exr_2_numpy(exr_file: str) -> np.ndarray:
+    """
+    read a depth image from an exr file. If there are 3 channels in the file, only the 1st is returned.
 
-    # Compute the size
-    dw = file.header()['dataWindow']
-    sz = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
-
-    # Read the three color channels as 32-bit floats
-    FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-    (R) = [array.array('f', file.channel(Chan, FLOAT)).tolist() for Chan in "R"]
-
-    # create numpy 2D-array
-    img = np.zeros((sz[1], sz[0], 3), np.float32)
-
-    # normalize
-    data = np.array(R)
-    data[data > maxvalue] = maxvalue
-
-    if normalize:
-        data /= np.max(data)
-
-    img = np.array(data).reshape(img.shape[0], -1)
-
-    return img * factor
+    :param exr_file: path to the file
+    :return: the cv2 imported image
+    """
+    image = cv2.imread(exr_file, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+    if len(image.shape) == 3:
+        return image[:, :, 0]
+    else:
+        return image
 
 
-def get_exr_max_depth(filepath):
-    path = filepath + ".exr"
-    img = exr2numpy(path, normalize=False)
-    return np.max(img)
+# def exr2numpy(exr, factor=1000, maxvalue=1., normalize=True):
+#     """ converts 1-channel exr-data to 2D numpy arrays """
+#     file = OpenEXR.InputFile(exr)
+#
+#     # Compute the size
+#     dw = file.header()['dataWindow']
+#     sz = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
+#
+#     # Read the three color channels as 32-bit floats
+#     FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+#     (R) = [array.array('f', file.channel(Chan, FLOAT)).tolist() for Chan in "R"]
+#
+#     # create numpy 2D-array
+#     img = np.zeros((sz[1], sz[0], 3), np.float32)
+#
+#     # normalize
+#     data = np.array(R)
+#     data[data > maxvalue] = maxvalue
+#
+#     if normalize:
+#         data /= np.max(data)
+#
+#     img = np.array(data).reshape(img.shape[0], -1)
+#
+#     return img * factor
+#
+#
+# def get_exr_max_depth(filepath):
+#     path = filepath + ".exr"
+#     img = exr2numpy(path, normalize=False)
+#     return np.max(img)
 
 
 def get_biggest_circle(points, n_samples=20):

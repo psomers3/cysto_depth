@@ -57,6 +57,7 @@ def import_stl(stl_file: str,
                collection: bpy.types.Collection = None) -> bpy.types.Object:
     """
     import an STL into blender
+
     :param stl_file: path to the STL file
     :param center: whether to move the stl's center of volume to the origin
     :param smooth_shading: sets the model to be displayed as smooth
@@ -83,14 +84,15 @@ def import_stl(stl_file: str,
 def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     """
     scale a blender object by volume to a given volume
+
     :param volume: the desired volume.
     :param obj: the blender object to scale
     """
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     vol = bm.calc_volume()
-    scaling_factor = (volume / vol) ** (1 / 3)
-    obj.scale = Vector([scaling_factor] * 3)
+    scaling_factor = (volume/vol)**(1/3)
+    obj.scale = Vector([scaling_factor]*3)
 
 
 def apply_surface_displacement():
@@ -163,89 +165,56 @@ def add_surface_lighting(stl_file: str,
     return stl_object, shader
 
 
-def add_tumor_particle_nodegroup(stl_file: str,
-                                 density: float = 10,
-                                 volume_max: float = 0.1,
-                                 scaling_range: Tuple[float] = None,
-                                 rotation_range: Tuple[float] = None) \
-        -> bpy.types.NodeGroup:
-    """
-    Scatter instances of the mesh in the stl-file over the targeted object.
-    Note: Implemented with geometry nodes, probably easier and more readable with straight code.
-
-    :param stl_file: path to the stl file to be used as tumor particle
-    :param density: controls amount of of particles added
-    :param volume_max: volume of object referenced for the instances
-    :param scaling_range: range in which scaling of instances varies
-    :param rotation_range: range in which rotation of instances varies
-    :return: the modified object, the node creating points, the node creating instances
-    """
-    # create reference object from .stl-file
-    bpy.ops.import_mesh.stl(filepath=stl_file)
-    particle_ref_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_file))[0]]
-    scale_mesh_volume(particle_ref_object, volume_max)
-
-    # set up node group
-    particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
-    nodes = particle_nodegroup.nodes
-    links = particle_nodegroup.links
-    # create nodes
-    group_in = nodes.new('NodeGroupInput')
-    points_on_faces = nodes.new('GeometryNodeDistributePointsOnFaces')
-    obj_info = nodes.new('GeometryNodeObjectInfo')
-    instance_on_points = nodes.new('GeometryNodeInstanceOnPoints')
-    rotation_vector = nodes.new('FunctionNodeRandomValue')
-    scaling_int = nodes.new('FunctionNodeRandomValue')
-    join_geo = nodes.new('GeometryNodeJoinGeometry')
-    group_out = nodes.new('NodeGroupOutput')
-    # set default parameters
-    rotation_vector.data_type = 'FLOAT_VECTOR'
-    rotation_vector.inputs.data.inputs['Min'].default_value = rotation_range[0]
-    rotation_vector.inputs.data.inputs['Max'].default_value = rotation_range[1]
-    scaling_int.inputs.data.inputs[2].default_value = scaling_range[0]
-    scaling_int.inputs.data.inputs[3].default_value = scaling_range[1]
-    points_on_faces.inputs['Density'].default_value = density
-    obj_info.inputs['Object'].default_value = particle_ref_object
-    # link nodes
-    links.new(group_in.outputs['Geometry'], points_on_faces.inputs['Mesh'])
-    links.new(group_in.outputs['Geometry'], join_geo.inputs['Geometry'])
-    links.new(obj_info.outputs['Geometry'], instance_on_points.input['Instance'])
-    links.new(points_on_faces.outputs['Points'], instance_on_points.input['Points'])
-    links.new(rotation_vector.outputs['Value'], instance_on_points.input['Scale'])
-    links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
-    links.new(join_geo.outputs['Geometry'], group_out['Geometry'])
-    return particle_nodegroup
-
-
-def add_render_output_nodes(scene: bpy.types.Scene) -> Tuple[bpy.types.Node, bpy.types.Node]:
+def add_render_output_nodes(scene: bpy.types.Scene,
+                            color: bool = True,
+                            depth: bool = True,
+                            normals: bool = False,
+                            view_layer: str = "ViewLayer") -> List[bpy.types.Node]:
     """
     Modify the graph of a scene's node tree to include color and depth outputs
-    :param scene: the scene to create the rending for
-    :returns: depth node, image node
+
+    :param color: whether to include color as output.
+    :param depth: whether to include the depth as output.
+    :param normals: whether to include the normals as output.
+    :param scene: the scene to create the rendering for.
+    :param view_layer: the view layer in the scene to enable the rendering passes for.
+    :returns: image node, depth node, normals node  <- will be None if option not enabled.
     """
     tree = scene.node_tree
     rl = tree.nodes.new('CompositorNodeRLayers')
-    bpy.context.scene.view_layers["ViewLayer"].use_pass_z = True  # TODO: make this non-context based
-
-    # create depth output node
-    depth_node = tree.nodes.new('CompositorNodeOutputFile')
-    depth_node.format.file_format = "OPEN_EXR"
-
-    # create image output node
-    img_node = tree.nodes.new('CompositorNodeOutputFile')
-    img_node.format.file_format = "PNG"
-
-    # Links
+    return_list = [None, None, None]
     links = tree.links
-    links.new(rl.outputs[2], depth_node.inputs['Image'])  # link Z to output
-    links.new(rl.outputs['Image'], img_node.inputs['Image'])  # link image to output
-    return depth_node, img_node
+    if depth:
+        scene.view_layers["ViewLayer"].use_pass_z = True
+        # create depth output node
+        depth_node = tree.nodes.new('CompositorNodeOutputFile')
+        depth_node.format.file_format = "OPEN_EXR"
+        links.new(rl.outputs['Depth'], depth_node.inputs['Image'])  # link Z to output
+        return_list[1] = depth_node
+
+    if color:
+        # create image output node
+        img_node = tree.nodes.new('CompositorNodeOutputFile')
+        img_node.format.file_format = "PNG"
+        links.new(rl.outputs['Image'], img_node.inputs['Image'])  # link image to output
+        return_list[0] = img_node
+
+    if normals:
+        scene.view_layers["ViewLayer"].use_pass_normal = True
+        # create normals output node
+        normal_node = tree.nodes.new('CompositorNodeOutputFile')
+        normal_node.format.file_format = "OPEN_EXR"
+        links.new(rl.outputs['Normal'], normal_node.inputs['Image'])  # link Z to output
+        return_list[2] = normal_node
+
+    return return_list
 
 
 def add_shrinkwrap_constraint(obj: bpy.types.Object,
                               config: ShrinkwrapConfig = ShrinkwrapConfig()) -> bpy.types.Constraint:
     """
     adds a shrinkwrap constraint to the provided object and sets the values provided in config.
+
     :param obj: a blender object
     :param config: the configuration for the shrinkwrap
     :return: the constraint handle
@@ -253,3 +222,5 @@ def add_shrinkwrap_constraint(obj: bpy.types.Object,
     shrinkwrap_constr = obj.constraints.new("SHRINKWRAP")
     set_blender_data(shrinkwrap_constr, config)
     return shrinkwrap_constr
+
+
