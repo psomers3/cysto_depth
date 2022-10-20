@@ -92,8 +92,8 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     vol = bm.calc_volume()
-    scaling_factor = (volume / vol) ** (1 / 3)
-    obj.scale = Vector([scaling_factor] * 3)
+    scaling_factor = (volume/vol)**(1/3)
+    obj.scale = Vector([scaling_factor]*3)
 
 
 def apply_surface_displacement():
@@ -322,4 +322,5 @@ def extract_system_arguments() -> Tuple[List[str], bool]:
         pass
 
     return arg_string, not gui_enabled
+
 
