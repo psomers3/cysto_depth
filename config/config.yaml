@@ -3,7 +3,7 @@ bladder_model_regex: '.*smooth.'
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test/output
-samples_per_model: 3
+samples_per_model: 10
 distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [10, 50]
@@ -33,8 +33,7 @@ blender:
   unit_settings:
     length_unit: "MILLIMETERS"
   render:
-    resolution_x: 256
-    resolution_y: 256
+    resolution_percentage: 50
     image_settings:
       color_mode: 'RGB'
     engine: 'CYCLES'

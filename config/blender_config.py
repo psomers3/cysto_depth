@@ -37,6 +37,7 @@ class ThreadMode:
 class RenderConfig:
     resolution_x: int = 256
     resolution_y: int = 256
+    resolution_percentage: float = 1
     image_settings: ImageSettingsConfig = ImageSettingsConfig()
     engine: str = RenderEngine.BLENDER_EEVEE
     threads_mode: str = ThreadMode.AUTO
