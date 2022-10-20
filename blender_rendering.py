@@ -85,13 +85,6 @@ if __name__ == '__main__':
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
 
-        # get random values for all things to vary
-        start_directions = np.random.uniform(0, 360, (config.samples_per_model, 3))
-        distances = np.random.uniform(*config.distance_range, config.samples_per_model)
-        viewing_angles = np.random.uniform(0, 1, (config.samples_per_model, 3)) \
-                         * np.expand_dims(np.asarray(config.view_angle_max), axis=0)
-        emissions = np.random.uniform(*config.emission_range, config.samples_per_model)
-
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]
 
