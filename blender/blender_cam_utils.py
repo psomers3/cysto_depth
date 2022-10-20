@@ -66,20 +66,21 @@ def rf_rq(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return r, q
 
 
-def get_blender_camera_from_3x3_P(P, scale, scene: bpy.types.Scene = None) -> Tuple[bpy.types.Object, bpy.types.Camera]:
+def get_blender_camera_from_3x3_P(P, clip_limits: List[float] = None) -> Tuple[bpy.types.Object, bpy.types.Camera]:
     """
     Creates a blender camera consistent with a given 3x3 computer vision P matrix.
 
     :param P: numpy 3x3 projection matrix. Expected as the transpose of the format given by the matlab calibration
               toolbox
-    :param scale: resolution scale percentage as in GUI, known a priori
     :param scene: the blender scene to use for making the camera. Defaults to current scene.
+    :param clip_limits: the Z clipping limits for the camera. defaults to [0.001, 0.5]
     :returns: the camera object, the camera's data
     """
+    if clip_limits is None:
+        clip_limits = [0.001, 0.5]
     # get krt
     K, R_world2cv, T_world2cv = KRT_from_P(np.matrix(P))
 
-    scene = bpy.context.scene if scene is None else scene
     sensor_width_in_mm = K[1, 1] * K[0, 2] / (K[0, 0] * K[1, 2])
     # sensor_height_in_mm = 1  # doesn't matter
     resolution_x_in_px = K[0, 2] * 2  # principal point assumed at the center
@@ -89,10 +90,6 @@ def get_blender_camera_from_3x3_P(P, scale, scene: bpy.types.Scene = None) -> Tu
     # s_v = resolution_y_in_px / sensor_height_in_mm
     # TODO include aspect ratio
     f_in_mm = K[0, 0] / s_u
-    # recover original resolution
-    # scene.render.resolution_x = int(resolution_x_in_px / scale)
-    # scene.render.resolution_y = int(resolution_y_in_px / scale)
-    # scene.render.resolution_percentage = scale * 100
 
     # Use this if the projection matrix follows the convention listed in my answer to
     # https://blender.stackexchange.com/questions/38009/3x4-camera-matrix-from-blender-camera
@@ -121,15 +118,10 @@ def get_blender_camera_from_3x3_P(P, scale, scene: bpy.types.Scene = None) -> Tu
     camera_data.lens = f_in_mm
     camera_data.lens_unit = 'MILLIMETERS'
     camera_data.sensor_width = sensor_width_in_mm
-    camera_object.matrix_world = Matrix.Translation(location) * rotation.to_4x4()
 
-    #     cam.shift_x = -0.05
-    #     cam.shift_y = 0.1
-    #     cam.clip_start = 10.0
-    #     cam.clip_end = 250.0
-    #     empty = bpy.data.objects.new('DofEmpty', None)
-    #     empty.location = origin+Vector((0,10,0))
-    #     cam.dof_object = empty
+    camera_data.clip_start = clip_limits[0]
+    camera_data.clip_end = clip_limits[1]
+    camera_object.matrix_world = Matrix.Translation(location) * rotation.to_4x4()
     return camera_object, camera_data
 
 

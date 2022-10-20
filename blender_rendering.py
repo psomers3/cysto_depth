@@ -34,7 +34,6 @@ for dev in prefs.devices:
     if dev.type == "CPU":
         dev.use = True
 
-
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--config', default='config/config.yaml', type=str, help='path to config file')
@@ -66,10 +65,8 @@ if __name__ == '__main__':
     stl_files = [f for f in Path(config.models_dir).rglob('*') if re.search(config.bladder_model_regex, str(f))]
 
     cam_matrix = np.asarray(json.load(open(config.camera_intrinsics, 'r'))['IntrinsicMatrix']).T
-    camera, cam_data = get_blender_camera_from_3x3_P(cam_matrix, scene=scene, scale=1)
+    camera, cam_data = get_blender_camera_from_3x3_P(cam_matrix, clip_limits=[0.001, 0.5])
     scene.camera = camera
-    cam_data.clip_start = 0.001  # 1 mm
-    cam_data.clip_end = 0.1  # 100 mm
 
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
@@ -102,10 +99,10 @@ if __name__ == '__main__':
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
 
         # get random values for all things to vary
-        start_directions = butils.random_unit_vectors(config.samples_per_model)*360
+        start_directions = np.random.uniform(0, 360, (config.samples_per_model, 3))
         distances = np.random.uniform(*config.distance_range, config.samples_per_model)
-        viewing_angles = butils.random_unit_vectors(config.samples_per_model)\
-                         *np.expand_dims(np.asarray(config.view_angle_max), axis=0)
+        viewing_angles = np.random.uniform(0, 1, (config.samples_per_model, 3)) \
+                         * np.expand_dims(np.asarray(config.view_angle_max), axis=0)
         emissions = np.random.uniform(*config.emission_range, config.samples_per_model)
 
         # set the name of the stl as part of the file name. index is automatically appended
@@ -118,15 +115,13 @@ if __name__ == '__main__':
             camera.rotation_euler = viewing_angles[i]
             shrinkwrap_constraint.distance = distances[i]
             emission_node.inputs[1].default_value = emissions[i]
-            random_position.keyframe_insert(frame=i+1, data_path="rotation_euler")
-            camera.keyframe_insert(frame=i+1, data_path="rotation_euler")
-            shrinkwrap_constraint.keyframe_insert(frame=i+1, data_path="distance")
-            emission_node.inputs[1].keyframe_insert(frame=i+1, data_path="default_value")
+            random_position.keyframe_insert(frame=i + 1, data_path="rotation_euler")
+            camera.keyframe_insert(frame=i + 1, data_path="rotation_euler")
+            shrinkwrap_constraint.keyframe_insert(frame=i + 1, data_path="distance")
+            emission_node.inputs[1].keyframe_insert(frame=i + 1, data_path="default_value")
 
         if args.render:
             bpy.ops.render.render(animation=True, scene=scene.name)
 
         if not args.sample and not gui_enabled:
             bpy.data.objects.remove(stl_obj, do_unlink=True)
-
-
