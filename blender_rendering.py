@@ -14,43 +14,17 @@ import json
 import numpy as np
 import debugpy
 
-idx = 0
-try:
-    idx = sys.argv.index("--")
-    cli_arguments = True
-except ValueError:
-    cli_arguments = False
-arg_string = sys.argv[idx + 1:] if cli_arguments else ""
-
-gui_enabled = False
-try:
-    gui_enabled = bool(sys.argv.index('-b'))
-except ValueError:
-    pass
-
-prefs = bpy.context.preferences.addons['cycles'].preferences
-prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
-for dev in prefs.devices:
-    if dev.type == "CPU":
-        dev.use = True
 
 if __name__ == '__main__':
+    arguments, headless = butils.extract_system_arguments()
     parser = ArgumentParser()
     parser.add_argument('--config', default='config/config.yaml', type=str, help='path to config file')
     parser.add_argument('--debug', action='store_true', help='Will start the remote debugging on port 5678')
     parser.add_argument('--sample', action='store_true', help='run the code using a single random model')
     parser.add_argument('--render', action='store_true', help='perform rendering')
     parser.add_argument('--gpu', type=int, default=-1, help='specify gpu to use. defaults to all available')
-    args = parser.parse_args(arg_string)
-    gpu_num = 0
-    for dev in prefs.devices:
-        if dev.type != "CPU":
-            if args.gpu == -1:
-                dev.use = True
-            else:
-                dev.use = gpu_num == args.gpu
-            gpu_num += 1
-
+    args = parser.parse_args(arguments)
+    butils.set_gpu_rendering_preferences(args.gpu)
     cfg = yaml.safe_load(open(args.config, 'r'))
     config: MainConfig = OmegaConf.structured(cfg, DictConfig(MainConfig))
 
@@ -100,22 +74,15 @@ if __name__ == '__main__':
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
 
-        # get random values for all things to vary
-        start_directions = np.random.uniform(0, 360, (config.samples_per_model, 3))
-        distances = np.random.uniform(*config.distance_range, config.samples_per_model)
-        viewing_angles = np.random.uniform(0, 1, (config.samples_per_model, 3)) \
-                         * np.expand_dims(np.asarray(config.view_angle_max), axis=0)
-        emissions = np.random.uniform(*config.emission_range, config.samples_per_model)
-
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]
 
         # record setups for rendering
         for i in range(config.samples_per_model):
-            random_position.rotation_euler = start_directions[i]
-            camera.rotation_euler = viewing_angles[i]
-            shrinkwrap_constraint.distance = distances[i]
-            emission_node.inputs[1].default_value = emissions[i]
+            random_position.rotation_euler = np.random.uniform(0, 360, size=3)
+            camera.rotation_euler = np.random.uniform(0, 1, size=3) * np.asarray(config.view_angle_max)
+            shrinkwrap_constraint.distance = np.random.uniform(*config.distance_range, 1)
+            emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
             random_position.keyframe_insert(frame=i + 1, data_path="rotation_euler")
             camera.keyframe_insert(frame=i + 1, data_path="rotation_euler")
             shrinkwrap_constraint.keyframe_insert(frame=i + 1, data_path="distance")
@@ -124,5 +91,5 @@ if __name__ == '__main__':
         if args.render:
             bpy.ops.render.render(animation=True, scene=scene.name)
 
-        if not args.sample and not gui_enabled:
+        if not args.sample and not headless:
             bpy.data.objects.remove(stl_obj, do_unlink=True)

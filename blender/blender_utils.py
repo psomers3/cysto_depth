@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import sys
 import bpy
 from config import BlenderConfig
 from config.blender_config import ShrinkwrapConfig
@@ -224,3 +225,46 @@ def add_shrinkwrap_constraint(obj: bpy.types.Object,
     return shrinkwrap_constr
 
 
+def set_gpu_rendering_preferences(gpu: int = -1) -> None:
+    """
+    Set GPU resources to use for rendering. This function only works for CUDA GPUs or Macs
+
+    :param gpu: the GPU ID to use. if -1, uses all GPUs available.
+    """
+    prefs = bpy.context.preferences.addons['cycles'].preferences
+    prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
+    for dev in prefs.devices:
+        if dev.type == "CPU":
+            dev.use = True
+    gpu_num = 0
+    for dev in prefs.devices:
+        if dev.type != "CPU":
+            if gpu == -1:
+                dev.use = True
+            else:
+                dev.use = gpu_num == gpu
+            gpu_num += 1
+
+
+def extract_system_arguments() -> Tuple[List[str], bool]:
+    """
+    Provides the user passed arguments that come after "--" when running a python script through blender.
+    Also provides whether the script was called as headless
+
+    :return: parsed_args, headless
+    """
+    idx = 0
+    try:
+        idx = sys.argv.index("--")
+        cli_arguments = True
+    except ValueError:
+        cli_arguments = False
+    arg_string = sys.argv[idx + 1:] if cli_arguments else ""
+
+    gui_enabled = False
+    try:
+        gui_enabled = bool(sys.argv.index('-b'))
+    except ValueError:
+        pass
+
+    return arg_string, not gui_enabled
