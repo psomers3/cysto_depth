@@ -9,11 +9,18 @@ view_angle_max: [45, 45, 45]
 emission_range: [10, 50]
 
 endo_light:
-  stl_file: /Users/peter/isys/endo_lights/ITO_light.stl
+  stl_file: /Users/peter/isys/endo_lights/ITO_light.stl # /Users/mario/studienarbeit/ITO_light.stl
   emission_color: [1.0, 1.0, 1.0, 1.0]
   emission_strength: 50
   scaling_factor: .001
   euler_rotation: [90, 0, 90]
+
+tumor_particles:
+  stl_file: str = /Users/peter/isys/bladder_models/labels-0_bladder_smooth.stl
+  density: 4
+  volume_max: 0.0000001 #m^3
+  scaling_range: [0.1, 1]
+  rotation_range: [0, 2*3.14]
 
 #displacement_modifier:
 #  texture_coords: "UV"
