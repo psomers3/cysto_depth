@@ -1,5 +1,6 @@
 import sys
 import os
+sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import bpy
 import re
 from pathlib import Path
@@ -12,7 +13,6 @@ from blender.blender_cam_utils import get_blender_camera_from_3x3_P
 import json
 import numpy as np
 import debugpy
-sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 
 
 if __name__ == '__main__':
