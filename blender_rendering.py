@@ -1,7 +1,7 @@
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import bpy
+sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import re
 from pathlib import Path
 import yaml
