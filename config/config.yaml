@@ -21,7 +21,7 @@ tumor_particles:
   density: 4
   volume_max: 0.0000001 #m^3
   scaling_range: [0.1, 1]
-  rotation_range: [0, 6.28]
+  rotation_range: [0, 360]
 
 #displacement_modifier:
 #  texture_coords: "UV"
