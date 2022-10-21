@@ -17,8 +17,8 @@ class TumorParticleConfig:
     stl_file: str = MISSING
     density: float = 4
     volume_max: float = 0.1
-    scaling_range: Tuple(float) = field(default=(0.1, 1))
-    rotation_range: Tuple(float) = field(default=(0, 2*3.14))
+    scaling_range: Tuple[float] = field(default=(0.1, 1))
+    rotation_range: Tuple[float] = field(default=(0, 6.24))
 
 
 @dataclass
