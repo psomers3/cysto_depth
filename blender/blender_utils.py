@@ -169,25 +169,28 @@ def add_surface_lighting(stl_file: str,
 def add_tumor_particle_nodegroup(stl_file: str,
                                  density: float = 10,
                                  volume_max: float = 0.1,
-                                 scaling_range: Tuple[float] = None,
-                                 rotation_range: Tuple[float] = None) \
+                                 scaling_range: List[float] = None,
+                                 rotation_range: List[float] = None) \
         -> bpy.types.NodeGroup:
     """
     Scatter instances of the mesh in the stl-file over the targeted object.
     Note: Implemented with geometry nodes, probably easier and more readable with straight code.
 
     :param stl_file: path to the stl file to be used as tumor particle
-    :param density: controls amount of of particles added
+    :param density: controls amount of particles added
     :param volume_max: volume of object referenced for the instances
     :param scaling_range: range in which scaling of instances varies
     :param rotation_range: range in which rotation of instances varies
     :return: the modified object, the node creating points, the node creating instances
     """
+    if scaling_range is None:
+        scaling_range = [0.1, 1]
+    if rotation_range is None:
+        rotation_range = [0, 360]
     # create reference object from .stl-file
     bpy.ops.import_mesh.stl(filepath=stl_file)
     particle_ref_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_file))[0]]
     scale_mesh_volume(particle_ref_object, volume_max)
-
     # set up node group
     particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
     nodes = particle_nodegroup.nodes
@@ -203,8 +206,8 @@ def add_tumor_particle_nodegroup(stl_file: str,
     group_out = nodes.new('NodeGroupOutput')
     # set default parameters
     rotation_vector.data_type = 'FLOAT_VECTOR'
-    rotation_vector.inputs.data.inputs['Min'].default_value = rotation_range[0]
-    rotation_vector.inputs.data.inputs['Max'].default_value = rotation_range[1]
+    rotation_vector.inputs.data.inputs['Min'].default_value = np.deg2rad(rotation_range[0])
+    rotation_vector.inputs.data.inputs['Max'].default_value = np.deg2rad(rotation_range[1])
     scaling_int.inputs.data.inputs[2].default_value = scaling_range[0]
     scaling_int.inputs.data.inputs[3].default_value = scaling_range[1]
     points_on_faces.inputs['Density'].default_value = density

@@ -38,8 +38,6 @@ if __name__ == '__main__':
     scene.frame_end = config.samples_per_model
     stl_files = [f for f in Path(config.models_dir).rglob('*') if re.search(config.bladder_model_regex, str(f))]
 
-
-
     cam_matrix = np.asarray(json.load(open(config.camera_intrinsics, 'r'))['IntrinsicMatrix']).T
     camera, cam_data = get_blender_camera_from_3x3_P(cam_matrix, scene=scene, clip_limits=[0.001, 0.5],
                                                      scale=config.blender.render.resolution_percentage/100)
