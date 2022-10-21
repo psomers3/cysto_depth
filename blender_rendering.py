@@ -1,7 +1,6 @@
 import sys
 import os
 import bpy
-sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import re
 from pathlib import Path
 import yaml
@@ -13,6 +12,7 @@ from blender.blender_cam_utils import get_blender_camera_from_3x3_P
 import json
 import numpy as np
 import debugpy
+sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 
 idx = 0
 try:
@@ -64,9 +64,13 @@ if __name__ == '__main__':
     scene.frame_end = config.samples_per_model
     stl_files = [f for f in Path(config.models_dir).rglob('*') if re.search(config.bladder_model_regex, str(f))]
 
+
+
     cam_matrix = np.asarray(json.load(open(config.camera_intrinsics, 'r'))['IntrinsicMatrix']).T
     camera, cam_data = get_blender_camera_from_3x3_P(cam_matrix, clip_limits=[0.001, 0.5])
     scene.camera = camera
+
+    particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
 
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
@@ -97,6 +101,9 @@ if __name__ == '__main__':
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
+        # add node modifier and introduce the tumor particles
+        particles = stl_obj.modifiers.new('Particles', 'NODES')
+        particles = particle_nodes
 
         # get random values for all things to vary
         start_directions = np.random.uniform(0, 360, (config.samples_per_model, 3))

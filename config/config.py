@@ -12,6 +12,14 @@ class EndoLightConfig:
     scaling_factor: float = 1
     euler_rotation: List[float] = field(default_factory=lambda: [0, 0, 0])
 
+@dataclass
+class TumorParticleConfig:
+    stl_file: str = MISSING
+    density: float = 4
+    volume_max: float = 0.1
+    scaling_range: Tuple(float) = field(default=(0.1, 1))
+    rotation_range: Tuple(float) = field(default=(0, 2*3.14))
+
 
 @dataclass
 class MainConfig:
@@ -24,6 +32,7 @@ class MainConfig:
     camera_intrinsics: str = MISSING
     bladder_volume: float = 400
     endo_light: EndoLightConfig = EndoLightConfig()
+    tumor_particles: TumorParticleConfig = TumorParticleConfig()
     output_folder: str = MISSING
     samples_per_model: int = 3
     shrinkwrap: ShrinkwrapConfig = ShrinkwrapConfig()
