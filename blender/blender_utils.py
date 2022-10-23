@@ -96,6 +96,18 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     obj.scale = Vector([scaling_factor] * 3)
 
 
+def apply_transformations(transformed_object: bpy.types.Object):
+    """
+    Allpy all transformations made to the object.
+
+    param: transformed_object: object with unapplied transformations
+    """
+    matrix = transformed_object.matrix_world.copy()
+    for vert in transformed_object.data.vertices:
+        vert.co = matrix @ vert.co
+    transformed_object.matrix_world.identity()
+
+
 def apply_surface_displacement():
     pass
 
@@ -188,9 +200,10 @@ def add_tumor_particle_nodegroup(stl_file: str,
     if rotation_range is None:
         rotation_range = [0, 360]
     # create reference object from .stl-file
-    bpy.ops.import_mesh.stl(filepath=stl_file)
-    particle_ref_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_file))[0]]
+    particle_ref_object = import_stl(str(stl_file), center=True)
     scale_mesh_volume(particle_ref_object, volume_max)
+    # apply transforms
+    apply_transformations(particle_ref_object)
     # set up node group
     particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
     nodes = particle_nodegroup.nodes
@@ -204,22 +217,24 @@ def add_tumor_particle_nodegroup(stl_file: str,
     scaling_int = nodes.new('FunctionNodeRandomValue')
     join_geo = nodes.new('GeometryNodeJoinGeometry')
     group_out = nodes.new('NodeGroupOutput')
+    int2vec = nodes.new('ShaderNodeCombineXYZ')
     # set default parameters
     rotation_vector.data_type = 'FLOAT_VECTOR'
-    rotation_vector.inputs.data.inputs['Min'].default_value = np.deg2rad(rotation_range[0])
-    rotation_vector.inputs.data.inputs['Max'].default_value = np.deg2rad(rotation_range[1])
+    rotation_vector.inputs.data.inputs['Min'].default_value = [np.deg2rad(rotation_range[0])]*3
+    rotation_vector.inputs.data.inputs['Max'].default_value = [np.deg2rad(rotation_range[1])]*3
     scaling_int.inputs.data.inputs[2].default_value = scaling_range[0]
     scaling_int.inputs.data.inputs[3].default_value = scaling_range[1]
     points_on_faces.inputs['Density'].default_value = density
     obj_info.inputs['Object'].default_value = particle_ref_object
     # link nodes
-    links.new(group_in.outputs['Geometry'], points_on_faces.inputs['Mesh'])
-    links.new(group_in.outputs['Geometry'], join_geo.inputs['Geometry'])
-    links.new(obj_info.outputs['Geometry'], instance_on_points.input['Instance'])
-    links.new(points_on_faces.outputs['Points'], instance_on_points.input['Points'])
-    links.new(rotation_vector.outputs['Value'], instance_on_points.input['Scale'])
+    links.new(group_in.outputs[0], points_on_faces.inputs['Mesh']) # 0->'Geometry'
+    links.new(group_in.outputs[0], join_geo.inputs['Geometry'])
+    links.new(obj_info.outputs['Geometry'], instance_on_points.inputs['Instance'])
+    links.new(points_on_faces.outputs['Points'], instance_on_points.inputs['Points'])
+    links.new(scaling_int.outputs[1], instance_on_points.inputs['Scale']) # 1 ->'Value' single value random float node has no output 0
+    links.new(rotation_vector.outputs['Value'], instance_on_points.inputs['Rotation'])
     links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
-    links.new(join_geo.outputs['Geometry'], group_out['Geometry'])
+    links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
     return particle_nodegroup
 
 
