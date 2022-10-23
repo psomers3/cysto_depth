@@ -76,7 +76,11 @@ if __name__ == '__main__':
     for stl_file in stl_files:
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
+<<<<<<< HEAD
         butils.apply_transformations(stl_obj)
+=======
+        apply_transformations(stl_obj)
+>>>>>>> 168634b (corrections to add_tumor_particle_nodes and introduction of apply_transformations)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
         # add node modifier and introduce the tumor particles and the diverticulum
         diverticulum = stl_obj.modifiers.new('Diverticulum', 'NODES')

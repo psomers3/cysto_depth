@@ -219,6 +219,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
     scaling_int = nodes.new('FunctionNodeRandomValue')
     join_geo = nodes.new('GeometryNodeJoinGeometry')
     group_out = nodes.new('NodeGroupOutput')
+    int2vec = nodes.new('ShaderNodeCombineXYZ')
     # set default parameters
     rotation_vector.data_type = 'FLOAT_VECTOR'
     div.operation = 'DIVIDE'
