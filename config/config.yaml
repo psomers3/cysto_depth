@@ -18,7 +18,7 @@ endo_light:
 
 tumor_particles:
   stl_file:  /Users/peter/isys/bladder_models/labels-0_bladder_smooth.stl
-  density: 0.0005
+  amount: 10
   volume_max: 0.0000001 #m^3
   scaling_range: [0.1, 1]
   rotation_range: [0, 360]
