@@ -75,10 +75,11 @@ if __name__ == '__main__':
     for stl_file in stl_files:
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
+        apply_transformations(stl_obj)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
         # add node modifier and introduce the tumor particles
         particles = stl_obj.modifiers.new('Particles', 'NODES')
-        particles = particle_nodes
+        particles.node_group = particle_nodes
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]
