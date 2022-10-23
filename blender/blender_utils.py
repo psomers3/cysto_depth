@@ -188,15 +188,14 @@ def add_tumor_particle_nodegroup(stl_file: str,
                                  rotation_range: List[float] = None) \
         -> bpy.types.NodeGroup:
     """
-    Scatter instances of the mesh in the stl-file over the targeted object.
-    Note: Implemented with geometry nodes, probably easier and more readable with straight code.
+    Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
 
     :param stl_file: path to the stl file to be used as tumor particle
     :param amount: controls amount of particles added
     :param volume_max: volume of object referenced for the instances
     :param scaling_range: range in which scaling of instances varies
     :param rotation_range: range in which rotation of instances varies
-    :return: the modified object, the node creating points, the node creating instances
+    :return: particle scattering node group
     """
     if scaling_range is None:
         scaling_range = [0.1, 1]
