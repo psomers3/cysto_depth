@@ -98,17 +98,13 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
 
 def apply_transformations(transformed_object: bpy.types.Object):
     """
-    Allpy all transformations made to the object.
+    Aplly all transformations made to the object.
 
     param: transformed_object: object with unapplied transformations
     """
     transformed_object.select_set(True)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     transformed_object.select_set(False)
-    #matrix = transformed_object.matrix_world.copy()
-    #for vert in transformed_object.data.vertices:
-    #    vert.co = matrix @ vert.co
-    #transformed_object.matrix_world.identity()
 
 
 def apply_surface_displacement():
