@@ -54,6 +54,29 @@ def set_blender_data(item: Any, config: Union[dict, BlenderConfig, Any]) -> None
                 setattr(item, key, config[key])
 
 
+def _recursive_rename(name: str, count: int = 0) -> str:
+    """
+    a hacked-together helper function to call  when importing STL files to rename all existing copies and
+    return a name that is safe to use. This will be unnecessary if we can figure out how to get the handle
+    for the STL directly on import...
+
+    :param name: expected name of the STL
+    :param count: internal counter for this function.
+    :return: a safe name to rename the imported STL.
+    """
+    if count == 0:
+        desired_name = f'{name}_{count:03d}'
+    else:
+        desired_name = name
+    existing = bpy.data.objects.get(desired_name)
+    if existing is not None:
+        _recursive_rename(f'{desired_name[:-4]}_{count:03d}', count+1)
+    elif count > 0:
+        previous_existing = bpy.data.objects.get(f'{desired_name[:-4]}_{count-2:03d}')
+        previous_existing.name = f'{desired_name[:-4]}_{count-1:03d}'
+    return desired_name
+
+
 def import_stl(stl_file: str,
                center: bool = False,
                smooth_shading: bool = True,
@@ -67,8 +90,12 @@ def import_stl(stl_file: str,
     :param collection: a collection to put the object in
     :return: the blender Object for the STL mesh object
     """
+    object_name = os.path.splitext(os.path.basename(stl_file))[0]
+    new_obj_name = _recursive_rename(object_name)
     bpy.ops.import_mesh.stl(filepath=stl_file)
-    obj = bpy.data.objects[os.path.splitext(os.path.basename(stl_file))[0]]
+    obj = bpy.data.objects[object_name]
+    obj.name = f'{new_obj_name}'
+
     if collection is not None:
         bpy.context.collection.objects.unlink(obj)
         collection.objects.link(obj)
@@ -77,6 +104,8 @@ def import_stl(stl_file: str,
         obj.select_set(True)
         bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
         obj.location = [0, 0, 0]
+        apply_transformations(obj, location=True, rotation=False, scale=False)
+
     if smooth_shading:
         obj.select_set(True)
         bpy.ops.object.shade_smooth()
@@ -96,17 +125,59 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     vol = bm.calc_volume()
     scaling_factor = (volume / vol) ** (1 / 3)
     obj.scale = Vector([scaling_factor] * 3)
+    bm.free()
+    apply_transformations(obj, location=False, rotation=False, scale=True)
 
 
-def apply_transformations(transformed_object: bpy.types.Object):
+def apply_transformations(obj: bpy.types.Object,
+                          location=True,
+                          rotation=True,
+                          scale=True) -> None:
     """
-    Aplly all transformations made to the object.
+    Set current transformations as permanent for the given object. maintains the object's current physical position and
+    resets transformations to default. (i.e. location is now the global origin)
+    This affects all children of the object as well.
+    https://blender.stackexchange.com/questions/159538/how-to-apply-all-transformations-to-an-object-at-low-level
 
-    param: transformed_object: object with unapplied transformations
+    :param obj: The object to set
+    :param location: reset the location
+    :param rotation: reset the rotation
+    :param scale: reset the scale
     """
-    transformed_object.select_set(True)
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    transformed_object.select_set(False)
+    # obj.data.transform(obj.matrix_world)
+    # obj.data.update()
+    # matrix = Matrix.Identity(4)
+    # obj.matrix_world = matrix
+    mb = obj.matrix_basis
+    I = Matrix()
+    loc, rot, _scale = mb.decompose()
+
+    # rotation
+    T = Matrix.Translation(loc)
+    # R = rot.to_matrix().to_4x4()
+    R = mb.to_3x3().normalized().to_4x4()
+    S = Matrix.Diagonal(_scale).to_4x4()
+
+    transform = [I, I, I]
+    basis = [T, R, S]
+
+    def swap(i):
+        transform[i], basis[i] = basis[i], transform[i]
+
+    if location:
+        swap(0)
+    if rotation:
+        swap(1)
+    if scale:
+        swap(2)
+
+    M = transform[0] @ transform[1] @ transform[2]
+    if hasattr(obj.data, "transform"):
+        obj.data.transform(M)
+    for c in obj.children:  # TODO: make this recursive
+        c.matrix_local = M @ c.matrix_local
+
+    obj.matrix_basis = basis[0] @ basis[1] @ basis[2]
 
 
 def apply_surface_displacement():

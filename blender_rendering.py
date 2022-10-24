@@ -75,11 +75,11 @@ if __name__ == '__main__':
     endo_collection.objects.link(random_position)
     camera.parent = random_position
     shrinkwrap_constraint = butils.add_shrinkwrap_constraint(random_position, config.shrinkwrap)
+    random_position.select_set(False)
 
     for stl_file in stl_files:
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
-        butils.apply_transformations(stl_obj)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
         # add node modifier and introduce the tumor particles
         particles = stl_obj.modifiers.new('Particles', 'NODES')
