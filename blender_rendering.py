@@ -1,7 +1,7 @@
 import sys
 import os
-import bpy
 sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
+import bpy
 import re
 from pathlib import Path
 import yaml
@@ -81,6 +81,7 @@ if __name__ == '__main__':
         # add node modifier and introduce the tumor particles and the diverticulum
         diverticulum = stl_obj.modifiers.new('Diverticulum', 'NODES')
         diverticulum.node_group = diverticulum_nodes
+        # add node modifier and introduce the tumor particles
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
 
