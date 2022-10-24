@@ -44,6 +44,7 @@ if __name__ == '__main__':
     scene.camera = camera
 
     particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
+    diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
 
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
@@ -77,9 +78,13 @@ if __name__ == '__main__':
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
         butils.apply_transformations(stl_obj)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
-        # add node modifier and introduce the tumor particles
+        # add node modifier and introduce the tumor particles and the diverticulum
+        diverticulum = stl_obj.modifiers.new('Diverticulum', 'NODES')
+        diverticulum.node_group = diverticulum_nodes
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
+
+
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]
