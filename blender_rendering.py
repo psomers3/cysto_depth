@@ -13,6 +13,7 @@ from blender.blender_cam_utils import get_blender_camera_from_3x3_P
 import json
 import numpy as np
 import debugpy
+from mathutils import Euler
 
 
 def start_debugger():
@@ -75,7 +76,6 @@ if __name__ == '__main__':
     endo_collection.objects.link(random_position)
     camera.parent = random_position
     shrinkwrap_constraint = butils.add_shrinkwrap_constraint(random_position, config.shrinkwrap)
-    random_position.select_set(False)
 
     for stl_file in stl_files:
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
@@ -90,8 +90,8 @@ if __name__ == '__main__':
 
         # set random scenes and render
         for i in range(1, config.samples_per_model + 1):
-            random_position.rotation_euler = np.random.uniform(0, 360, size=3)
-            camera.rotation_euler = np.random.uniform(0, 1, size=3) * np.asarray(config.view_angle_max)
+            random_position.rotation_euler = (np.random.uniform(0, np.radians(360), size=3))
+            camera.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(np.asarray(config.view_angle_max))
             shrinkwrap_constraint.distance = np.random.uniform(*config.distance_range, 1)
             emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
             random_position.keyframe_insert(frame=i, data_path="rotation_euler")

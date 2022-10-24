@@ -125,7 +125,6 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     vol = bm.calc_volume()
     scaling_factor = (volume / vol) ** (1 / 3)
     obj.scale = Vector([scaling_factor] * 3)
-    bm.free()
     apply_transformations(obj, location=False, rotation=False, scale=True)
 
 
