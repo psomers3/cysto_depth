@@ -61,7 +61,7 @@ class ShrinkwrapConfig:
     use_track_normal: bool = False
     track_axis: str = "TRACK_NEGATIVE_Z"
     shrinkwrap_type: str = "PROJECT"
-    project_axis: str = "POS_Z"
+    project_axis: str = "NEG_Z"
 
 
 @dataclass

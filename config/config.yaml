@@ -3,7 +3,7 @@ bladder_model_regex: '.*smooth.'
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test/output
-samples_per_model: 20
+samples_per_model: 10
 distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [30, 30]
@@ -18,7 +18,7 @@ endo_light:
 
 tumor_particles:
   stl_file:  /Users/peter/isys/bladder_models/labels-0_bladder_smooth.stl
-  amount: 10
+  amount: 50
   volume_max: 0.0000001 #m^3
   scaling_range: [0.1, 1]
   rotation_range: [0, 360]
@@ -34,7 +34,7 @@ shrinkwrap:
   distance: .01
   use_track_normal: false
   shrinkwrap_type: "PROJECT"
-  project_axis: "POS_Z"
+  project_axis: "NEG_Z"
 
 blender:
   unit_settings:
