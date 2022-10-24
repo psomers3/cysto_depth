@@ -13,7 +13,6 @@ from blender.blender_cam_utils import get_blender_camera_from_3x3_P
 import json
 import numpy as np
 import debugpy
-from mathutils import Euler
 
 
 def start_debugger():
@@ -105,7 +104,8 @@ if __name__ == '__main__':
                 bpy.ops.render.render(write_still=True, scene=scene.name)
                 if config.render_normals:
                     norms_file = os.path.join(output_nodes[2].base_path, f'{stl_obj.name}_{i:05d}.exr')
-                    butils.convert_norm_exr_2_cam(norms_file, camera, output_file=f'{norms_file[:-4]}_cam.exr')
+                    butils.convert_norm_exr_2_cam(norms_file, camera)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)
+            butils.clear_all_keyframes()

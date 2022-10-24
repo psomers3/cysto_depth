@@ -430,7 +430,7 @@ def convert_norm_exr_2_cam(file: str, camera: bpy.types.Camera, output_file: str
     :param camera: blender camera to convert normals to
     :param output_file: optional output file for the converted exr file
     """
-    cam_world_matrix: Matrix = camera.matrix_world
+    cam_world_matrix: Matrix = camera.matrix_world.copy()
     cam_world_matrix.invert()
     cam_world_numpy = np.asarray(cam_world_matrix.to_3x3())
     normals = cv2.imread(file, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
@@ -438,3 +438,12 @@ def convert_norm_exr_2_cam(file: str, camera: bpy.types.Camera, output_file: str
     transformed_norms = np.reshape(cam_world_numpy @ np.expand_dims(np.reshape(normals, (int(shape[0] * shape[1]), 3)), -1), shape)
     filename = file if output_file is None else output_file
     cv2.imwrite(filename, transformed_norms.astype(np.float32))
+
+
+def clear_all_keyframes() -> None:
+    """
+    Erases all keyframes from all objects
+    """
+    for obj in bpy.data.objects:
+        if obj.animation_data:  # Check for presence of animation data.
+            obj.animation_data.action = None
