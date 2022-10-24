@@ -1,7 +1,7 @@
 import sys
 import os
-import bpy
 sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
+import bpy
 import re
 from pathlib import Path
 import yaml
@@ -43,6 +43,8 @@ if __name__ == '__main__':
                                                      scale=config.blender.render.resolution_percentage/100)
     scene.camera = camera
 
+    particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
+
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
     scene.collection.children.link(endo_collection)
@@ -73,7 +75,11 @@ if __name__ == '__main__':
     for stl_file in stl_files:
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
+        butils.apply_transformations(stl_obj)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
+        # add node modifier and introduce the tumor particles
+        particles = stl_obj.modifiers.new('Particles', 'NODES')
+        particles.node_group = particle_nodes
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]

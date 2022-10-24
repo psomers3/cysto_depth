@@ -92,8 +92,19 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     vol = bm.calc_volume()
-    scaling_factor = (volume/vol)**(1/3)
-    obj.scale = Vector([scaling_factor]*3)
+    scaling_factor = (volume / vol) ** (1 / 3)
+    obj.scale = Vector([scaling_factor] * 3)
+
+
+def apply_transformations(transformed_object: bpy.types.Object):
+    """
+    Aplly all transformations made to the object.
+
+    param: transformed_object: object with unapplied transformations
+    """
+    transformed_object.select_set(True)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    transformed_object.select_set(False)
 
 
 def apply_surface_displacement():
@@ -164,6 +175,74 @@ def add_surface_lighting(stl_file: str,
     links.new(mixer.outputs[0], output.inputs[0])
     stl_object.data.materials.append(mat)
     return stl_object, shader
+
+
+def add_tumor_particle_nodegroup(stl_file: str,
+                                 amount: float = 10,
+                                 volume_max: float = 0.1,
+                                 scaling_range: List[float] = None,
+                                 rotation_range: List[float] = None) \
+        -> bpy.types.NodeGroup:
+    """
+    Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
+
+    :param stl_file: path to the stl file to be used as tumor particle
+    :param amount: controls amount of particles added
+    :param volume_max: volume of object referenced for the instances
+    :param scaling_range: range in which scaling of instances varies
+    :param rotation_range: range in which rotation of instances varies
+    :return: particle scattering node group
+    """
+    if scaling_range is None:
+        scaling_range = [0.1, 1]
+    if rotation_range is None:
+        rotation_range = [0, 360]
+    # create reference object from .stl-file
+    particle_ref_object = import_stl(str(stl_file), center=True)
+    scale_mesh_volume(particle_ref_object, volume_max)
+    # apply transforms
+    apply_transformations(particle_ref_object)
+    particle_ref_object.hide_render = True
+    # set up node group
+    particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
+    nodes = particle_nodegroup.nodes
+    links = particle_nodegroup.links
+    # create nodes
+    group_in = nodes.new('NodeGroupInput')
+    points_on_faces = nodes.new('GeometryNodeDistributePointsOnFaces')
+    face_area = nodes.new('GeometryNodeInputMeshFaceArea')
+    attribute_statistic = nodes.new('GeometryNodeAttributeStatistic')
+    div = nodes.new('ShaderNodeMath')
+    obj_info = nodes.new('GeometryNodeObjectInfo')
+    instance_on_points = nodes.new('GeometryNodeInstanceOnPoints')
+    rotation_vector = nodes.new('FunctionNodeRandomValue')
+    scaling_int = nodes.new('FunctionNodeRandomValue')
+    join_geo = nodes.new('GeometryNodeJoinGeometry')
+    group_out = nodes.new('NodeGroupOutput')
+    # set default parameters
+    rotation_vector.data_type = 'FLOAT_VECTOR'
+    div.operation = 'DIVIDE'
+    div.inputs[0].default_value = amount
+    rotation_vector.inputs.data.inputs['Min'].default_value = [np.deg2rad(rotation_range[0])]*3
+    rotation_vector.inputs.data.inputs['Max'].default_value = [np.deg2rad(rotation_range[1])]*3
+    scaling_int.inputs.data.inputs[2].default_value = scaling_range[0]
+    scaling_int.inputs.data.inputs[3].default_value = scaling_range[1]
+    obj_info.inputs['Object'].default_value = particle_ref_object
+    # link nodes
+    links.new(group_in.outputs[0], points_on_faces.inputs['Mesh'])  # 0->'Geometry'
+    links.new(group_in.outputs[0], attribute_statistic.inputs['Geometry'])
+    links.new(face_area.outputs['Area'], attribute_statistic.inputs['Attribute'])
+    links.new(attribute_statistic.outputs['Sum'], div.inputs[1])
+    links.new(div.outputs['Value'], points_on_faces.inputs['Density'])
+    links.new(group_in.outputs[0], join_geo.inputs['Geometry'])
+    links.new(obj_info.outputs['Geometry'], instance_on_points.inputs['Instance'])
+    links.new(points_on_faces.outputs['Points'], instance_on_points.inputs['Points'])
+    links.new(scaling_int.outputs[1], instance_on_points.inputs['Scale'])  # 1 ->'Value' single value random float
+    # node has no output 0
+    links.new(rotation_vector.outputs['Value'], instance_on_points.inputs['Rotation'])
+    links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
+    links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
+    return particle_nodegroup
 
 
 def add_render_output_nodes(scene: bpy.types.Scene,
