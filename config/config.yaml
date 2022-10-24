@@ -23,6 +23,12 @@ tumor_particles:
   scaling_range: [0.1, 1]
   rotation_range: [0, 360]
 
+  diverticulum:
+    amount: 2
+    subdivisions_sphere: 4
+    radius_sphere_range: [ 0.001, 0.02 ] #m
+    radius_opening_range: [ 0.001, 0.003 ] #m
+
 #displacement_modifier:
 #  texture_coords: "UV"
 #  strength: 0.01
