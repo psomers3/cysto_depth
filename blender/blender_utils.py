@@ -7,6 +7,8 @@ from config.blender_config import ShrinkwrapConfig
 from typing import *
 import bmesh
 from mathutils import Matrix, Vector, Euler, Quaternion
+os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
+import cv2
 
 
 def random_unit_vectors(num_points: int, ndim: int = 3) -> np.ndarray:
@@ -265,7 +267,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
     return_list = [None, None, None]
     links = tree.links
     if depth:
-        scene.view_layers["ViewLayer"].use_pass_z = True
+        scene.view_layers[view_layer].use_pass_z = True
         # create depth output node
         depth_node = tree.nodes.new('CompositorNodeOutputFile')
         depth_node.format.file_format = "OPEN_EXR"
@@ -280,7 +282,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         return_list[0] = img_node
 
     if normals:
-        scene.view_layers["ViewLayer"].use_pass_normal = True
+        scene.view_layers[view_layer].use_pass_normal = True
         # create normals output node
         normal_node = tree.nodes.new('CompositorNodeOutputFile')
         normal_node.format.file_format = "OPEN_EXR"
@@ -347,3 +349,22 @@ def extract_system_arguments() -> Tuple[List[str], bool]:
         pass
 
     return arg_string, not gui_enabled
+
+
+def convert_norm_exr_2_cam(file: str, camera: bpy.types.Camera, output_file: str = None) -> None:
+    """
+    Load an exr file that represents global normals for surfaces and convert them to the camera's coordinates.
+    If output_file is unspecified, then it will overwrite the existing exr file.
+
+    :param file: normals file to convert
+    :param camera: blender camera to convert normals to
+    :param output_file: optional output file for the converted exr file
+    """
+    cam_world_matrix: Matrix = camera.matrix_world
+    cam_world_matrix.invert()
+    cam_world_numpy = np.asarray(cam_world_matrix.to_3x3())
+    normals = cv2.imread(file, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+    shape = normals.shape
+    transformed_norms = np.reshape(cam_world_numpy @ np.expand_dims(np.reshape(normals, (int(shape[0] * shape[1]), 3)), -1), shape)
+    filename = file if output_file is None else output_file
+    cv2.imwrite(filename, transformed_norms.astype(np.float32))

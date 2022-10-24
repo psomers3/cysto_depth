@@ -15,6 +15,13 @@ import numpy as np
 import debugpy
 
 
+def start_debugger():
+    debugpy.listen(5678)
+    print("Waiting for debugger to attach... ", end='', flush=True)
+    debugpy.wait_for_client()
+    print("done!")
+
+
 if __name__ == '__main__':
     arguments, headless = butils.extract_system_arguments()
     parser = ArgumentParser()
@@ -29,10 +36,7 @@ if __name__ == '__main__':
     config: MainConfig = OmegaConf.structured(cfg, DictConfig(MainConfig))
 
     if args.debug:
-        debugpy.listen(5678)
-        print("Waiting for debugger to attach... ", end='', flush=True)
-        debugpy.wait_for_client()
-        print("done!")
+        start_debugger()
 
     scene = butils.init_blender(config.blender)
     scene.frame_end = config.samples_per_model
@@ -40,7 +44,7 @@ if __name__ == '__main__':
 
     cam_matrix = np.asarray(json.load(open(config.camera_intrinsics, 'r'))['IntrinsicMatrix']).T
     camera, cam_data = get_blender_camera_from_3x3_P(cam_matrix, scene=scene, clip_limits=[0.001, 0.5],
-                                                     scale=config.blender.render.resolution_percentage/100)
+                                                     scale=config.blender.render.resolution_percentage / 100)
     scene.camera = camera
 
     particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
@@ -57,7 +61,7 @@ if __name__ == '__main__':
 
     bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
     if args.sample:
-        stl_files = [stl_files[0]]
+        stl_files = [stl_files[np.random.randint(0, len(stl_files)-1)]]
 
     # set paths for rendering outputs
     output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
@@ -82,21 +86,26 @@ if __name__ == '__main__':
         particles.node_group = particle_nodes
 
         # set the name of the stl as part of the file name. index is automatically appended
-        [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]
+        [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]
 
-        # record setups for rendering
-        for i in range(config.samples_per_model):
+        # set random scenes and render
+        for i in range(1, config.samples_per_model + 1):
             random_position.rotation_euler = np.random.uniform(0, 360, size=3)
             camera.rotation_euler = np.random.uniform(0, 1, size=3) * np.asarray(config.view_angle_max)
             shrinkwrap_constraint.distance = np.random.uniform(*config.distance_range, 1)
             emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
-            random_position.keyframe_insert(frame=i + 1, data_path="rotation_euler")
-            camera.keyframe_insert(frame=i + 1, data_path="rotation_euler")
-            shrinkwrap_constraint.keyframe_insert(frame=i + 1, data_path="distance")
-            emission_node.inputs[1].keyframe_insert(frame=i + 1, data_path="default_value")
+            random_position.keyframe_insert(frame=i, data_path="rotation_euler")
+            camera.keyframe_insert(frame=i, data_path="rotation_euler")
+            shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
+            emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
 
-        if args.render:
-            bpy.ops.render.render(animation=True, scene=scene.name)
+            if args.render:
+                # render per frame so any in-between processing (i.e. normals transformation) can be done.
+                scene.frame_set(i)
+                bpy.ops.render.render(write_still=True, scene=scene.name)
+                if config.render_normals:
+                    norms_file = os.path.join(output_nodes[2].base_path, f'{stl_obj.name}_{i:05d}.exr')
+                    butils.convert_norm_exr_2_cam(norms_file, camera, output_file=f'{norms_file[:-4]}_cam.exr')
 
-        if not args.sample and not headless:
+        if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)

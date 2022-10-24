@@ -2,6 +2,7 @@ import numpy as np
 import pims
 import os
 from PIL import Image
+os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 import cv2
 import random
 import shutil
@@ -165,12 +166,7 @@ def exr_2_numpy(exr_file: str) -> np.ndarray:
     :param exr_file: path to the file
     :return: the cv2 imported image
     """
-    image = cv2.imread(exr_file, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
-    if len(image.shape) == 3:
-        return image[:, :, 0]
-    else:
-        return image
-
+    return cv2.imread(exr_file, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
 
 # def exr2numpy(exr, factor=1000, maxvalue=1., normalize=True):
 #     """ converts 1-channel exr-data to 2D numpy arrays """

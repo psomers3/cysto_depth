@@ -86,7 +86,9 @@ def get_blender_camera_from_3x3_P(P,
         clip_limits = [0.001, 0.5]
     if scene is None:
         scene = bpy.context.scene
-
+    _P = np.zeros((3, 4))
+    _P[:3, :3] = P
+    P = _P
     # get krt
     K, R_world2cv, T_world2cv = KRT_from_P(np.matrix(P))
 
