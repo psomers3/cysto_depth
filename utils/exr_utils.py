@@ -157,10 +157,23 @@ def reject_outliers(data, m=2):
     return np.all(s < m, axis=1)
 
 
+<<<<<<< HEAD
+<<<<<<< HEAD
 def exr_2_numpy(exr_file: str) -> np.ndarray:
     """
     read an exr file using cv2.
     Note: if the file is depth from blender, it could be the same value repeated 3 times (rgb).
+=======
+def depth_exr_2_numpy(exr_file: str) -> np.ndarray:
+    """
+    read a depth image from an exr file. If there are 3 channels in the file, only the 1st is returned.
+>>>>>>> 76f3a52 (added normals export option)
+=======
+def exr_2_numpy(exr_file: str) -> np.ndarray:
+    """
+    read an exr file using cv2.
+    Note: if the file is depth from blender, it could be the same value repeated 3 times (rgb).
+>>>>>>> c31442b (moved arg parsing and gpu preferences to helper functions)
 
     :param exr_file: path to the file
     :return: the cv2 imported image

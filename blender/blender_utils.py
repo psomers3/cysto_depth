@@ -232,7 +232,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
     links.new(group_in.outputs[0], points_on_faces.inputs['Mesh'])  # 0->'Geometry'
     links.new(group_in.outputs[0], attribute_statistic.inputs['Geometry'])
     links.new(face_area.outputs['Area'], attribute_statistic.inputs['Attribute'])
-    links.new(attribute_statistic.outputs['Sum'], div.inputs[1])
+    links.new(attribute_statistic.outputs['Sum'], div.inputs[1]) # 1 -> Denominator
     links.new(div.outputs['Value'], points_on_faces.inputs['Density'])
     links.new(group_in.outputs[0], join_geo.inputs['Geometry'])
     links.new(obj_info.outputs['Geometry'], instance_on_points.inputs['Instance'])
@@ -243,6 +243,128 @@ def add_tumor_particle_nodegroup(stl_file: str,
     links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
     links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
     return particle_nodegroup
+
+
+def add_diverticulum_nodegroup(  amount: float = 2,
+                                 subdivisions_sphere: int = 4,
+                                 radius_sphere_range: List[float] = None,
+                                 radius_opening_range: List[float] = None) \
+        -> bpy.types.NodeGroup:
+    """
+    Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
+
+    :param amount: controls amount of particles added
+    :param subdivisions_sphere: mesh detail of the sphere
+    :param radius_sphere_range: range in which the radii of the sphere instances vary in m
+    :param radius_opening_range: rough control of the size of the opening, only values in a certain range make sense
+    :return: diverticulum node group
+    """
+    if radius_sphere_range is None:
+         radius_sphere_range = [0.001, 0.020]
+    if radius_opening_range is None:
+        radius_opening_range = [0.003, 0.008]
+    # create reference object from .stl-file
+
+    # set up node group
+    diverticulum_nodegroup = bpy.data.node_groups.new('diverticulum-nodes', type='GeometryNodeTree')
+    nodes = diverticulum_nodegroup.nodes
+    links = diverticulum_nodegroup.links
+
+    # MAIN NODE CHAIN: scatter spheres (of constant radius) across target object and unite target mesh and
+    # spheres with a boolean union
+    group_in = nodes.new('NodeGroupInput')
+    # scatter points over mesh surface
+    points_on_faces = nodes.new('GeometryNodeDistributePointsOnFaces')
+    links.new(group_in.outputs[0], points_on_faces.inputs['Mesh'])  # 0->'Geometry'
+    # create reference sphere
+    ico_sphere = nodes.new('GeometryNodeMeshIcoSphere')
+    ico_sphere.inputs['Radius'].default_value = 1
+    ico_sphere.inputs['Subdivisions'].default_value = subdivisions_sphere
+    # link sphere to points
+    instance_on_points = nodes.new('GeometryNodeInstanceOnPoints')
+    links.new(points_on_faces.outputs['Points'], instance_on_points.inputs['Points'])
+    links.new(ico_sphere.outputs['Mesh'], instance_on_points.inputs['Instance'])
+    # currently the spheres' center is located on the surface-points. This is changed down the line using
+    # this node.
+    translate_instances = nodes.new('GeometryNodeTranslateInstances')
+    translate_instances.inputs['Local Space'].default_value = False
+    links.new(instance_on_points.outputs['Instances'], translate_instances.inputs['Instances'])
+    # delete regions where the spheres' mesh reach into target's mesh and vice versa
+    mesh_boolean = nodes.new('GeometryNodeMeshBoolean')
+    mesh_boolean.operation = 'UNION'
+    links.new(group_in.outputs[0], mesh_boolean.inputs[1])
+    links.new(translate_instances.outputs['Instances'], mesh_boolean.inputs[1])
+    # output
+    group_out = nodes.new('NodeGroupOutput')
+    links.new(mesh_boolean.outputs['Mesh'], group_out.inputs[0])
+
+    # SUBGROUPS: additional groups of nodes which modify the behavior of the main node chain
+    # GROUP 1: make amount of instances invariant to the surface area of the target object by calculating the surface
+    # area of the target and feeding the inverse into the density of the randomly distributed points
+    face_area = nodes.new('GeometryNodeInputMeshFaceArea')
+    attribute_statistic = nodes.new('GeometryNodeAttributeStatistic')
+    div_by_surface_area = nodes.new('ShaderNodeMath')
+    div_by_surface_area.operation = 'DIVIDE'
+    div_by_surface_area.inputs[0].default_value = amount
+    links.new(group_in.outputs[0], attribute_statistic.inputs['Geometry'])
+    links.new(face_area.outputs['Area'], attribute_statistic.inputs['Attribute'])
+    links.new(attribute_statistic.outputs['Sum'], div_by_surface_area.inputs[1])  # 1 -> Denominator
+    links.new(div_by_surface_area.outputs['Value'], points_on_faces.inputs['Density'])
+    # GROUP 2: Randomize the radius of the spheres
+    random_radius_sphere = nodes.new('FunctionNodeRandomValue')
+    random_radius_sphere.inputs.data.inputs[2].default_value = radius_sphere_range[0]
+    random_radius_sphere.inputs.data.inputs[3].default_value = radius_sphere_range[1]
+    links.new(random_radius_sphere.outputs[1], instance_on_points.inputs['Scale'])
+    # GROUP 3: Translate the spheres along the normal of the target's surface, away from the surface in order to mimic
+    # the placement of a diverticulum. The size of the opening is controlled by how far the sphere is translated
+    # away from the surface. The value for the radius of the created opening/window is only an estimate based on the
+    # assumption that the target's surface is flat.
+
+    # determine the direction of translation (normalize normal of target surface)
+    normalize = nodes.new('ShaderNodeVectorMath')
+    normalize.operation = 'NORMALIZE'
+    links.new(points_on_faces.outputs['Normal'], normalize.inputs['Vector'])
+
+    # randomize the radius of the opening
+    random_radius_opening = nodes.new('FunctionNodeRandomValue')
+    random_radius_opening.inputs.data.inputs[2].default_value = radius_opening_range[0]
+    random_radius_opening.inputs.data.inputs[3].default_value = radius_opening_range[1]
+
+    # determine the distance d of translation (some Trigonometry)
+    # arcsin(r2) (r2 = radius of the opening)
+    arcsine = nodes.new('ShaderNodeMath')
+    arcsine.operation = 'ARCSINE'
+    links.new(random_radius_opening.outputs[1], arcsine.inputs[0])
+
+    # arcsin(r2)/r3 (r3 = radius of the sphere
+    div_by_radius_sphere = nodes.new('ShaderNodeMath')
+    div_by_radius_sphere.operation = 'DIVIDE'
+    div_by_radius_sphere.use_clamp = True  # get rid of the periodicity, due to this only certain ranges for
+    # radius_opening actually change something
+    links.new(arcsine.outputs['Value'], div_by_radius_sphere.inputs[0])  # 0->Numerator
+    links.new(random_radius_sphere.outputs[1], div_by_radius_sphere.inputs[1])
+
+    # cos(arcsin(r2)/r3)
+    cosine = nodes.new('ShaderNodeMath')
+    cosine.operation = 'COSINE'
+    links.new(div_by_radius_sphere.outputs['Value'], cosine.inputs[0])
+
+    # d = cos(arcsin(r2)/r3) * r3
+    mult_by_radius_sphere = nodes.new('ShaderNodeMath')
+    mult_by_radius_sphere.operation = 'MULTIPLY'
+    links.new(random_radius_sphere.outputs[1], mult_by_radius_sphere.inputs[0])
+    links.new(cosine.outputs['Value'], mult_by_radius_sphere.inputs[1])
+
+    # multiply translation direction and distance to receive final translation Vector
+    mult_direction_and_distance = nodes.new('ShaderNodeVectorMath')
+    mult_direction_and_distance.operation = 'MULTIPLY'
+    links.new(normalize.outputs['Vector'], mult_direction_and_distance.inputs[0])
+    links.new(mult_by_radius_sphere.outputs['Value'], mult_direction_and_distance.inputs[1])
+
+    # apply translation via Translate Instances node from earlier
+    links.new(mult_direction_and_distance.outputs['Vector'], translate_instances.inputs['Translation'])
+
+    return diverticulum_nodegroup
 
 
 def add_render_output_nodes(scene: bpy.types.Scene,
