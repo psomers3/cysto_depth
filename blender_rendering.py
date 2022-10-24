@@ -1,7 +1,7 @@
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import bpy
+sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import re
 from pathlib import Path
 import yaml
@@ -83,8 +83,6 @@ if __name__ == '__main__':
         diverticulum.node_group = diverticulum_nodes
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
-
-
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', stl_obj.name) for n in output_nodes if n is not None]

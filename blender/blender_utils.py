@@ -469,5 +469,3 @@ def extract_system_arguments() -> Tuple[List[str], bool]:
         pass
 
     return arg_string, not gui_enabled
-
-
