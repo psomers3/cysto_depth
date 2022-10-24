@@ -92,8 +92,8 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     vol = bm.calc_volume()
-    scaling_factor = (volume/vol)**(1/3)
-    obj.scale = Vector([scaling_factor]*3)
+    scaling_factor = (volume / vol) ** (1 / 3)
+    obj.scale = Vector([scaling_factor] * 3)
 
 
 def apply_transformations(transformed_object: bpy.types.Object):
@@ -368,10 +368,10 @@ def add_diverticulum_nodegroup(  amount: float = 2,
 
 
 def add_render_output_nodes(scene: bpy.types.Scene,
-                                color: bool = True,
-                                depth: bool = True,
-                                normals: bool = False,
-                                view_layer: str = "ViewLayer") -> List[bpy.types.Node]:
+                            color: bool = True,
+                            depth: bool = True,
+                            normals: bool = False,
+                            view_layer: str = "ViewLayer") -> List[bpy.types.Node]:
     """
     Modify the graph of a scene's node tree to include color and depth outputs
 
