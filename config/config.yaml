@@ -1,5 +1,5 @@
 models_dir: /Users/peter/isys/bladder_models
-bladder_model_regex: '.*(?!\._).*smooth'  # because ignore mac's ._ files...
+bladder_model_regex: '^(?!.*\._).*smooth'  # because ignore mac's ._ files...
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test/output
@@ -60,5 +60,6 @@ blender:
     adaptive_max_samples: 128
     denoiser: "OPENIMAGEDENOISE"
     device: 'GPU'
+  use_persistent_data: true
   use_nodes: true
 

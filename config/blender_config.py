@@ -42,6 +42,7 @@ class RenderConfig:
     engine: str = RenderEngine.BLENDER_EEVEE
     threads_mode: str = ThreadMode.AUTO
     threads: int = 6
+    use_persistent_data: bool = False
 
 
 class LengthUnits:
