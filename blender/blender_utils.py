@@ -6,6 +6,7 @@ import config.blender_config as bconfig
 from typing import *
 import bmesh
 from mathutils import Matrix, Vector, Euler, Quaternion
+
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 import cv2
 
@@ -69,10 +70,10 @@ def _recursive_rename(name: str, count: int = 0) -> str:
         desired_name = name
     existing = bpy.data.objects.get(desired_name)
     if existing is not None:
-        _recursive_rename(f'{desired_name[:-4]}_{count:03d}', count+1)
+        _recursive_rename(f'{desired_name[:-4]}_{count:03d}', count + 1)
     elif count > 0:
-        previous_existing = bpy.data.objects.get(f'{desired_name[:-4]}_{count-2:03d}')
-        previous_existing.name = f'{desired_name[:-4]}_{count-1:03d}'
+        previous_existing = bpy.data.objects.get(f'{desired_name[:-4]}_{count - 2:03d}')
+        previous_existing.name = f'{desired_name[:-4]}_{count - 1:03d}'
     return desired_name
 
 
@@ -294,8 +295,8 @@ def add_tumor_particle_nodegroup(stl_file: str,
     rotation_vector.data_type = 'FLOAT_VECTOR'
     div.operation = 'DIVIDE'
     div.inputs[0].default_value = amount
-    rotation_vector.inputs.data.inputs['Min'].default_value = [np.deg2rad(rotation_range[0])]*3
-    rotation_vector.inputs.data.inputs['Max'].default_value = [np.deg2rad(rotation_range[1])]*3
+    rotation_vector.inputs.data.inputs['Min'].default_value = [np.deg2rad(rotation_range[0])] * 3
+    rotation_vector.inputs.data.inputs['Max'].default_value = [np.deg2rad(rotation_range[1])] * 3
     scaling_int.inputs.data.inputs[2].default_value = scaling_range[0]
     scaling_int.inputs.data.inputs[3].default_value = scaling_range[1]
     obj_info.inputs['Object'].default_value = particle_ref_object
@@ -303,7 +304,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
     links.new(group_in.outputs[0], points_on_faces.inputs['Mesh'])  # 0->'Geometry'
     links.new(group_in.outputs[0], attribute_statistic.inputs['Geometry'])
     links.new(face_area.outputs['Area'], attribute_statistic.inputs['Attribute'])
-    links.new(attribute_statistic.outputs['Sum'], div.inputs[1]) # 1 -> Denominator
+    links.new(attribute_statistic.outputs['Sum'], div.inputs[1])  # 1 -> Denominator
     links.new(div.outputs['Value'], points_on_faces.inputs['Density'])
     links.new(group_in.outputs[0], join_geo.inputs['Geometry'])
     links.new(obj_info.outputs['Geometry'], instance_on_points.inputs['Instance'])
@@ -316,10 +317,10 @@ def add_tumor_particle_nodegroup(stl_file: str,
     return particle_nodegroup
 
 
-def add_diverticulum_nodegroup(  amount: float = 2,
-                                 subdivisions_sphere: int = 4,
-                                 radius_sphere_range: List[float] = None,
-                                 radius_opening_range: List[float] = None) \
+def add_diverticulum_nodegroup(amount: float = 2,
+                               subdivisions_sphere: int = 4,
+                               radius_sphere_range: List[float] = None,
+                               radius_opening_range: List[float] = None) \
         -> bpy.types.NodeGroup:
     """
     Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
@@ -331,7 +332,7 @@ def add_diverticulum_nodegroup(  amount: float = 2,
     :return: diverticulum node group
     """
     if radius_sphere_range is None:
-         radius_sphere_range = [0.001, 0.020]
+        radius_sphere_range = [0.001, 0.020]
     if radius_opening_range is None:
         radius_opening_range = [0.003, 0.008]
     # create reference object from .stl-file
@@ -497,17 +498,17 @@ def add_shrinkwrap_constraint(obj: bpy.types.Object,
     return shrinkwrap_constr
 
 
-def set_gpu_rendering_preferences(gpu: int = -1) -> None:
+def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True) -> None:
     """
     Set GPU resources to use for rendering. This function only works for CUDA GPUs or Macs
 
     :param gpu: the GPU ID to use. if -1, uses all GPUs available.
+    :param verbose: whether to print the devices found.
     """
     prefs = bpy.context.preferences.addons['cycles'].preferences
     prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
     for dev in prefs.devices:
-        if dev.type == "CPU":
-            dev.use = True
+        dev.use = True
     gpu_num = 0
     for dev in prefs.devices:
         if dev.type != "CPU":
@@ -516,6 +517,8 @@ def set_gpu_rendering_preferences(gpu: int = -1) -> None:
             else:
                 dev.use = gpu_num == gpu
             gpu_num += 1
+        if verbose:
+            print(f'name: {dev.name}, type: {dev.type}, use: {dev.use}')
 
 
 def extract_system_arguments() -> Tuple[List[str], bool]:
@@ -556,7 +559,8 @@ def convert_norm_exr_2_cam(file: str, camera: bpy.types.Camera, output_file: str
     cam_world_numpy = np.asarray(cam_world_matrix.to_3x3())
     normals = cv2.imread(file, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
     shape = normals.shape
-    transformed_norms = np.reshape(cam_world_numpy @ np.expand_dims(np.reshape(normals, (int(shape[0] * shape[1]), 3)), -1), shape)
+    transformed_norms = np.reshape(
+        cam_world_numpy @ np.expand_dims(np.reshape(normals, (int(shape[0] * shape[1]), 3)), -1), shape)
     filename = file if output_file is None else output_file
     cv2.imwrite(filename, transformed_norms.astype(np.float32))
 
