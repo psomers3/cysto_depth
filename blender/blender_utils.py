@@ -505,13 +505,14 @@ def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True) -> None:
     :param gpu: the GPU ID to use. if -1, uses all GPUs available.
     :param verbose: whether to print the devices found.
     """
+    gpu_types = ['OPTIX', 'CUDA', 'METAL', 'OPENCL']
     prefs = bpy.context.preferences.addons['cycles'].preferences
     prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
     for dev in prefs.devices:
         dev.use = True
     gpu_num = 0
     for dev in prefs.devices:
-        if dev.type != "CPU":
+        if dev.type in gpu_types:
             if gpu == -1:
                 dev.use = True
             else:
