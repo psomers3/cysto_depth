@@ -570,6 +570,12 @@ def clear_all_keyframes() -> None:
             obj.animation_data.action = None
 
 
-def add_smoothing_modifier(obj: bpy.types.Object, config: bconfig.SmoothModConfig) -> None:
-    modifier = obj.modifiers.new(type='SMOOTH', name='smoothing')
+def add_subdivision_modifier(obj: bpy.types.Object, config: bconfig.SubdivisionModConfig) -> None:
+    """
+    Add a surface subdivision modifier to the object.
+
+    :param obj: the blender object to apply the subdivision to
+    :param config: configuration of properties for the modifier
+    """
+    modifier = obj.modifiers.new(type='SUBSURF', name='smoothing')
     set_blender_data(modifier, config)

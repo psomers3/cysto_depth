@@ -91,7 +91,7 @@ if __name__ == '__main__':
         # add node modifier and introduce the tumor particles
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
-        butils.add_smoothing_modifier(stl_obj, config.smooth_mod)
+        butils.add_subdivision_modifier(stl_obj, config.subdivision_mod)
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]

@@ -52,5 +52,5 @@ class MainConfig:
     emission_range: List[float] = field(default_factory=lambda: [10, 50])
     render_normals: bool = False
     endo_image_size: List[float] = field(default_factory=lambda: [1920, 1080])
-    smooth_mod: bconfig.SmoothModConfig = bconfig.SmoothModConfig()
+    subdivision_mod: bconfig.SubdivisionModConfig = bconfig.SubdivisionModConfig()
     clear_output_folder: bool = False
