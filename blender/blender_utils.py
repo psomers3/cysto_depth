@@ -2,8 +2,7 @@ import numpy as np
 import os
 import sys
 import bpy
-from config import BlenderConfig
-from config.blender_config import ShrinkwrapConfig
+import config.blender_config as bconfig
 from typing import *
 import bmesh
 from mathutils import Matrix, Vector, Euler, Quaternion
@@ -24,7 +23,7 @@ def random_unit_vectors(num_points: int, ndim: int = 3) -> np.ndarray:
     return vec.T
 
 
-def init_blender(configuration: BlenderConfig) -> bpy.types.Scene:
+def init_blender(configuration: bconfig.BlenderConfig) -> bpy.types.Scene:
     """ Initialize blender scene by deleting demo objects and applying settings from configuration
 
     :param configuration: A set of blender configurations to apply to the current scene
@@ -38,7 +37,7 @@ def init_blender(configuration: BlenderConfig) -> bpy.types.Scene:
     return scene
 
 
-def set_blender_data(item: Any, config: Union[dict, BlenderConfig, Any]) -> None:
+def set_blender_data(item: Any, config: Union[dict, bconfig.BlenderConfig, Any]) -> None:
     """
     This function recursively sets all settings in a blender object assuming the dictionary entries are
     structured and named correctly.
@@ -485,7 +484,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
 
 
 def add_shrinkwrap_constraint(obj: bpy.types.Object,
-                              config: ShrinkwrapConfig = ShrinkwrapConfig()) -> bpy.types.Constraint:
+                              config: bconfig.ShrinkwrapConfig = bconfig.ShrinkwrapConfig()) -> bpy.types.Constraint:
     """
     adds a shrinkwrap constraint to the provided object and sets the values provided in config.
 
@@ -569,3 +568,8 @@ def clear_all_keyframes() -> None:
     for obj in bpy.data.objects:
         if obj.animation_data:  # Check for presence of animation data.
             obj.animation_data.action = None
+
+
+def add_smoothing_modifier(obj: bpy.types.Object, config: bconfig.SmoothModConfig) -> None:
+    modifier = obj.modifiers.new(type='SMOOTH', name='smoothing')
+    set_blender_data(modifier, config)

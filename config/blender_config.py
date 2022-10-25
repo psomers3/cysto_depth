@@ -65,6 +65,14 @@ class ShrinkwrapConfig:
 
 
 @dataclass
+class SmoothModConfig:
+    uv_smooth: str = "PRESERVE_BOUNDARIES"
+    subdivision_type: str = "CATMULL_CLARK"
+    render_levels: int = 3
+    levels: int = 2
+
+
+@dataclass
 class BlenderConfig:
     render: RenderConfig = RenderConfig()
 

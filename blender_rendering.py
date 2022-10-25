@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
+import shutil
 import bpy
 import re
 from pathlib import Path
@@ -37,6 +38,9 @@ if __name__ == '__main__':
 
     if args.debug:
         start_debugger()
+    if config.clear_output_folder:
+        if os.path.exists(config.output_folder):
+            shutil.rmtree(config.output_folder)
 
     scene = butils.init_blender(config.blender)
     scene.frame_end = config.samples_per_model
@@ -87,6 +91,7 @@ if __name__ == '__main__':
         # add node modifier and introduce the tumor particles
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
+        butils.add_smoothing_modifier(stl_obj, config.smooth_mod)
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]

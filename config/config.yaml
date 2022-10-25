@@ -3,11 +3,12 @@ bladder_model_regex: '.*smooth.'
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test/output
-samples_per_model: 10
+samples_per_model: 3
 distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [30, 30]
 render_normals: true
+clear_output_folder: True
 
 endo_light:
   stl_file: /Users/peter/isys/endo_lights/ITO_light.stl
@@ -23,11 +24,13 @@ tumor_particles:
   scaling_range: [0.1, 1]
   rotation_range: [0, 360]
 
-  diverticulum:
-    amount: 2
-    subdivisions_sphere: 4
-    radius_sphere_range: [ 0.001, 0.02 ] #m
-    radius_opening_range: [ 0.001, 0.003 ] #m
+diverticulum:
+  amount: 2
+  subdivisions_sphere: 4
+  radius_sphere_range: [ 0.001, 0.02 ] #m
+  radius_opening_range: [ 0.001, 0.003 ] #m
+
+smooth_mod:
 
 #displacement_modifier:
 #  texture_coords: "UV"

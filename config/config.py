@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from omegaconf import MISSING
 from typing import *
-from .blender_config import BlenderConfig, ShrinkwrapConfig
+import config.blender_config as bconfig
 
 
 @dataclass
@@ -12,6 +12,7 @@ class EndoLightConfig:
     scaling_factor: float = 1
     euler_rotation: List[float] = field(default_factory=lambda: [0, 0, 0])
 
+
 @dataclass
 class TumorParticleConfig:
     stl_file: str = MISSING
@@ -20,6 +21,7 @@ class TumorParticleConfig:
     scaling_range: List[float] = field(default_factory=lambda:  [0.1, 1])
     rotation_range: List[float] = field(default_factory=lambda: [0, 360])
 
+
 @dataclass
 class DiverticulumConfig:
     amount: float = 2
@@ -27,9 +29,10 @@ class DiverticulumConfig:
     radius_sphere_range: List[float] = field(default_factory=lambda: [0.001, 0.020])
     radius_opening_range: List[float] = field(default_factory=lambda: [0.0001, 0.0004])
 
+
 @dataclass
 class MainConfig:
-    blender: BlenderConfig = BlenderConfig()
+    blender: bconfig.BlenderConfig = bconfig.BlenderConfig()
     # path to where the bladder STL models are. This will be searched recursively
     models_dir: str = MISSING
     # the regex term to use for finding bladder models
@@ -42,10 +45,12 @@ class MainConfig:
     diverticulum: DiverticulumConfig = DiverticulumConfig()
     output_folder: str = MISSING
     samples_per_model: int = 3
-    shrinkwrap: ShrinkwrapConfig = ShrinkwrapConfig()
+    shrinkwrap: bconfig.ShrinkwrapConfig = bconfig.ShrinkwrapConfig()
     distance_range: List[float] = field(default_factory=lambda: [0.005, 0.05])
     # the maximum angles in degrees to randomly rotate the endoscope after positioning it.
     view_angle_max: List[float] = field(default_factory=lambda: [60, 60, 60])
     emission_range: List[float] = field(default_factory=lambda: [10, 50])
     render_normals: bool = False
     endo_image_size: List[float] = field(default_factory=lambda: [1920, 1080])
+    smooth_mod: bconfig.SmoothModConfig = bconfig.SmoothModConfig()
+    clear_output_folder: bool = False
