@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 import yaml
 from argparse import ArgumentParser
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import SCMode, OmegaConf, DictConfig
 from config import MainConfig
 import blender.blender_utils as butils
 from blender.blender_cam_utils import get_blender_camera_from_3x3_P
@@ -31,10 +31,11 @@ if __name__ == '__main__':
     parser.add_argument('--sample', action='store_true', help='run the code using a single random model')
     parser.add_argument('--render', action='store_true', help='perform rendering')
     parser.add_argument('--gpu', type=int, default=-1, help='specify gpu to use. defaults to all available')
-    args = parser.parse_args(arguments)
+    args, unknown_args = parser.parse_known_args(arguments)
+    cli_conf = OmegaConf.from_cli(unknown_args)
     butils.set_gpu_rendering_preferences(args.gpu)
-    cfg = yaml.safe_load(open(args.config, 'r'))
-    config: MainConfig = OmegaConf.structured(cfg, DictConfig(MainConfig))
+    cfg = DictConfig(OmegaConf.load(args.config))
+    config: MainConfig = OmegaConf.merge(OmegaConf.structured(MainConfig()), cfg, cli_conf)
 
     if args.debug:
         start_debugger()

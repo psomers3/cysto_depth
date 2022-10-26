@@ -30,14 +30,6 @@ diverticulum:
   radius_sphere_range: [ 0.001, 0.02 ] #m
   radius_opening_range: [ 0.001, 0.003 ] #m
 
-subdivision_mod:
-
-#displacement_modifier:
-#  texture_coords: "UV"
-#  strength: 0.01
-#  texture: "Texture"
-#  mid_level: 0.1
-
 shrinkwrap:
   wrap_mode: "ON_SURFACE"
   distance: .01
@@ -54,12 +46,12 @@ blender:
       color_mode: 'RGB'
     engine: 'CYCLES'
     threads_mode: 'FIXED'
-    threads: 6
+    threads: 64
+    use_persistent_data: true
   cycles:
     adaptive_min_samples: 64
     adaptive_max_samples: 128
     denoiser: "OPENIMAGEDENOISE"
     device: 'GPU'
-  use_persistent_data: true
   use_nodes: true
 

@@ -16,10 +16,11 @@ class EndoLightConfig:
 @dataclass
 class TumorParticleConfig:
     stl_file: str = MISSING
-    density: float = 4
+    # density: float = 4
     volume_max: float = 0.1
     scaling_range: List[float] = field(default_factory=lambda:  [0.1, 1])
     rotation_range: List[float] = field(default_factory=lambda: [0, 360])
+    amount: int = 10
 
 
 @dataclass

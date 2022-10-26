@@ -37,7 +37,7 @@ class ThreadMode:
 class RenderConfig:
     resolution_x: int = 256
     resolution_y: int = 256
-    resolution_percentage: float = 1
+    resolution_percentage: int = 1
     image_settings: ImageSettingsConfig = ImageSettingsConfig()
     engine: str = RenderEngine.BLENDER_EEVEE
     threads_mode: str = ThreadMode.AUTO
@@ -52,7 +52,7 @@ class LengthUnits:
 
 @dataclass
 class UnitSettingsConfig:
-    length_unit = LengthUnits.MILLIMETERS
+    length_unit: str = LengthUnits.MILLIMETERS
 
 
 @dataclass
@@ -81,3 +81,4 @@ class BlenderConfig:
     """The options for the cycles engine. Only matters if render engine is "CYCLES"""
 
     unit_settings: UnitSettingsConfig = UnitSettingsConfig()
+    use_nodes: bool = True
