@@ -46,11 +46,14 @@ if __name__ == '__main__':
     config_file = args.config
     gpu = args.gpu
 
-    def rendering_process(samples_per_model: int):
+    def rendering_process(samples_per_model: int, threads_per_process: int):
         worker = subprocess.Popen(['blender', '-b', '--python', 'blender_rendering.py', '--',
                                    '--render',
                                    '--config', config_file,
-                                   f'samples_per_model={samples_per_model}'],
+                                   '--gpu', f"{gpu}",
+                                   f'samples_per_model={samples_per_model}',
+                                   f'blender.render.threads={threads_per_process}'
+                                   ],
                                   shell=False,
                                   stdout=subprocess.PIPE)
         print(worker.args)
@@ -59,11 +62,11 @@ if __name__ == '__main__':
             out_line = worker.stdout.readline()
             # look for something in the output if you'd like
 
-
     tp = ThreadPool(num_processes)
+    threads = config.blender.render.threads // num_processes
     samples = config.samples_per_model // num_processes
     for _ in range(num_processes):
-        tp.apply_async(rendering_process, (samples,))
+        tp.apply_async(rendering_process, (samples, threads,))
     tp.close()
     tp.join()
 
