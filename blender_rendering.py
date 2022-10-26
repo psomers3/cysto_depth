@@ -22,7 +22,7 @@ def start_debugger():
     print("done!")
 
 
-if __name__ == '__main__':
+def blender_rendering():
     arguments, headless = butils.extract_system_arguments()
     parser = ArgumentParser()
     parser.add_argument('--config', default='config/config.yaml', type=str, help='path to config file')
@@ -118,3 +118,7 @@ if __name__ == '__main__':
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)
             butils.clear_all_keyframes()
+
+
+if __name__ == '__main__':
+    blender_rendering()
