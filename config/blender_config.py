@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import tempfile
+import os
 
 
 class RenderEngine:
@@ -43,6 +45,7 @@ class RenderConfig:
     threads_mode: str = ThreadMode.AUTO
     threads: int = 6
     use_persistent_data: bool = False
+    filepath: str = os.path.join(tempfile.gettempdir(), os.getlogin())
 
 
 class LengthUnits:
