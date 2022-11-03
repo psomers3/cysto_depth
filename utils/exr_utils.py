@@ -195,10 +195,11 @@ def exr_2_numpy(exr_file: str) -> np.ndarray:
 #     return img * factor
 #
 #
-# def get_exr_max_depth(filepath):
-#     path = filepath + ".exr"
-#     img = exr2numpy(path, normalize=False)
-#     return np.max(img)
+
+def get_exr_max_depth(filepath):
+    path = filepath + ".exr"
+    img = exr_2_numpy(path)
+    return np.max(img)
 
 
 def get_biggest_circle(points, n_samples=20):

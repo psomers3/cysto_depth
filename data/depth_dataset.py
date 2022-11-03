@@ -4,7 +4,7 @@ from torchvision.io import read_image
 from torchvision.io import ImageReadMode
 from torchvision import transforms
 import pandas as pd
-from utils.exr_utils import exr2numpy
+from utils.exr_utils import exr_2_numpy
 import numpy as np
 import torch
 from utils.image_utils import create_circular_mask
@@ -51,7 +51,7 @@ class DepthDataset(Dataset):
         real_img_path = os.path.join(self.real_image_data_dir, os.listdir(self.real_image_data_dir)[real_idx])
         real_image = read_image(real_img_path, ImageReadMode.RGB)
         real_image = self.transform_to_float_tensor(real_image)
-        label = torch.Tensor(exr2numpy(synth_img_path + ".exr", normalize=False))
+        label = torch.Tensor(exr_2_numpy(synth_img_path + ".exr"))
         label = torch.unsqueeze(self.transform_to_float_tensor(label), dim=0)
 
         if self.transform and random.random() > 0.5:
