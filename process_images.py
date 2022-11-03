@@ -68,8 +68,8 @@ if __name__ == '__main__':
         normal = get_normals_from_depthmap(d_map)
         np.save(f'{os.path.join(args.output_dir, name)}_normals', normal)
 
-        cv2.imshow('color', cv2.imread(img_path))
         if args.view_results:
+            cv2.imshow('color', cv2.imread(img_path))
             d_img = d_map - d_map.min()
             d_img /= d_img.max()
             d_img *= 255
