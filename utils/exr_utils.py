@@ -11,6 +11,45 @@ from subprocess import Popen, PIPE, STDOUT, run
 import tqdm
 
 
+def get_circular_mask_4_img(img: np.ndarray, scale_radius: float = 1.0) -> np.ndarray:
+    """
+    Returns a mask of the same size as img with a circular mask of 1 where the endoscopic image is.
+    :param img: endoscopic image
+    :param scale_radius: optional resize of the found circular mask.
+    :raise ImageCroppingException:  when a proper circle can't be found.
+    :return: a boolean array with True values within the circular mask
+    """
+    gray_img = rgb2gray(img)
+    ret, thresh_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
+
+    img_height = thresh_img.shape[0]
+    img_width = thresh_img.shape[1]
+    points = []
+    # go through lines with small steps to find points that may be the contour of the circle
+    for y in range(0, img_height, 5):
+        # get index pairs for consecutive runs of True values
+        idx_pairs = np.where(np.diff(np.hstack(([False], thresh_img[y] == 255, [False]))))[0].reshape(-1, 2)
+        # assert that runs have been found
+        if len(idx_pairs) == 0:
+            continue
+        run_lengths = np.diff(idx_pairs, axis=1)
+        # assert that there is only one "long" run
+        if len(idx_pairs) > 1:
+            if np.sort(run_lengths)[1] > 20:
+                continue
+        x1, x2 = idx_pairs[run_lengths.argmax()]  # Longest island
+        run_length = x2 - x1
+        # filter out short runs like for text etc.
+        if run_length < 0.2 * img_width:
+            continue
+        points = points + [(x1, y), (x2, y)]
+    n_samples = 15
+    if len(points) < n_samples * 3:
+        raise ImageCroppingException(img, "Not enough samples to process frame")
+    max_circle = get_biggest_circle(points, n_samples)
+    return create_circular_mask(h=img_height, w=img_width, center=max_circle[0:2], radius=max_circle[-1] * scale_radius)
+
+
 def rgb2gray(rgb):
     return np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140]).astype(np.uint8)
 
