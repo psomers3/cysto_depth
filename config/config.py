@@ -28,7 +28,7 @@ class DiverticulumConfig:
     amount: float = 2
     subdivisions_sphere: int = 2
     radius_sphere_range: List[float] = field(default_factory=lambda: [0.001, 0.020])
-    radius_opening_range: List[float] = field(default_factory=lambda: [0.0001, 0.0004])
+    translation_range: List[float] = field(default_factory=lambda: [0.0001, 0.0004])
 
 
 @dataclass
