@@ -320,21 +320,24 @@ def add_tumor_particle_nodegroup(stl_file: str,
 def add_diverticulum_nodegroup(amount: float = 2,
                                subdivisions_sphere: int = 4,
                                radius_sphere_range: List[float] = None,
-                               radius_opening_range: List[float] = None) \
+                               translation_range: List[float] = None) \
         -> bpy.types.NodeGroup:
     """
-    Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
+    Creates node group that introduces diverticuli, by scattering instances of a sphere on the surface of the targeted
+    object. The spheres are then translated by a random distance along the target surface's normal. Spheres and target
+    mesh are combined via boolean union.
 
     :param amount: controls amount of particles added
     :param subdivisions_sphere: mesh detail of the sphere
     :param radius_sphere_range: range in which the radii of the sphere instances vary in m
-    :param radius_opening_range: rough control of the size of the opening, only values in a certain range make sense
+    :param translation_range: range for random translation of the spheres in 'radius of translated sphere'. Values larger than 0 -> outward
+     translation, values <0 -> inward translation. Default range = [-0.7, 0.7]
     :return: diverticulum node group
     """
     if radius_sphere_range is None:
         radius_sphere_range = [0.001, 0.020]
-    if radius_opening_range is None:
-        radius_opening_range = [0.003, 0.008]
+    if translation_range is None:
+        radius_opening_range = [-0.7, 0.7]
     # create reference object from .stl-file
 
     # set up node group
@@ -397,37 +400,18 @@ def add_diverticulum_nodegroup(amount: float = 2,
     normalize.operation = 'NORMALIZE'
     links.new(points_on_faces.outputs['Normal'], normalize.inputs['Vector'])
 
-    # randomize the radius of the opening
-    random_radius_opening = nodes.new('FunctionNodeRandomValue')
-    random_radius_opening.inputs.data.inputs[2].default_value = radius_opening_range[0]
-    random_radius_opening.inputs.data.inputs[3].default_value = radius_opening_range[1]
+    # randomize the translation factor for the spheres
+    random_translation_factor = nodes.new('FunctionNodeRandomValue')
+    random_translation_factor.inputs.data.inputs[2].default_value = translation_range[0]
+    random_translation_factor.inputs.data.inputs[3].default_value = translation_range[1]
 
-    # determine the distance d of translation (some Trigonometry)
-    # arcsin(r2) (r2 = radius of the opening)
-    arcsine = nodes.new('ShaderNodeMath')
-    arcsine.operation = 'ARCSINE'
-    links.new(random_radius_opening.outputs[1], arcsine.inputs[0])
-
-    # arcsin(r2)/r3 (r3 = radius of the sphere
-    div_by_radius_sphere = nodes.new('ShaderNodeMath')
-    div_by_radius_sphere.operation = 'DIVIDE'
-    div_by_radius_sphere.use_clamp = True  # get rid of the periodicity, due to this only certain ranges for
-    # radius_opening actually change something
-    links.new(arcsine.outputs['Value'], div_by_radius_sphere.inputs[0])  # 0->Numerator
-    links.new(random_radius_sphere.outputs[1], div_by_radius_sphere.inputs[1])
-
-    # cos(arcsin(r2)/r3)
-    cosine = nodes.new('ShaderNodeMath')
-    cosine.operation = 'COSINE'
-    links.new(div_by_radius_sphere.outputs['Value'], cosine.inputs[0])
-
-    # d = cos(arcsin(r2)/r3) * r3
+    # calculate translation distance for spheres
     mult_by_radius_sphere = nodes.new('ShaderNodeMath')
     mult_by_radius_sphere.operation = 'MULTIPLY'
     links.new(random_radius_sphere.outputs[1], mult_by_radius_sphere.inputs[0])
-    links.new(cosine.outputs['Value'], mult_by_radius_sphere.inputs[1])
+    links.new(random_translation_factor.outputs[1], mult_by_radius_sphere.inputs[1])
 
-    # multiply translation direction and distance to receive final translation Vector
+    # multiply translation direction and distance to receive final translation vector
     mult_direction_and_distance = nodes.new('ShaderNodeVectorMath')
     mult_direction_and_distance.operation = 'MULTIPLY'
     links.new(normalize.outputs['Vector'], mult_direction_and_distance.inputs[0])
