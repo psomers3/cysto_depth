@@ -25,10 +25,10 @@ tumor_particles:
   rotation_range: [0, 360]
 
 diverticulum:
-  amount: 2
+  amount: 1
   subdivisions_sphere: 4
   radius_sphere_range: [ 0.001, 0.02 ] #m
-  radius_opening_range: [ 0.001, 0.003 ] #m
+  translation_range: [ -0.7, 0.7 ]
 
 shrinkwrap:
   wrap_mode: "ON_SURFACE"
