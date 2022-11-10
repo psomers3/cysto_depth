@@ -8,35 +8,6 @@ import torch
 from typing import *
 
 
-class SynchronizedTransform:
-    """
-    A helper class to synchronize pytorch transformations used in separate transformation compositions. Ideal for
-    things like color images and segmentation labels.
-    """
-
-    def __init__(self,
-                 transform: Callable,
-                 num_synchros=2,
-                 additional_args: List[List[Any]] = None):
-        self.transform = transform
-        self.num_synchros = num_synchros
-        self._generator_state = torch.get_rng_state()
-        self._sync_count = set()
-        self.additional_args = additional_args if additional_args else [[] for _ in range(num_synchros)]
-
-    def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        current_gen_state = torch.get_rng_state()
-        if len(self._sync_count) < self.num_synchros:
-            torch.set_rng_state(self._generator_state)
-        else:
-            self._sync_count.clear()
-            self._generator_state = torch.get_rng_state()
-        transformed = self.transform(data, *self.additional_args[len(self._sync_count)])
-        self._sync_count.add(len(self._sync_count))
-        torch.set_rng_state(current_gen_state)
-        return transformed
-
-
 class ImageDataset(Dataset):
     def __init__(self,
                  files: Union[List[str], List[Tuple[str, ...]]],
@@ -115,6 +86,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
     from torch.utils.data import DataLoader
+    from data.data_transforms import SynchronizedTransform
 
     test_directory = r'/Users/peter/isys/test_img'
     image_files = [(str(p), str(p)) for p in Path(test_directory).rglob('*')]
