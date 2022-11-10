@@ -9,7 +9,7 @@ import json
 from typing import *
 from data.image_dataset import ImageDataset, SynchronizedTransform
 
-_mac_regex = re.compile('^(?!.*\._)')
+_mac_regex = re.compile(r'^(?!.*\._)')
 
 
 class _RandomAffine:
@@ -93,12 +93,11 @@ class DepthDataModule(pl.LightningDataModule):
     def setup(self, stage: str = None):
         normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
         resize = torch_transforms.Resize(self.image_size)
-        affine_transform = SynchronizedTransform(transform=_RandomAffine(), num_synchros=2, additional_args=[[True],
-                                                                                                             [False]])
-
+        affine_transform = SynchronizedTransform(transform=_RandomAffine(degrees=(0, 360), translate=(.1, .1)),
+                                                 num_synchros=2, additional_args=[[True], [False]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
-        color_transforms = torch_transforms.Compose([color_jitter, normalize, affine_transform, resize])
-        depth_transforms = torch_transforms.Compose([affine_transform, resize])
+        color_transforms = torch_transforms.Compose([resize, color_jitter, affine_transform])
+        depth_transforms = torch_transforms.Compose([resize, affine_transform])
 
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
@@ -132,7 +131,7 @@ if __name__ == '__main__':
     from utils.image_utils import matplotlib_show
     color_dir = r'/Users/peter/isys/output/color'
     depth_dir = r'/Users/peter/isys/output/depth'
-    dm = DepthDataModule(batch_size=2,
+    dm = DepthDataModule(batch_size=3,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"})
