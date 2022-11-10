@@ -8,7 +8,7 @@ import os
 from scipy.interpolate import LinearNDInterpolator
 
 
-def create_circular_mask(h, w, center=None, radius=None):
+def create_circular_mask(h, w, center=None, radius=None, invert: bool = False):
     """ https://stackoverflow.com/a/44874588 """
     if center is None:  # use the middle of the image
         center = (int(w / 2), int(h / 2))
@@ -17,9 +17,10 @@ def create_circular_mask(h, w, center=None, radius=None):
 
     y, x = np.ogrid[:h, :w]
     dist_from_center = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
-
-    mask = dist_from_center <= radius
-    return mask
+    if invert:
+        return dist_from_center > radius
+    else:
+        return dist_from_center <= radius
 
 
 def lin_interp(shape, xyd):

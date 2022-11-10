@@ -8,6 +8,7 @@ import re
 import json
 from typing import *
 from data.image_dataset import ImageDataset, SynchronizedTransform
+from utils.image_utils import create_circular_mask
 
 _mac_regex = re.compile(r'^(?!.*\._)')
 
@@ -17,11 +18,41 @@ class _RandomAffine:
         self.degrees = degrees
         self.translate = translate
 
-    def __call__(self, data: torch.Tensor, random_fill: bool = False):
-        border_color = torch.rand(3, dtype=torch.float) / 10
-        fill = border_color.tolist() if random_fill else 0
+    def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False):
+        border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
+        fill = border_color.tolist() if use_corner_as_fill else 0
         affine = torch_transforms.RandomAffine(degrees=self.degrees, translate=self.translate, fill=fill)
         return affine(data)
+
+
+class _EndoMask:
+    def __init__(self, mask_color: Union[float, List[float]] = None):
+        """
+        :param mask_color: color to use for mask. If left as none, a randomized dark color is used per image.
+        """
+        self.mask_color = mask_color
+
+    def __call__(self, data: torch.Tensor):
+        if self.mask_color is None:
+            mask_color = torch.rand((3, 1), dtype=torch.float) / 10
+        else:
+            mask_color = self.mask_color
+        data[:, create_circular_mask(*data.shape[-2:], invert=True)] = mask_color
+        return data
+
+
+class Squarify:
+    def __init__(self, image_size: int = None):
+        self.image_size = image_size
+        self.resize = None
+        if self.image_size is not None:
+            self.resize = torch_transforms.Resize(self.image_size)
+
+    def __call__(self, data: torch.Tensor):
+        data = torch_transforms.CenterCrop(min(data.shape[-2:]))(data)
+        if self.image_size is not None:
+            data = self.resize(data)
+        return data
 
 
 class DepthDataModule(pl.LightningDataModule):
@@ -33,9 +64,9 @@ class DepthDataModule(pl.LightningDataModule):
                  image_size: Tuple[int, int] = (256, 256)):
         """
 
-        :param batch_size:
-        :param color_image_directory:
-        :param depth_image_directory:
+        :param batch_size: batch sized to use for training
+        :param color_image_directory: path to the color images. Will be searched recursively
+        :param depth_image_directory: path to the depth images. Will be searched recursively
         :param split: can be one of the following:
             - dictionary of regex strings to filter the filenames with:
                 {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"} <- i.e. if divided into subfolders
@@ -46,12 +77,15 @@ class DepthDataModule(pl.LightningDataModule):
                 The files for any regex matches will be assigned first and the remainder will respect the float splits
             - string pointing to a file from a previously saved split
             defaults to the first example assuming subfolders with "train", "val", and "test"
+        :param image_size: final image size to return for training.
         """
         super().__init__()
         self.save_hyperparameters("batch_size")
 
         self.batch_size = batch_size
         self.image_size = image_size
+        if split is None:
+            split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
 
         if isinstance(split, str):
             self.split_files = json.load(split)
@@ -92,12 +126,14 @@ class DepthDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str = None):
         normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
-        resize = torch_transforms.Resize(self.image_size)
+        color_mask = _EndoMask()
+        depth_mask = _EndoMask(mask_color=0)
+        squarify = Squarify(image_size=min(self.image_size))
         affine_transform = SynchronizedTransform(transform=_RandomAffine(degrees=(0, 360), translate=(.1, .1)),
                                                  num_synchros=2, additional_args=[[True], [False]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
-        color_transforms = torch_transforms.Compose([resize, color_jitter, affine_transform])
-        depth_transforms = torch_transforms.Compose([resize, affine_transform])
+        color_transforms = torch_transforms.Compose([color_mask, squarify, color_jitter, affine_transform])
+        depth_transforms = torch_transforms.Compose([depth_mask, squarify, affine_transform])
 
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
