@@ -18,7 +18,8 @@ class DepthDataModule(pl.LightningDataModule):
                  color_image_directory: str,
                  depth_image_directory: str,
                  split: dict = None,
-                 image_size: Tuple[int, int] = (256, 256)):
+                 image_size: Tuple[int, int] = (256, 256),
+                 workers_per_loader: int = 6):
         """
 
         :param batch_size: batch sized to use for training
@@ -35,17 +36,19 @@ class DepthDataModule(pl.LightningDataModule):
             - string pointing to a file from a previously saved split
             defaults to the first example assuming subfolders with "train", "val", and "test"
         :param image_size: final image size to return for training.
+        :param workers_per_loader: cpu threads to use for each data loader.
         """
         super().__init__()
         self.save_hyperparameters("batch_size")
-
+        self.workers_per_loader = workers_per_loader
         self.batch_size = batch_size
         self.image_size = image_size
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
 
         if isinstance(split, str):
-            self.split_files = json.load(split)
+            with open(split, 'r') as f:
+                self.split_files = json.load(f)
         else:
             image_files = {
                 'color': [str(f) for f in Path(color_image_directory).rglob('*') if _mac_regex.search(str(f))],
@@ -77,6 +80,17 @@ class DepthDataModule(pl.LightningDataModule):
         self.data_train: ImageDataset = None
         self.data_val: ImageDataset = None
         self.data_test: ImageDataset = None
+
+    def save_split(self, file_name: str):
+        """
+        Write the generated split to a file. TODO: deal with relative/absolute paths for portability
+
+        :param file_name: the name of the file to write the split to.
+        """
+        if file_name[-4:] != 'json':
+            file_name = f'{file_name}.json'
+        with open(file_name, 'w') as f:
+            json.dump(self.split_files, f)
 
     def prepare_data(self):
         pass
@@ -110,14 +124,26 @@ class DepthDataModule(pl.LightningDataModule):
                                                          self.split_files['test']['depth'])),
                                           transforms=[color_transforms, depth_transforms])
 
-    def train_dataloader(self):
-        return DataLoader(self.data_train, batch_size=self.batch_size, num_workers=1, shuffle=True, pin_memory=True)
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(self.data_train,
+                          batch_size=self.batch_size,
+                          num_workers=self.workers_per_loader,
+                          shuffle=True,
+                          pin_memory=True)
 
-    def val_dataloader(self):
-        return DataLoader(self.data_val, batch_size=self.batch_size, num_workers=1, shuffle=False, pin_memory=True)
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(self.data_val,
+                          batch_size=self.batch_size,
+                          num_workers=self.workers_per_loader,
+                          shuffle=False,
+                          pin_memory=True)
 
-    def test_dataloader(self):
-        return DataLoader(self.data_test, batch_size=self.batch_size, num_workers=1, shuffle=False, pin_memory=True)
+    def test_dataloader(self) -> DataLoader:
+        return DataLoader(self.data_test,
+                          batch_size=self.batch_size,
+                          num_workers=self.workers_per_loader,
+                          shuffle=False,
+                          pin_memory=True)
 
 
 if __name__ == '__main__':

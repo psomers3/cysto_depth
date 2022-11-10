@@ -64,7 +64,7 @@ class ImageDataset(Dataset):
                 raw_image = torch.Tensor(exr_2_numpy(image_file))
                 if raw_image.shape[-1] in [1, 3, 4]:
                     raw_image = torch.permute(raw_image, [2, 0, 1])
-            elif os.path.splitext(image_file)[-1] in ['.npy', '.npz']:
+            elif os.path.splitext(image_file)[-1].lower() in ['.npy', '.npz']:
                 raw_image = np.load(image_file)
                 if isinstance(raw_image, dict):
                     raw_image = raw_image[list(raw_image.keys())[0]]

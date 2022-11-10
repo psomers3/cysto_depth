@@ -38,7 +38,7 @@ class RandomAffine:
         self.degrees = degrees
         self.translate = translate
 
-    def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False):
+    def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False) -> torch.Tensor:
         border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
         fill = border_color.tolist() if use_corner_as_fill else 0
         affine = torch_transforms.RandomAffine(degrees=self.degrees, translate=self.translate, fill=fill)
@@ -60,7 +60,7 @@ class EndoMask:
         self.mask_color = mask_color
         self.radius_factor = radius_factor
 
-    def __call__(self, data: torch.Tensor, mask_color: Any = None):
+    def __call__(self, data: torch.Tensor, mask_color: Any = None) -> torch.Tensor:
         randomized_color = torch.rand((3, 1), dtype=torch.float) / 10
         randomized_radius = torch.rand(1, dtype=torch.float).numpy()
 
@@ -89,7 +89,7 @@ class Squarify:
         if self.image_size is not None:
             self.resize = torch_transforms.Resize(self.image_size)
 
-    def __call__(self, data: torch.Tensor):
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
         data = torch_transforms.CenterCrop(min(data.shape[-2:]))(data)
         if self.image_size is not None:
             data = self.resize(data)
