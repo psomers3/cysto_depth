@@ -1,14 +1,16 @@
 import numpy as np
 import pims
-import os
-from PIL import Image
-os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 import cv2
 import random
 import shutil
 import re
 from subprocess import Popen, PIPE, STDOUT, run
 import tqdm
+import os
+from PIL import Image
+from importlib import reload
+os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
+reload(cv2)
 
 
 def get_circular_mask_4_img(img: np.ndarray, scale_radius: float = 1.0) -> np.ndarray:

@@ -11,7 +11,7 @@ render_normals: true
 clear_output_folder: True
 
 endo_light:
-  stl_file: /Users/peter/isys/endo_lights/ITO_light.stl
+  stl_file: /Users/peter/isys/endo_lights/tuebingen_light.STL
   emission_color: [1.0, 1.0, 1.0, 1.0]
   emission_strength: 50
   scaling_factor: .001
