@@ -25,23 +25,44 @@ class _RandomAffine:
         return affine(data)
 
 
-class _EndoMask:
-    def __init__(self, mask_color: Union[float, List[float]] = None):
+class EndoMask:
+    """
+    A transform that will apply a mask that covers everything with the mask color except a circle in the center
+    """
+    def __init__(self,
+                 mask_color: Union[float, List[float]] = None,
+                 radius_factor: Union[float, List[float]] = 1.0):
         """
         :param mask_color: color to use for mask. If left as none, a randomized dark color is used per image.
+        :param radius_factor: the circle radius will be made to this factor of 1/2 the minimum image dimension. If  a
+                              range is given [min, max], the radius is randomly chosen from this range per image.
         """
         self.mask_color = mask_color
+        self.radius_factor = radius_factor
 
-    def __call__(self, data: torch.Tensor):
-        if self.mask_color is None:
-            mask_color = torch.rand((3, 1), dtype=torch.float) / 10
+    def __call__(self, data: torch.Tensor, mask_color: Any = None):
+        randomized_color = torch.rand((3, 1), dtype=torch.float) / 10
+        randomized_radius = torch.rand(1, dtype=torch.float).numpy()
+
+        if mask_color is None:
+            if self.mask_color is None:
+                mask_color = randomized_color
+            else:
+                mask_color = self.mask_color
+        if isinstance(self.radius_factor, float):
+            radius = self.radius_factor
         else:
-            mask_color = self.mask_color
-        data[:, create_circular_mask(*data.shape[-2:], invert=True)] = mask_color
+            radius = (self.radius_factor[1]-self.radius_factor[0]) * randomized_radius + self.radius_factor[0]
+
+        data[:, create_circular_mask(*data.shape[-2:], invert=True, radius_scale=radius)] = mask_color
         return data
 
 
 class Squarify:
+    """
+    A transform to center crop an image to be a square using the shorter image dimension. If image size is provided, the
+    square image is then resized to the provided dimension.
+    """
     def __init__(self, image_size: int = None):
         self.image_size = image_size
         self.resize = None
@@ -125,15 +146,15 @@ class DepthDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
-        color_mask = _EndoMask()
-        depth_mask = _EndoMask(mask_color=0)
+        # normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
         squarify = Squarify(image_size=min(self.image_size))
+        mask = SynchronizedTransform(transform=EndoMask(radius_factor=[0.5, 1]),
+                                     num_synchros=2, additional_args=[[None], [0]])
         affine_transform = SynchronizedTransform(transform=_RandomAffine(degrees=(0, 360), translate=(.1, .1)),
                                                  num_synchros=2, additional_args=[[True], [False]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
-        color_transforms = torch_transforms.Compose([color_mask, squarify, color_jitter, affine_transform])
-        depth_transforms = torch_transforms.Compose([depth_mask, squarify, affine_transform])
+        color_transforms = torch_transforms.Compose([mask, squarify, color_jitter, affine_transform])
+        depth_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
 
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
