@@ -5,6 +5,8 @@ from typing import *
 
 @dataclass
 class GeneralTrainingConfig:
+    """ Configuration options shared between supervised and GAN training"""
+
     num_workers: int = 6
     """ Number of workers to use during data loading """
     image_size: int = 256
@@ -20,13 +22,17 @@ class GeneralTrainingConfig:
 
 @dataclass
 class CystoDepthConfig:
+    """ Configuration for training synthetic depth and/or domain transfer for real cystoscopic videos"""
+
     data_roles: List[str] = field(default_factory=lambda: ['color', 'depth'])
     """ The names to use for each type of data to be loaded """
     data_directories: List[str] = MISSING
-    """ the directories corresponding to the data for each data role in  data_roles """
+    """ The directories corresponding to the data for each data role in  data_roles """
     mode: str = 'synthetic'
-    """ mode can be one of ['synthetic', 'gan'] """
+    """ Mode can be one of ['synthetic', 'gan'] """
     training_stage: str = 'train'
-    """ training_stage can be one of ['train', 'test'] """
+    """ Training_stage can be one of ['train', 'test'] """
+    gpu: int = -1
+    """ Specify single gpu to use. Defaults first one found """
     general_train_config: GeneralTrainingConfig = GeneralTrainingConfig()
-    """ Training configuration """
+

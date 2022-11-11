@@ -13,7 +13,6 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--gpu', type=int, default=-1, help='specify gpu to use. defaults to all available')
     parser.add_arguments(CystoDepthConfig, dest='training_config')
     args, unknown_args = parser.parse_known_args()
     cysto_depth()
