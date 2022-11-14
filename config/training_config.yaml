@@ -1,3 +1,10 @@
-data_directories:
-  - /Users/peter/isys/output/color
-  - /Users/peter/isys/output/depth
+log_directory: ./logs
+adaptive_gating: true
+synthetic_config:
+  data_directories:
+    - /Users/peter/isys/output/color
+    - /Users/peter/isys/output/depth
+trainer_config:
+  gpus: []
+  strategy: null
+  accelerator: cpu

@@ -11,7 +11,7 @@ _mac_regex = re.compile(r'^(?!.*\._)')
 
 class FileLoadingDataModule(pl.LightningDataModule):
     def __init__(self,
-                 batch_size,
+                 batch_size: int,
                  directories: dict,
                  split: dict = None,
                  workers_per_loader: int = 6):

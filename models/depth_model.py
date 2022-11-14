@@ -11,25 +11,24 @@ from models.decoder import Decoder
 
 
 class DepthEstimationModel(BaseModel):
-    def __init__(self, ckpt=None, lr=1e-3, lr_scheduler_patience=10, lr_scheduler_monitor="val_rmse_log",
-                 grad_loss_factor=1, accumulate_grad_batches=None, adaptive_gating=False):
+    def __init__(self, adaptive_gating=False, **kwargs):
         super().__init__()
         # automatic learning rate finder sets lr to self.lr, else default
-        self.save_hyperparameters("lr", "lr_scheduler_patience", "lr_scheduler_monitor", "grad_loss_factor",
-                                  "accumulate_grad_batches", "adaptive_gating")
+        self.save_hyperparameters()
         self.decoder = Decoder()
         self.berhu = BerHu()
         self.gradloss = GradientLoss()
-        if ckpt:
+        if kwargs.get('resume_from_checkpoint', ""):
             self.encoder = AdaptiveEncoder(adaptive_gating)
-            self.load_state_dict(ckpt, strict=False)
+            self.load_state_dict(kwargs['resume_from_checkpoint'], strict=False)
             for param in self.decoder.parameters():
                 param.requires_grad_ = False
         else:
             self.encoder = VanillaEncoder()
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams.lr)
+        if self.hparams.optimizer == 'adam':
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams.lr)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return {
             "optimizer": optimizer,
@@ -63,15 +62,15 @@ class DepthEstimationModel(BaseModel):
         return loss
 
     def shared_val_test_step(self, batch, batch_idx, prefix):
-        synth_img, real_img, synth_label, _ = batch
+        synth_img, _, synth_label, _ = batch
         # only final depth map is of interest during validation
         y_hat = self(synth_img)[-1]
-        real_hat = self(real_img)[-1]
+        # real_hat = self(real_img)[-1]
         label = synth_label
         metric_dict, _ = self.calculate_metrics(prefix, y_hat, label)
         self.log_dict(metric_dict)
-        if batch_idx == 0:
-            self.plot(prefix, synth_img, y_hat, label, real_img, real_hat)
+        # if batch_idx == 0:
+        #     self.plot(prefix, synth_img, y_hat, label, real_img, real_hat)
         return metric_dict
 
     def test_step(self, batch, batch_idx):

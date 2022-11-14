@@ -7,7 +7,7 @@ from torch import nn
 class Encoder(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.base_model = models.resnet18(pretrained=True)
+        self.base_model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         base_layers = list(self.base_model.children())
 
         self.conv_original_size0 = convrelu(3, 64, 3, 1)

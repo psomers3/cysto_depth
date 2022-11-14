@@ -1,7 +1,27 @@
+import torch
 from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
-from general_data_module import FileLoadingDataModule
+from data.general_data_module import FileLoadingDataModule
+from torch.utils.data import Dataset
+
+
+class DatasetHack(Dataset):
+    def __init__(self, _dataset):
+        self.dataset = _dataset
+        self.fake_0 = None
+        self.fake_1 = None
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        item = self.dataset[idx]
+        item[1] = item[1][0, ...][None]
+        if self.fake_0 is None:
+            self.fake_0 = torch.ones_like(item[0])
+            self.fake_1 = torch.ones_like(item[1])
+        return item[0], self.fake_0, item[1], self.fake_1
 
 
 class EndoDepthDataModule(FileLoadingDataModule):
@@ -45,25 +65,26 @@ class EndoDepthDataModule(FileLoadingDataModule):
 
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            self.data_train = ImageDataset(files=list(zip(self.split_files['train']['color'],
-                                                          self.split_files['train']['depth'])),
-                                           transforms=[color_transforms, depth_transforms])
-            self.data_val = ImageDataset(files=list(zip(self.split_files['validate']['color'],
-                                                        self.split_files['validate']['depth'])),
-                                         transforms=[color_transforms, depth_transforms])
+            self.data_train = DatasetHack(ImageDataset(files=list(zip(self.split_files['train']['color'],
+                                                                      self.split_files['train']['depth'])),
+                                                       transforms=[color_transforms, depth_transforms]))
+            self.data_val = DatasetHack(ImageDataset(files=list(zip(self.split_files['validate']['color'],
+                                                                    self.split_files['validate']['depth'])),
+                                                     transforms=[color_transforms, depth_transforms]))
         if stage == "validate":
-            self.data_val = ImageDataset(files=list(zip(self.split_files['validate']['color'],
-                                                        self.split_files['validate']['depth'])),
-                                         transforms=[color_transforms, depth_transforms])
+            self.data_val = DatasetHack(ImageDataset(files=list(zip(self.split_files['validate']['color'],
+                                                                    self.split_files['validate']['depth'])),
+                                                     transforms=[color_transforms, depth_transforms]))
         if stage == "test" or stage is None:
-            self.data_test = ImageDataset(files=list(zip(self.split_files['test']['color'],
-                                                         self.split_files['test']['depth'])),
-                                          transforms=[color_transforms, depth_transforms])
+            self.data_test = DatasetHack(ImageDataset(files=list(zip(self.split_files['test']['color'],
+                                                                     self.split_files['test']['depth'])),
+                                                      transforms=[color_transforms, depth_transforms]))
 
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
+
     color_dir = r'/Users/peter/isys/output/color'
     depth_dir = r'/Users/peter/isys/output/depth'
     dm = EndoDepthDataModule(batch_size=3,
