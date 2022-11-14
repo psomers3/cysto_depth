@@ -51,7 +51,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               depth_image_directory=config.synthetic_config.data_directories[1],
                                               split=split,
                                               image_size=config.image_size,
-                                              workers_per_loader=config.general_train_config.num_workers)
+                                              workers_per_loader=config.num_workers)
             model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.synthetic_config)
             # overwrite trainer dict values with those from synthetic config
             [trainer_dict.update({key: val})for key, val in config.synthetic_config.items() if key in trainer_dict]
