@@ -1,3 +1,4 @@
+import os.path
 from pathlib import Path
 import numpy as np
 import pytorch_lightning as pl
@@ -14,7 +15,8 @@ class FileLoadingDataModule(pl.LightningDataModule):
                  batch_size: int,
                  directories: dict,
                  split: dict = None,
-                 workers_per_loader: int = 6):
+                 workers_per_loader: int = 6,
+                 exclude_regex: str = None):
         """
          A Data Module for loading paired files located in different directories. See the split parameter for
          thoughts on how best to set up your data structure for use with this module.
@@ -37,6 +39,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
                      split defaults to the first example assuming subfolders with "train", "val", and "test"
 
         :param workers_per_loader: cpu threads to use for each data loader.
+        :param exclude_regex: regex for excluding files.
         """
         super().__init__()
         self.workers_per_loader = workers_per_loader
@@ -48,8 +51,14 @@ class FileLoadingDataModule(pl.LightningDataModule):
             with open(split, 'r') as f:
                 self.split_files = json.load(f)
         else:
-            image_files = {key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f))] for key, val in
-                           directories.items()}
+            image_files = {
+                key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
+                for key, val in directories.items()
+            }
+            if exclude_regex is not None:
+                exclude_regex = re.compile(exclude_regex)
+                [image_files.update({key: [f for f in image_files[key] if exclude_regex.search(f)]}) for key in
+                 image_files]
             if len(list(image_files.keys())) > 1:
                 list_lengths = set([len(image_files[key]) for key in image_files])
                 assert len(list_lengths) == 1, f'Different number of files found between data roles.'

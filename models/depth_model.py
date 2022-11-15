@@ -14,11 +14,11 @@ class DepthEstimationModel(BaseModel):
     def __init__(self, adaptive_gating=False, **kwargs):
         super().__init__()
         # automatic learning rate finder sets lr to self.lr, else default
-        self.save_hyperparameters()
+        self.save_hyperparameters()  # saves all keywords and their values passed to init function
         self.decoder = Decoder()
         self.berhu = BerHu()
         self.gradloss = GradientLoss()
-        if kwargs.get('resume_from_checkpoint', ""):
+        if kwargs.get('resume_from_checkpoint', None):
             self.encoder = AdaptiveEncoder(adaptive_gating)
             self.load_state_dict(kwargs['resume_from_checkpoint'], strict=False)
             for param in self.decoder.parameters():
@@ -42,30 +42,25 @@ class DepthEstimationModel(BaseModel):
         }
 
     def training_step(self, batch, batch_idx):
-        synth_img, _, synth_label, _ = batch
+        synth_img, synth_label = batch
         y_hat = self(synth_img)
         # iterate through scales
         depth_loss = 0
         grad_loss = 0
-        first = True
         for idx, predicted in enumerate(y_hat[::-1]):
             depth_loss += self.berhu(predicted, synth_label)
             # apply gradient loss after first epoch
             if self.current_epoch > 0:
                 # apply only to high resolution prediction
-
                 grad_loss += self.hparams.grad_loss_factor * self.gradloss(predicted, synth_label)
-            # depth_losses.append(sig_loss)
-            # .append(depth_loss)
         loss = depth_loss + grad_loss
         self.log("train_loss", loss)
         return loss
 
     def shared_val_test_step(self, batch, batch_idx, prefix):
-        synth_img, _, synth_label, _ = batch
+        synth_img, synth_label = batch
         # only final depth map is of interest during validation
         y_hat = self(synth_img)[-1]
-        # real_hat = self(real_img)[-1]
         label = synth_label
         metric_dict, _ = self.calculate_metrics(prefix, y_hat, label)
         self.log_dict(metric_dict)

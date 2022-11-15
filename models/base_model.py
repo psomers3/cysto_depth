@@ -1,10 +1,5 @@
 import pytorch_lightning as pl
-from utils.torch_utils import scale_median
 from utils.metrics import RMSE, Accuracy, RMSELog, RelError, SILog, compute_errors
-import torch
-import numpy as np
-from scipy.interpolate import griddata
-import torch.nn.functional as F
 from torchvision import transforms
 import torch.nn as nn
 

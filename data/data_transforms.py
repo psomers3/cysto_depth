@@ -6,29 +6,36 @@ from typing import *
 
 class SynchronizedTransform:
     """
-    A helper class to synchronize pytorch transformations used in separate transformation compositions. Ideal for
-    things like color images and segmentation labels.
+    A helper class to synchronize pytorch transformations that are randomized to be used in separate transformation
+     compositions. Ideal for things like color images and segmentation labels.
     """
 
     def __init__(self,
                  transform: Callable,
                  num_synchros=2,
                  additional_args: List[List[Any]] = None):
+        """
+
+        :param transform: The transform to be applied
+        :param num_synchros: how many items will be getting this transform before advancing the randomness
+        :param additional_args: A list of arguments that will be passed to the transform for each synchronized item.
+                                There should be the same number of items in this list as num_synchros.
+        """
         self.transform = transform
         self.num_synchros = num_synchros
         self._generator_state = torch.get_rng_state()
-        self._sync_count = set()
+        self._sync_count = 0
         self.additional_args = additional_args if additional_args else [[] for _ in range(num_synchros)]
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         current_gen_state = torch.get_rng_state()
-        if len(self._sync_count) < self.num_synchros:
+        if self._sync_count < self.num_synchros:
             torch.set_rng_state(self._generator_state)
         else:
-            self._sync_count.clear()
+            self._sync_count = 0
             self._generator_state = torch.get_rng_state()
-        transformed = self.transform(data, *self.additional_args[len(self._sync_count)])
-        self._sync_count.add(len(self._sync_count))
+        transformed = self.transform(data, *self.additional_args[self._sync_count])
+        self._sync_count += 1
         torch.set_rng_state(current_gen_state)
         return transformed
 
@@ -94,6 +101,14 @@ class Squarify:
         if self.image_size is not None:
             data = self.resize(data)
         return data
+
+
+class TensorSlice:
+    def __init__(self, torch_slice: tuple):
+        self.slice = torch_slice
+
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        return data[self.slice][None]
 
 
 class AddGaussianNoise:

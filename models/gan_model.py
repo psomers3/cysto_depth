@@ -76,8 +76,8 @@ class GAN(BaseModel):
         self.depth_model.apply(set_bn_eval)
         self.generator.apply(set_bn_eval)
 
-        # x = synthetic image, z = real image, l = labels
-        x, z, _, _ = batch
+        # x = synthetic image, z = real image
+        x, z = batch
         if self.global_step == 0:
             self.logger.experiment.add_graph(self.generator, z)
         # train generator

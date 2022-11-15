@@ -335,9 +335,12 @@ def deinterlace(video_file: str) -> str:
     return video_file
 
 
-def extract_frames(video_path, target_dir, video_name, scenes, size, failed_frames_target_dir):
-    full_video_path = os.path.join(video_path, video_name)
+def extract_frames(video, target_dir, scenes, size, failed_frames_target_dir):
+    if scenes is None:
+        return
+    full_video_path = video
     full_video_path = deinterlace(full_video_path)
+    video_name = os.path.basename(full_video_path)
     vid = pims.PyAVReaderIndexed(full_video_path)
     n_frames = len(vid)
     step_width = 5

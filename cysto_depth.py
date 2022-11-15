@@ -1,6 +1,6 @@
 #! /usr/bin/env python
-import os.path
 
+import os
 import hydra
 from omegaconf import OmegaConf
 from config.training_config import CystoDepthConfig
@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from models.depth_model import DepthEstimationModel
 from data.depth_datamodule import EndoDepthDataModule
+from data.gan_datamodule import GANDataModule
 
 
 def get_default_args(func) -> dict:
@@ -27,21 +28,20 @@ def get_default_args(func) -> dict:
     }
 
 
-trainer_default_arguments = get_default_args(pl.Trainer.__init__)
-
-
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
 def cysto_depth(cfg: CystoDepthConfig) -> None:
     config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
-    # print(OmegaConf.to_yaml(config))
+    if config.print_config:
+        print(OmegaConf.to_yaml(config))
+    assert config.training_stage.lower() in ['train', 'validate', 'test']
+    assert config.mode.lower() in ['synthetic', 'gan']
 
     if not os.path.exists(config.log_directory):
         os.makedirs(config.log_directory)
-    trainer_dict = trainer_default_arguments
 
+    trainer_dict = get_default_args(pl.Trainer.__init__)
     # overwrite default trainer dict values with those from default TrainerDictConfig
     [trainer_dict.update({key: val}) for key, val in config.trainer_config.items() if key in trainer_dict]
-
     if config.training_stage == 'train':
         if config.mode == "synthetic":
             split = config.synthetic_config.training_split if not config.synthetic_config.training_split_file else \
@@ -55,6 +55,18 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
             model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.synthetic_config)
             # overwrite trainer dict values with those from synthetic config
             [trainer_dict.update({key: val})for key, val in config.synthetic_config.items() if key in trainer_dict]
+        else:
+            split = config.gan_config.synth_split if not config.gan_config.training_split_file else \
+                config.gan_config.synth_split
+            data_module = GANDataModule(batch_size=config.gan_config.batch_size,
+                                        color_image_directory=config.gan_config.source_images,
+                                        video_directory=config.gan_config.videos_folder,
+                                        generate_output_directory=config.gan_config.image_output_folder,
+                                        generate_data=config.gan_config.generate_data,
+                                        synth_split=split,
+                                        image_size=config.image_size,
+                                        workers_per_loader=config.num_workers)
+            model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.gan_config)
 
         logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
         trainer_dict.update({'logger': logger})

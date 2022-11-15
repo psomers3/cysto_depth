@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-import pytorch_lightning as pl
 from omegaconf import MISSING
 from typing import *
 
@@ -52,6 +51,42 @@ class SyntheticTrainingConfig:
 
 
 @dataclass
+class GANTrainingConfig:
+    """ Hyperparameter settings for the domain adaptation GAN training """
+
+    source_images: str = MISSING
+    """ path to synthetically generated images """
+    synth_split: dict = field(default_factory=lambda: {'train': .8,
+                                                       'validate': .15,
+                                                       'test': .05})
+    """ The entry to control generation of the data split for training. """
+    training_split_file: str = ''
+    """ An existing training split json file. If not empty, will be used instead of training_split """
+    generator_lr: float = 5e-6
+    """ learning rate for generator """
+    discriminator_lr: float = 5e-5
+    """ learning rate for discriminator """
+    max_epochs: int = 10
+    monitor_metric: str = 'val_rsme'
+    """ metric to watch for early stopping and model checkpoints """
+    val_check_interval: int = 1
+    """ how many batches before doing validation update """
+    accumulate_grad_batches: int = 4
+    """ how many batches to include before gradient update """
+    batch_size: int = 16
+    synthetic_base_model: str = MISSING
+    """ The pretrained network to load weights from """
+    resume_from_checkpoint: Union[str, None] = None
+    """ checkpoint to load weights from """
+    generate_data: bool = False
+    """ Whether to process the video data folder and generate training images in the image_output_folder """
+    videos_folder: str = MISSING
+    """ folder with endoscopic videos """
+    image_output_folder: str = MISSING
+    """ folder containing (or will contain) the generated real image training data """
+
+
+@dataclass
 class CystoDepthConfig:
     """ Configuration for training synthetic depth and/or domain transfer for real cystoscopic videos"""
 
@@ -61,12 +96,15 @@ class CystoDepthConfig:
     """ Training_stage can be one of ['train', 'test'] """
     log_directory: str = './logs'
     """ tensorboard log directory """
-    adaptive_gating: Union[bool, None] = None
+    adaptive_gating: bool = False
     """ Whether to turn on adaptive gating for domain adaptation """
     num_workers: int = 6
     """ Number of workers to use during data loading """
     image_size: int = 256
     """ Final square size to make all images """
+    print_config: bool = False
+    """ Print full Omega Config """
     synthetic_config: SyntheticTrainingConfig = SyntheticTrainingConfig()
+    gan_config: GANTrainingConfig = GANTrainingConfig()
     trainer_config: TrainerDictConfig = TrainerDictConfig()
 

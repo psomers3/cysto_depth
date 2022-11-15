@@ -8,6 +8,31 @@ import torch
 from typing import *
 
 
+class EndlessDataset(Dataset):
+    def __init__(self, torch_dataset: Dataset, length: int = None):
+        self.dataset = torch_dataset
+        self.length = length
+        self._rand_buffer = np.random.permutation(np.linspace(0, len(self) - 1, len(self)))
+        self._rand_index = -1
+
+    def __len__(self):
+        return len(self.dataset) if self.length is None else self.length
+
+    def _reset_randomization(self):
+        self._rand_buffer = np.random.permutation(np.linspace(0, len(self) - 1, len(self)))
+        self._rand_index = -1
+
+    def _get_random_index(self):
+        idx = self._rand_index
+        self._rand_index += 1
+        if self._rand_index == len(self):
+            self._reset_randomization()
+        return idx
+
+    def __getitem__(self, idx):
+        return self.dataset[self._get_random_index()]
+
+
 class ImageDataset(Dataset):
     def __init__(self,
                  files: Union[List[str], List[Tuple[str, ...]]],
@@ -75,7 +100,8 @@ class ImageDataset(Dataset):
                 raw_image = read_image(image_file)
 
             image = self.transform_to_float_tensor(raw_image)
-            image = self.transforms[i](image)
+            if self.transforms[i] is not None:
+                image = self.transforms[i](image)
             final_images.append(image)
 
         return final_images
