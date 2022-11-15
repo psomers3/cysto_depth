@@ -41,13 +41,17 @@ class SynchronizedTransform:
 
 
 class RandomAffine:
-    def __init__(self, degrees: Tuple[float, float], translate: Tuple[float, float]):
+    def __init__(self, degrees: Tuple[float, float], translate: Tuple[float, float], use_corner_as_fill: bool = None):
         self.degrees = degrees
         self.translate = translate
+        self.use_corner_as_fill = use_corner_as_fill
 
     def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False) -> torch.Tensor:
         border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
-        fill = border_color.tolist() if use_corner_as_fill else 0
+        if self.use_corner_as_fill is None:
+            fill = border_color.tolist() if use_corner_as_fill else 0
+        else:
+            fill = border_color.tolist() if self.use_corner_as_fill else 0
         affine = torch_transforms.RandomAffine(degrees=self.degrees, translate=self.translate, fill=fill)
         return affine(data)
 

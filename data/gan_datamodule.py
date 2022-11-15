@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
 import pytorch_lightning as pl
-from torchvision import transforms
 import torch
-from data.gan_dataset import GANDataset
 from torch.utils.data import DataLoader, Dataset
 from utils.exr_utils import extract_frames
 import ast
@@ -15,7 +13,7 @@ import re
 import csv
 from typing import *
 
-_video_types = ['mpg', 'mp4']
+_video_types = ['.mpg', '.mp4']
 _original_exclusion = re.compile(r'^(?!.*\._)')
 _failed_exclusion = r'^(?!.*failed)'
 _annotations_csv = re.compile(r'video_annotations')
@@ -98,7 +96,9 @@ class GANDataModule(pl.LightningDataModule):
                         scenes[row['Title'].lower()] = {'train': None, 'val': None, 'test': None}
                     scenes[row['Title'].lower()][row['Type'].lower()] = ast.literal_eval(row["Scenes"])
             videos = [str(f) for f in Path(self.video_directory).rglob('*') if
-                      _mac_regex.search(str(f)) and _original_exclusion.search(str(f))]
+                      _mac_regex.search(str(f)) and
+                      _original_exclusion.search(str(f)) and
+                      (os.path.splitext(f)[-1].lower() in _video_types)]
             manually_labeled_videos = []
             for video in videos:
                 # TODO: This will fail if subfolders contain videos with the same name
@@ -117,7 +117,7 @@ class GANDataModule(pl.LightningDataModule):
     def setup(self, stage: str = None):
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0])
-        affine_transform = torch_transforms.RandomAffine(degrees=(0, 360), translate=(.1, .1))
+        affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.1, .1), use_corner_as_fill=True)
         synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
         real_transforms = torch_transforms.Compose([squarify, affine_transform])
 
@@ -127,14 +127,18 @@ class GANDataModule(pl.LightningDataModule):
         synth_module = FileLoadingDataModule(0, directories={'synth': self.directories['synth']},
                                              split=self.synth_split, exclude_regex=_failed_exclusion)
         keys = ['train', 'validate', 'test']
-        real = [EndlessDataset(ImageDataset(files=real_module.split_files[key]['real'], transforms=real_transforms))
-                for key in keys]
-        synth = [EndlessDataset(ImageDataset(files=synth_module.split_files[key]['synth'], transforms=synth_transforms))
-                 for key in keys]
+        real, synth = [], []
+        for key in keys:
+            real.append(EndlessDataset(ImageDataset(files=real_module.split_files[key]['real'],
+                                                    transforms=real_transforms if key == 'train' else None,
+                                                    randomize=True)))
+            synth.append(EndlessDataset(ImageDataset(files=synth_module.split_files[key]['synth'],
+                                                     transforms=synth_transforms if key == 'train' else None,
+                                                     randomize=True)))
 
-        self.data_train = ConcatDataset([real[0], synth[0]])
-        self.data_val = ConcatDataset([real[1], synth[1]])
-        self.data_test = ConcatDataset([real[2], synth[2]])
+        self.data_train = ConcatDataset([synth[0], real[0]])
+        self.data_val = ConcatDataset([synth[1], real[1]])
+        self.data_test = ConcatDataset([synth[2], real[2]])
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.data_train,

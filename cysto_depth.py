@@ -12,6 +12,7 @@ from pytorch_lightning import loggers as pl_loggers
 from models.depth_model import DepthEstimationModel
 from data.depth_datamodule import EndoDepthDataModule
 from data.gan_datamodule import GANDataModule
+from models.gan_model import GAN
 
 
 def get_default_args(func) -> dict:
@@ -66,7 +67,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                         synth_split=split,
                                         image_size=config.image_size,
                                         workers_per_loader=config.num_workers)
-            model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.gan_config)
+            model = GAN(adaptive_gating=config.adaptive_gating, **config.gan_config)
+            [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
 
         logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
         trainer_dict.update({'logger': logger})

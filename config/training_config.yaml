@@ -1,6 +1,7 @@
 log_directory: ./logs
 adaptive_gating: true
 mode: gan
+training_stage: train
 synthetic_config:
   data_roles:
     - color

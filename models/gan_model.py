@@ -164,34 +164,17 @@ class GAN(BaseModel):
     #     #         g['lr'] = g['lr']/10
 
     def validation_step(self, batch, batch_idx):
-        x, z, l_x, l_z = batch
+        x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
         plot_tensors = [z]  # img_adapted, img_unapdated, diff]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
-
         minmax = []
-        if len(l_z) > 0:
-            metrics_adapted, img_adapted = self.calculate_metrics("gan", img_adapted, l_z)
-            metrics_unadapted, img_unapdated = self.calculate_metrics("gan", img_unapdated, l_z)
-            # additionally log rmse as monitorable metric for early stopping etc.
-            self.log("val_rmse_monitor", metrics_adapted['gan_rmse'])
-            self.log("val_silog_monitor", metrics_adapted['gan_silog'])
-            for k in metrics_adapted.keys():
-                adapted_metric = metrics_adapted[k]
-                unadapted_metric = metrics_unadapted[k]
-                logdict = {"adapted": adapted_metric.item(), "unadapted": unadapted_metric.item()}
-                self.log(str(k), logdict)
         plot_tensors.append(img_adapted)
         plot_tensors.append(img_unapdated)
         plot_tensors.append(img_adapted - img_unapdated)
-        if len(l_z) > 0:
-            plot_tensors.append(l_z)
-            labels.append("Ground Truth")
-            centers.append(None)
-            # minmax.append(minmaxtuple)
 
         self.add_histograms(step=self.global_step)
         for idx, imgs in enumerate(zip(*plot_tensors)):
@@ -202,7 +185,7 @@ class GAN(BaseModel):
             plt.close(fig)
 
     def test_step(self, batch, batch_idx):
-        x, z, l_x, l_z = batch
+        x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
@@ -212,24 +195,9 @@ class GAN(BaseModel):
         centers = [None, None, None, 0]
         minmax = []
 
-        if len(l_z) > 0:
-            metrics_adapted, img_adapted = self.calculate_metrics("gan", img_adapted, l_z)
-            metrics_unadapted, img_unapdated = self.calculate_metrics("gan", img_unapdated, l_z)
-            for k in metrics_adapted.keys():
-                adapted_metric = metrics_adapted[k]
-                unadapted_metric = metrics_unadapted[k]
-                logdict = {"adapted": adapted_metric.item(), "unadapted": unadapted_metric.item()}
-                self.log(str(k), logdict)
-
         plot_tensors.append(img_adapted)
         plot_tensors.append(img_unapdated)
         plot_tensors.append(img_adapted - img_unapdated)
-
-        if len(l_z) > 0:
-            plot_tensors.append(l_z)
-            labels.append("Ground Truth")
-            centers.append(None)
-            # minmax.append(minmaxtuple)
 
         for idx, imgs in enumerate(zip(*plot_tensors)):
             fig = generate_final_imgs(imgs,
@@ -271,11 +239,20 @@ class GAN(BaseModel):
                                 opt_d_feature]
         return [opt_g, opt_d_img, *opt_d_feature], [lr_scheduler_g, lr_scheduler_d_img, *lr_schedulers_d_feat]
 
-    def on_epoch_end(self):
+    def _on_epoch_end(self):
         # if self.lr_schedulers() is not None:
         # self.log("g_lr",self.lr_schedulers()[0].get_last_lr()[0])
         # self.log("d_lr",self.lr_schedulers()[1].get_last_lr()[0])
         self.log(socket.gethostname(), True)
+
+    def on_validation_epoch_end(self) -> None:
+        self._on_epoch_end()
+
+    def on_train_epoch_end(self) -> None:
+        self._on_epoch_end()
+
+    def on_test_epoch_end(self) -> None:
+        self._on_epoch_end()
 
     def on_training_end(self):
         self.log(socket.gethostname(), False)
