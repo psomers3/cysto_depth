@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Dataset
 from utils.exr_utils import extract_frames
 import ast
 from torchvision import transforms as torch_transforms
-from data.image_dataset import ImageDataset, EndlessDataset
+from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule, _mac_regex
 import re
@@ -117,7 +117,7 @@ class GANDataModule(pl.LightningDataModule):
     def setup(self, stage: str = None):
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0])
-        affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.1, .1), use_corner_as_fill=True)
+        affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
         synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
         real_transforms = torch_transforms.Compose([squarify, affine_transform])
 
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     dm = GANDataModule(batch_size=3,
                        color_image_directory=color_dir,
                        generate_output_directory=real_output,
-                       generate_data=True,
+                       generate_data=False,
                        video_directory=video_dir,
                        synth_split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"})
     dm.prepare_data()

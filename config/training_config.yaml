@@ -1,6 +1,6 @@
 log_directory: ./logs
 adaptive_gating: true
-mode: gan
+mode: synthetic
 training_stage: train
 synthetic_config:
   data_roles:
@@ -13,7 +13,7 @@ synthetic_config:
     - /Users/peter/isys/output/normal
 gan_config:
   source_images: /Users/peter/isys/output/color
-  synthetic_base_model: ./logs/synthetic/lightning_logs/version_7/checkpoints/epoch=9-step=10.ckpt
+  synthetic_base_model: ./logs/synthetic/lightning_logs/version_11/checkpoints/epoch=9-step=10.ckpt
   generate_data: False
   videos_folder:  /Users/peter/isys/videos
   image_output_folder: ./gan_data

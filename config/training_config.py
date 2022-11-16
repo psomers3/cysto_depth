@@ -7,8 +7,9 @@ from typing import *
 class TrainerDictConfig:
     """ Initial settings for PyTorch Lightning Trainer """
     accelerator: str = "auto"
+    """ Hardware accelerator to use. Is typically set to one of [gpu, cpu, auto] """
     devices: int = 1
-    """ so that the dataset validation is only checked from one device """
+    """ leave as 1 so dataset validation is only checked from one device """
     gpus: List[int] = field(default_factory=lambda: [])
     """ specify list of gpus to use. defaults to none """
     strategy: Union[str, None] = 'ddp'
@@ -37,10 +38,11 @@ class SyntheticTrainingConfig:
     grad_loss_factor: float = 1.0
     lr_scheduler_patience: int = 10
     lr_scheduler_monitor: str = "val_rmse_log"
-    early_stop_patience: int = 15
+    early_stop_patience: Union[int, None] = 15
+    """ patience for early stopping. If null, then no early stopping applied. """
     reduce_lr_patience: int = 5
     max_epochs: int = 10
-    monitor_metric: str = 'val_rsme'
+    monitor_metric: str = 'val_rmse'
     """ metric to watch for early stopping and model checkpoints """
     val_check_interval: int = 1
     accumulate_grad_batches: int = 4
@@ -48,6 +50,10 @@ class SyntheticTrainingConfig:
     batch_size: int = 32
     resume_from_checkpoint: Union[str, None] = None
     """ checkpoint to load weights from """
+    ckpt_save_top_k: int = 5
+    """ keep the top k saved checkpoints """
+    ckpt_every_n_epochs: Union[int, None] = None
+    """ Number of epochs between checkpoints """
 
 
 @dataclass
@@ -67,7 +73,7 @@ class GANTrainingConfig:
     discriminator_lr: float = 5e-5
     """ learning rate for discriminator """
     max_epochs: int = 10
-    monitor_metric: str = 'val_rsme'
+    monitor_metric: str = 'g_loss'
     """ metric to watch for early stopping and model checkpoints """
     val_check_interval: int = 1
     """ how many batches before doing validation update """
@@ -84,6 +90,12 @@ class GANTrainingConfig:
     """ folder with endoscopic videos """
     image_output_folder: str = MISSING
     """ folder containing (or will contain) the generated real image training data """
+    model_checkpoint_save_k: Union[int, None] = None
+    """ keep the top k saved checkpoints """
+    ckpt_save_top_k: int = 1
+    """ keep the top k saved checkpoints """
+    ckpt_every_n_epochs: Union[int, None] = 2
+    """ Number of epochs between checkpoints """
 
 
 @dataclass

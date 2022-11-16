@@ -63,6 +63,8 @@ class ImageDataset(Dataset):
         self.transforms = [transforms] if not None and callable(transforms) else transforms
         if self.transforms is not None:
             assert len(self.transforms) == num_images
+        else:
+            self.transforms = [[] for _ in range(num_images)]
         self.transform_to_float_tensor = torch_transforms.ConvertImageDtype(torch.float)
 
     def __len__(self):
@@ -101,7 +103,7 @@ class ImageDataset(Dataset):
                 raw_image = read_image(image_file)
 
             image = self.transform_to_float_tensor(raw_image)
-            if self.transforms[i] is not None:
+            if self.transforms[i]:
                 image = self.transforms[i](image)
             final_images.append(image)
 

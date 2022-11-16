@@ -29,6 +29,17 @@ def get_default_args(func) -> dict:
     }
 
 
+def get_callbacks(configuration: dict) -> List[pl.Callback]:
+    callbacks = []
+    if configuration.get('early_stop_patience', None):
+        callbacks.append(pl.callbacks.EarlyStopping(monitor=configuration['monitor_metric'],
+                                                    patience=configuration['early_stop_patience']))
+    callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration['monitor_metric'],
+                                                  save_top_k=configuration['ckpt_save_top_k'],
+                                                  every_n_epochs=configuration['ckpt_every_n_epochs']))
+    return callbacks
+
+
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
 def cysto_depth(cfg: CystoDepthConfig) -> None:
     config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
@@ -41,44 +52,45 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         os.makedirs(config.log_directory)
 
     trainer_dict = get_default_args(pl.Trainer.__init__)
-    # overwrite default trainer dict values with those from default TrainerDictConfig
     [trainer_dict.update({key: val}) for key, val in config.trainer_config.items() if key in trainer_dict]
+
+    if config.mode == "synthetic":
+        split = config.synthetic_config.training_split if not config.synthetic_config.training_split_file else \
+                config.synthetic_config.training_split
+        data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
+                                          color_image_directory=config.synthetic_config.data_directories[0],
+                                          depth_image_directory=config.synthetic_config.data_directories[1],
+                                          split=split,
+                                          image_size=config.image_size,
+                                          workers_per_loader=config.num_workers)
+        model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.synthetic_config)
+        [trainer_dict.update({key: val})for key, val in config.synthetic_config.items() if key in trainer_dict]
+        trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config)})
+    else:
+        split = config.gan_config.synth_split if not config.gan_config.training_split_file else \
+            config.gan_config.synth_split
+        data_module = GANDataModule(batch_size=config.gan_config.batch_size,
+                                    color_image_directory=config.gan_config.source_images,
+                                    video_directory=config.gan_config.videos_folder,
+                                    generate_output_directory=config.gan_config.image_output_folder,
+                                    generate_data=config.gan_config.generate_data,
+                                    synth_split=split,
+                                    image_size=config.image_size,
+                                    workers_per_loader=config.num_workers)
+        model = GAN(adaptive_gating=config.adaptive_gating, **config.gan_config)
+        [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
+        trainer_dict.update({'callbacks': get_callbacks(config.gan_config)})
+
+    logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
+    trainer_dict.update({'logger': logger})
+    trainer = pl.Trainer(**trainer_dict)
+
     if config.training_stage == 'train':
-        if config.mode == "synthetic":
-            split = config.synthetic_config.training_split if not config.synthetic_config.training_split_file else \
-                    config.synthetic_config.training_split
-            data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
-                                              color_image_directory=config.synthetic_config.data_directories[0],
-                                              depth_image_directory=config.synthetic_config.data_directories[1],
-                                              split=split,
-                                              image_size=config.image_size,
-                                              workers_per_loader=config.num_workers)
-            model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.synthetic_config)
-            # overwrite trainer dict values with those from synthetic config
-            [trainer_dict.update({key: val})for key, val in config.synthetic_config.items() if key in trainer_dict]
-        else:
-            split = config.gan_config.synth_split if not config.gan_config.training_split_file else \
-                config.gan_config.synth_split
-            data_module = GANDataModule(batch_size=config.gan_config.batch_size,
-                                        color_image_directory=config.gan_config.source_images,
-                                        video_directory=config.gan_config.videos_folder,
-                                        generate_output_directory=config.gan_config.image_output_folder,
-                                        generate_data=config.gan_config.generate_data,
-                                        synth_split=split,
-                                        image_size=config.image_size,
-                                        workers_per_loader=config.num_workers)
-            model = GAN(adaptive_gating=config.adaptive_gating, **config.gan_config)
-            [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
-
-        logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
-        trainer_dict.update({'logger': logger})
-        trainer = pl.Trainer(**trainer_dict)
-
-        trainer.validate(model, data_module)
         trainer.fit(model, data_module)
+    elif config.training_stage == 'validate':
+        trainer.validate(model, data_module)
+    else:
         trainer.test(model, data_module)
-
-    print("Done!")
 
 
 if __name__ == "__main__":
