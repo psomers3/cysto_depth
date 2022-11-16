@@ -9,23 +9,24 @@ from typing import *
 
 
 class EndlessDataset(Dataset):
-    def __init__(self, torch_dataset: Dataset, length: int = None):
-        self.dataset = torch_dataset
+    """ A Dataset wrapper to keep feeding its own randomized contents regardless of the length set. """
+    def __init__(self, torch_dataset: Dataset, length: int):
+        self.dataset: Union[Sized, Dataset] = torch_dataset
         self.length = length
-        self._rand_buffer = np.random.permutation(np.linspace(0, len(self) - 1, len(self)))
+        self._rand_buffer = np.random.permutation(np.linspace(0, len(self.dataset) - 1, len(self.dataset)))
         self._rand_index = -1
 
     def __len__(self):
-        return len(self.dataset) if self.length is None else self.length
+        return self.length
 
     def _reset_randomization(self):
-        self._rand_buffer = np.random.permutation(np.linspace(0, len(self) - 1, len(self)))
+        self._rand_buffer = np.random.permutation(np.linspace(0, len(self.dataset) - 1, len(self.dataset)))
         self._rand_index = -1
 
     def _get_random_index(self):
         idx = self._rand_index
         self._rand_index += 1
-        if self._rand_index == len(self):
+        if self._rand_index == len(self.dataset):
             self._reset_randomization()
         return idx
 

@@ -44,49 +44,54 @@ class FileLoadingDataModule(pl.LightningDataModule):
         super().__init__()
         self.workers_per_loader = workers_per_loader
         self.batch_size = batch_size
-        if split is None:
-            split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
 
         if isinstance(split, str):
             with open(split, 'r') as f:
                 self.split_files = json.load(f)
         else:
-            image_files = {
-                key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
-                for key, val in directories.items()
-            }
-            if exclude_regex is not None:
-                exclude_regex = re.compile(exclude_regex)
-                [image_files.update({key: [f for f in image_files[key] if exclude_regex.search(f)]}) for key in
-                 image_files]
-            if len(list(image_files.keys())) > 1:
-                list_lengths = set([len(image_files[key]) for key in image_files])
-                assert len(list_lengths) == 1, f'Different number of files found between data roles.'
-
-            [image_files[key].sort() for key in image_files]
-            self.split_files = {'test': {}, 'validate': {}, 'train': {}}
-            stages = list(self.split_files.keys())
-            for stage in stages:
-                if isinstance(split[stage], str):
-                    test_re = re.compile(split[stage])
-                    for key, file_list in image_files.items():
-                        self.split_files[stage][key] = [s for s in file_list if test_re.search(s)]
-                        for f in self.split_files[stage][key]:
-                            file_list.remove(f)
-            first_role = list(image_files.keys())[0]
-            indices = np.random.permutation(np.linspace(0, len(image_files[first_role]) - 1,
-                                                        len(image_files[first_role]))).astype(int)
-            remaining_count = len(indices)
-            for stage in stages:
-                if isinstance(split[stage], float):
-                    stage_indices = indices[:int(split[stage] * remaining_count) + 1]
-                    for key, file_list in image_files.items():
-                        self.split_files[stage][key] = np.asarray(file_list)[stage_indices]
-                    indices = indices[len(stage_indices):]
+            self.split_files = self.create_file_split(directories, split, exclude_regex)
 
         self.data_train: ImageDataset = None
         self.data_val: ImageDataset = None
         self.data_test: ImageDataset = None
+
+    @staticmethod
+    def create_file_split(directories: dict, split: dict = None, exclusion_regex: str = None):
+        if split is None:
+            split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
+        image_files = {
+            key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
+            for key, val in directories.items()
+        }
+        if exclusion_regex is not None:
+            exclude_regex = re.compile(exclusion_regex)
+            [image_files.update({key: [f for f in image_files[key] if exclude_regex.search(f)]}) for key in
+             image_files]
+        if len(list(image_files.keys())) > 1:
+            list_lengths = set([len(image_files[key]) for key in image_files])
+            assert len(list_lengths) == 1, f'Different number of files found between data roles.'
+
+        [image_files[key].sort() for key in image_files]
+        split_files = {'test': {}, 'validate': {}, 'train': {}}
+        stages = list(split_files.keys())
+        for stage in stages:
+            if isinstance(split[stage], str):
+                test_re = re.compile(split[stage])
+                for key, file_list in image_files.items():
+                    split_files[stage][key] = [s for s in file_list if test_re.search(s)]
+                    for f in split_files[stage][key]:
+                        file_list.remove(f)
+        first_role = list(image_files.keys())[0]
+        indices = np.random.permutation(np.linspace(0, len(image_files[first_role]) - 1,
+                                                    len(image_files[first_role]))).astype(int)
+        remaining_count = len(indices)
+        for stage in stages:
+            if isinstance(split[stage], float):
+                stage_indices = indices[:int(split[stage] * remaining_count) + 1]
+                for key, file_list in image_files.items():
+                    split_files[stage][key] = np.asarray(file_list)[stage_indices]
+                indices = indices[len(stage_indices):]
+        return split_files
 
     def save_split(self, file_name: str):
         """

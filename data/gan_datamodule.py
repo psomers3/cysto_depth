@@ -121,20 +121,20 @@ class GANDataModule(pl.LightningDataModule):
         synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
         real_transforms = torch_transforms.Compose([squarify, affine_transform])
 
-        # make two temporary modules for getting the data split
-        real_module = FileLoadingDataModule(0, directories={'real': self.directories['real']},
-                                            exclude_regex=_failed_exclusion)
-        synth_module = FileLoadingDataModule(0, directories={'synth': self.directories['synth']},
-                                             split=self.synth_split, exclude_regex=_failed_exclusion)
+        real_split = FileLoadingDataModule.create_file_split({'real': self.directories['real']},
+                                                             exclusion_regex=_failed_exclusion)
+        synth_split = FileLoadingDataModule.create_file_split({'synth': self.directories['synth']},
+                                                              split=self.synth_split,
+                                                              exclusion_regex=_failed_exclusion)
         keys = ['train', 'validate', 'test']
         real, synth = [], []
         for key in keys:
-            real.append(EndlessDataset(ImageDataset(files=real_module.split_files[key]['real'],
-                                                    transforms=real_transforms if key == 'train' else None,
-                                                    randomize=True)))
-            synth.append(EndlessDataset(ImageDataset(files=synth_module.split_files[key]['synth'],
-                                                     transforms=synth_transforms if key == 'train' else None,
-                                                     randomize=True)))
+            real.append(ImageDataset(files=real_split[key]['real'],
+                                     transforms=real_transforms if key == 'train' else None,
+                                     randomize=True))
+            synth.append(ImageDataset(files=synth_split[key]['synth'],
+                                      transforms=synth_transforms if key == 'train' else None,
+                                      randomize=True))
 
         self.data_train = ConcatDataset([synth[0], real[0]])
         self.data_val = ConcatDataset([synth[1], real[1]])
