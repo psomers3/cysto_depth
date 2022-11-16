@@ -17,24 +17,12 @@ class GAN(BaseModel):
             depth_model=None,
             preadapted_model=None,
             image_gan: bool = False,
-            lr_d: float = 5e-5,
-            lr_g: float = 5e-6,
-            b1: float = 0.5,
-            b2: float = 0.999,
-            res_loss_factor=5,
-            scale_loss_factor=0,
-            img_discriminator_factor=0,
             res_transfer=True,
             adaptive_gating=False,
-            warmup_steps=0,
-            d_max_conf=0.9,
-            accum_grad_batches=None,
             **kwargs
     ):
         super().__init__()
-        self.save_hyperparameters("lr_d", "lr_g", "b1", "b2", "res_loss_factor", "scale_loss_factor",
-                                  "img_discriminator_factor", "res_transfer", "warmup_steps", "d_max_conf",
-                                  "accum_grad_batches", "adaptive_gating", "image_gan")
+        self.save_hyperparameters()
 
         if res_transfer:
             self.generator = AdaptiveEncoder(adaptive_gating)
@@ -69,7 +57,8 @@ class GAN(BaseModel):
         else:
             return self.generator(z)
 
-    def adversarial_loss(self, y_hat, y):
+    @staticmethod
+    def adversarial_loss(y_hat, y):
         return F.binary_cross_entropy(y_hat, y)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -115,7 +104,9 @@ class GAN(BaseModel):
 
             g_loss_feat = torch.sum(torch.stack(g_losses_feat))
             g_loss_img = g_loss_img
-            g_loss = g_loss_feat + self.hparams.res_loss_factor * residual_loss + self.hparams.img_discriminator_factor * g_loss_img
+            g_loss = g_loss_feat \
+                     + self.hparams.residual_loss_factor * residual_loss \
+                     + self.hparams.img_discriminator_factor * g_loss_img
             self.log("g_loss", g_loss)
             self.log("g_skip_loss", g_loss_feat)
             self.log("g_res_loss", residual_loss)
@@ -217,10 +208,10 @@ class GAN(BaseModel):
             plt.close(fig)
 
     def configure_optimizers(self):
-        lr_d = self.hparams.lr_d
-        lr_g = self.hparams.lr_g
-        b1 = self.hparams.b1
-        b2 = self.hparams.b2
+        lr_d = self.hparams.discriminator_lr
+        lr_g = self.hparams.generator_lr
+        b1 = self.hparams.beta_1
+        b2 = self.hparams.beta_2
 
         opt_g = torch.optim.Adam(filter(lambda p: p.requires_grad, self.generator.parameters()), lr=lr_g,
                                  betas=(b1, b2))

@@ -96,6 +96,14 @@ class GANTrainingConfig:
     """ keep the top k saved checkpoints """
     ckpt_every_n_epochs: Union[int, None] = 2
     """ Number of epochs between checkpoints """
+    beta_1: float = 0.5
+    beta_2: float = 0.999
+    residual_loss_factor: float = 5
+    scale_loss_factor: float = 0
+    img_discriminator_factor: float = 0
+    residual_transfer: bool = True
+    d_max_conf: float = 0.9
+    warmup_steps: float = 0
 
 
 @dataclass
@@ -110,6 +118,8 @@ class CystoDepthConfig:
     """ tensorboard log directory """
     adaptive_gating: bool = False
     """ Whether to turn on adaptive gating for domain adaptation """
+    image_gan: bool = False
+    """ Whether uses full output for discriminator instead of patches """
     num_workers: int = 6
     """ Number of workers to use during data loading """
     image_size: int = 256
