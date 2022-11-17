@@ -1,3 +1,5 @@
+import torch
+from typing import *
 from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
@@ -37,7 +39,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.save_hyperparameters("batch_size")
         self.image_size = image_size
 
-    def setup(self, stage: str = None):
+    def get_transforms(self) -> List[torch_transforms.Compose]:
         num_synchros = 3 if self.using_normals else 2
         # normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
         squarify = d_transforms.Squarify(image_size=self.image_size)
@@ -49,17 +51,23 @@ class EndoDepthDataModule(FileLoadingDataModule):
                                                                                                           [False],
                                                                                                           [True]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
+        to_mm = d_transforms.ElementWiseScale(1e3)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         color_transforms = torch_transforms.Compose([color_jitter, mask, squarify, affine_transform])
-        depth_transforms = torch_transforms.Compose([channel_slice, mask, squarify, affine_transform])
+        depth_transforms = torch_transforms.Compose([channel_slice, to_mm, mask, squarify, affine_transform])
         transforms = [color_transforms, depth_transforms]
         if self.using_normals:
             normals_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
             transforms.append(normals_transforms)
+        return transforms
 
-        self.data_train = ImageDataset(files=list(zip(*self.split_files['train'].values())), transforms=transforms)
-        self.data_val = ImageDataset(files=list(zip(*self.split_files['validate'].values())), transforms=transforms)
-        self.data_test = ImageDataset(files=list(zip(*self.split_files['test'].values())), transforms=transforms)
+    def setup(self, stage: str = None):
+        self.data_train = ImageDataset(files=list(zip(*self.split_files['train'].values())),
+                                       transforms=self.get_transforms())
+        self.data_val = ImageDataset(files=list(zip(*self.split_files['validate'].values())),
+                                     transforms=self.get_transforms())
+        self.data_test = ImageDataset(files=list(zip(*self.split_files['test'].values())),
+                                      transforms=self.get_transforms())
 
 
 if __name__ == '__main__':

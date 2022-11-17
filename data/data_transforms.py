@@ -115,6 +115,14 @@ class TensorSlice:
         return data[self.slice][None]
 
 
+class ElementWiseScale:
+    def __init__(self, factor: float):
+        self.factor = factor
+
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        return data * self.factor
+
+
 class AddGaussianNoise:
     def __init__(self, mean=0., std=1):
         self.std = std

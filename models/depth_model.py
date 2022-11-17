@@ -68,6 +68,8 @@ class DepthEstimationModel(BaseModel):
         if batch_idx == 0:
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
+                max_depth = synth_label.max()
+                self.plot_minmax = [None, (0, max_depth), (0, max_depth)]
                 self.validation_images = (synth_img.clone(), synth_label.clone())
             synth_img, synth_label = self.validation_images
             y_hat = self(synth_img)[-1]
@@ -81,17 +83,10 @@ class DepthEstimationModel(BaseModel):
         return self.shared_val_test_step(batch, batch_idx, "val")
 
     def plot(self, prefix, synth_img, prediction, label):
-        kwargs1 = {}
-        kwargs2 = {}
         max_num_samples = 7
-
-        kwargs1["minmax"] = [None, (0, 20), (0, 20)]
-        kwargs2["minmax"] = [None, (0, 20)]
         self.gen_plots(zip(synth_img[:max_num_samples], prediction[:max_num_samples], label[:max_num_samples]),
                        "{}-synth-prediction".format(prefix), labels=["Synth Image", "Depth Predicted", "Depth GT"],
-                       **kwargs1)
-        # self.gen_plots(zip(real_img[:max_num_samples], real_hat[:max_num_samples]), "{}-real-prediction".format(prefix),
-        #                labels=["Real Image", "Real Predicted"], **kwargs2)
+                       minmax=self.plot_minmax)
 
     def forward(self, _input):
         skip_outs, _ = self.encoder(_input)
