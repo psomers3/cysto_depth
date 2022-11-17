@@ -15,7 +15,7 @@ import json
 from typing import *
 
 _video_types = ['.mpg', '.mp4']
-_original_exclusion = re.compile(r'^(?!.*\._)')
+_original_exclusion = re.compile(r'^(?!.*original)')
 _failed_exclusion = r'^(?!.*failed)'
 _annotations_csv = re.compile(r'video_annotations')
 
