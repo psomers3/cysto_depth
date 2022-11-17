@@ -62,8 +62,7 @@ class DepthEstimationModel(BaseModel):
         synth_img, synth_label = batch
         # only final depth map is of interest during validation
         y_hat = self(synth_img)[-1]
-        label = synth_label
-        metric_dict, _ = self.calculate_metrics(prefix, y_hat, label)
+        metric_dict, _ = self.calculate_metrics(prefix, y_hat, synth_label)
         self.log_dict(metric_dict)
         if batch_idx == 0:
             # do plot on the same images without differing augmentations
@@ -73,7 +72,7 @@ class DepthEstimationModel(BaseModel):
                 self.validation_images = (synth_img.clone(), synth_label.clone())
             synth_img, synth_label = self.validation_images
             y_hat = self(synth_img)[-1]
-            self.plot(prefix, synth_img, y_hat, label)
+            self.plot(prefix, synth_img, y_hat, synth_label)
         return metric_dict
 
     def test_step(self, batch, batch_idx):

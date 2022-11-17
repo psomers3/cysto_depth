@@ -39,7 +39,12 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.save_hyperparameters("batch_size")
         self.image_size = image_size
 
-    def get_transforms(self) -> List[torch_transforms.Compose]:
+    def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
+        """ get the list of transforms for each data channel (i.e. image, label)
+            TODO: don't apply random augmentations to validation and test transforms
+
+            :param stage: one of 'train', 'val', 'test'
+        """
         num_synchros = 3 if self.using_normals else 2
         # normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
         squarify = d_transforms.Squarify(image_size=self.image_size)
@@ -63,11 +68,11 @@ class EndoDepthDataModule(FileLoadingDataModule):
 
     def setup(self, stage: str = None):
         self.data_train = ImageDataset(files=list(zip(*self.split_files['train'].values())),
-                                       transforms=self.get_transforms())
+                                       transforms=self.get_transforms('train'))
         self.data_val = ImageDataset(files=list(zip(*self.split_files['validate'].values())),
-                                     transforms=self.get_transforms())
+                                     transforms=self.get_transforms('validate'))
         self.data_test = ImageDataset(files=list(zip(*self.split_files['test'].values())),
-                                      transforms=self.get_transforms())
+                                      transforms=self.get_transforms('test'))
 
 
 if __name__ == '__main__':
