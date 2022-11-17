@@ -11,6 +11,8 @@ _mac_regex = re.compile(r'^(?!.*\._)')
 
 
 class FileLoadingDataModule(pl.LightningDataModule):
+    stages = ['train', 'validate', 'test']
+
     def __init__(self,
                  batch_size: int,
                  directories: dict,
@@ -72,7 +74,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
             assert len(list_lengths) == 1, f'Different number of files found between data roles.'
 
         [image_files[key].sort() for key in image_files]
-        split_files = {'test': {}, 'validate': {}, 'train': {}}
+        split_files = {stage: {} for stage in FileLoadingDataModule.stages}
         stages = list(split_files.keys())
         for stage in stages:
             if isinstance(split[stage], str):
@@ -89,8 +91,9 @@ class FileLoadingDataModule(pl.LightningDataModule):
             if isinstance(split[stage], float):
                 stage_indices = indices[:int(split[stage] * remaining_count) + 1]
                 for key, file_list in image_files.items():
-                    split_files[stage][key] = np.asarray(file_list)[stage_indices]
+                    split_files[stage][key] = np.asarray(file_list)[stage_indices].tolist()
                 indices = indices[len(stage_indices):]
+
         return split_files
 
     def save_split(self, file_name: str):

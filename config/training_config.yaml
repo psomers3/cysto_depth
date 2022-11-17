@@ -12,6 +12,7 @@ synthetic_config:
     - /Users/peter/isys/output/color
     - /Users/peter/isys/output/depth
     - /Users/peter/isys/output/normal
+  training_split: {'train': .6, 'validate': 0.4, 'test': ".*00015.*"}
 gan_config:
   source_images: /Users/peter/isys/output/color
   synthetic_base_model: ./logs/synthetic/lightning_logs/version_11/checkpoints/epoch=9-step=10.ckpt
