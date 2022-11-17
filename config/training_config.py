@@ -17,6 +17,24 @@ class TrainerDictConfig:
 
 
 @dataclass
+class CallbackConfig:
+    """ Configuration for callbacks to be added to the training """
+
+    early_stop_patience: Union[int, None] = None
+    """ patience for early stopping. If null, then no early stopping applied. """
+    early_stop_metric: str = '${..monitor_metric}'
+    """ metric for early stopping"""
+    ckpt_metric: str = '${..monitor_metric}'
+    """ metric for model checkpoints """
+    ckpt_save_top_k: int = 5
+    """ keep the top k saved checkpoints """
+    ckpt_every_n_epochs: Union[int, None] = None
+    """ Number of epochs between checkpoints """
+    model_ckpt_save_k: Union[int, None] = None
+    """ keep the top k saved checkpoints """
+
+
+@dataclass
 class SyntheticTrainingConfig:
     """ Hyperparameter settings for the supervised synthetic depth training """
 
@@ -38,22 +56,18 @@ class SyntheticTrainingConfig:
     grad_loss_factor: float = 1.0
     lr_scheduler_patience: int = 10
     lr_scheduler_monitor: str = "val_rmse_log"
-    early_stop_patience: Union[int, None] = 15
-    """ patience for early stopping. If null, then no early stopping applied. """
     reduce_lr_patience: int = 5
     max_epochs: int = 10
     monitor_metric: str = 'val_rmse'
-    """ metric to watch for early stopping and model checkpoints """
+    """ main metric to track for performance """
     val_check_interval: int = 1
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 32
     resume_from_checkpoint: Union[str, None] = None
     """ checkpoint to load weights from """
-    ckpt_save_top_k: int = 5
-    """ keep the top k saved checkpoints """
-    ckpt_every_n_epochs: Union[int, None] = None
-    """ Number of epochs between checkpoints """
+    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15,
+                                               ckpt_save_top_k=5)
 
 
 @dataclass
@@ -74,7 +88,7 @@ class GANTrainingConfig:
     """ learning rate for discriminator """
     max_epochs: int = 10
     monitor_metric: str = 'g_loss'
-    """ metric to watch for early stopping and model checkpoints """
+    """ main metric to track for performance """
     val_check_interval: int = 1
     """ how many batches before doing validation update """
     accumulate_grad_batches: int = 4
@@ -90,12 +104,9 @@ class GANTrainingConfig:
     """ folder with endoscopic videos """
     image_output_folder: str = MISSING
     """ folder containing (or will contain) the generated real image training data """
-    model_checkpoint_save_k: Union[int, None] = None
-    """ keep the top k saved checkpoints """
-    ckpt_save_top_k: int = 1
-    """ keep the top k saved checkpoints """
-    ckpt_every_n_epochs: Union[int, None] = 2
-    """ Number of epochs between checkpoints """
+    callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
+                                               ckpt_save_top_k=1,
+                                               model_ckpt_save_k=None)
     beta_1: float = 0.5
     beta_2: float = 0.999
     residual_loss_factor: float = 5

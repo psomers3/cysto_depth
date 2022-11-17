@@ -3,7 +3,7 @@
 import os
 import hydra
 from omegaconf import OmegaConf
-from config.training_config import CystoDepthConfig
+from config.training_config import CystoDepthConfig, CallbackConfig
 from simple_parsing import ArgumentParser
 from typing import *
 import inspect
@@ -29,14 +29,14 @@ def get_default_args(func) -> dict:
     }
 
 
-def get_callbacks(configuration: dict) -> List[pl.Callback]:
+def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
     callbacks = []
-    if configuration.get('early_stop_patience', None):
-        callbacks.append(pl.callbacks.EarlyStopping(monitor=configuration['monitor_metric'],
-                                                    patience=configuration['early_stop_patience']))
-    callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration['monitor_metric'],
-                                                  save_top_k=configuration['ckpt_save_top_k'],
-                                                  every_n_epochs=configuration['ckpt_every_n_epochs']))
+    if configuration.early_stop_patience:
+        callbacks.append(pl.callbacks.EarlyStopping(monitor=configuration.early_stop_metric,
+                                                    patience=configuration.early_stop_patience))
+    callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration.ckpt_metric,
+                                                  save_top_k=configuration.ckpt_save_top_k,
+                                                  every_n_epochs=configuration.ckpt_every_n_epochs))
     return callbacks
 
 
@@ -65,7 +65,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           workers_per_loader=config.num_workers)
         model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.synthetic_config)
         [trainer_dict.update({key: val})for key, val in config.synthetic_config.items() if key in trainer_dict]
-        trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config)})
+        trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
     else:
         split = config.gan_config.synth_split if not config.gan_config.training_split_file else \
             config.gan_config.synth_split
@@ -79,7 +79,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     workers_per_loader=config.num_workers)
         model = GAN(adaptive_gating=config.adaptive_gating, image_gan=config.image_gan, **config.gan_config)
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
-        trainer_dict.update({'callbacks': get_callbacks(config.gan_config)})
+        trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})
 
     logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
     trainer_dict.update({'logger': logger})
