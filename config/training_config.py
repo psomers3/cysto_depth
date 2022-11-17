@@ -137,6 +137,8 @@ class CystoDepthConfig:
     """ Final square size to make all images """
     print_config: bool = False
     """ Print full Omega Config """
+    split_save_dir: str = ''
+    """ Directory to save the data split(s) used during training """
     synthetic_config: SyntheticTrainingConfig = SyntheticTrainingConfig()
     gan_config: GANTrainingConfig = GANTrainingConfig()
     trainer_config: TrainerDictConfig = TrainerDictConfig()

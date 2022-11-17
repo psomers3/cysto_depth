@@ -11,6 +11,7 @@ import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule, _mac_regex
 import re
 import csv
+import json
 from typing import *
 
 _video_types = ['.mpg', '.mp4']
@@ -84,6 +85,17 @@ class GANDataModule(pl.LightningDataModule):
         self.data_train: Dataset = None
         self.data_val: Dataset = None
         self.data_test: Dataset = None
+
+    def save_split(self, file_name: str):
+        """
+        Write the generated split to a file. TODO: deal with relative/absolute paths for portability
+
+        :param file_name: the name of the file to write the split to.
+        """
+        if file_name[-4:] != 'json':
+            file_name = f'{file_name}.json'
+        with open(file_name, 'w') as f:
+            json.dump(self.synth_split, f)
 
     def prepare_data(self) -> None:
         if self.generate_data:

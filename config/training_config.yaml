@@ -2,6 +2,7 @@ log_directory: ./logs
 adaptive_gating: true
 mode: synthetic
 training_stage: train
+split_save_dir: ./splits
 synthetic_config:
   data_roles:
     - color

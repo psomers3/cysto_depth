@@ -13,6 +13,7 @@ bladder_annotations.csv
 GRK*
 *.DS_Store
 logs/
+splits/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -60,12 +60,22 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
     trainer_dict.update({'logger': logger})
     trainer = pl.Trainer(**trainer_dict)
 
-    if config.training_stage == 'train':
-        trainer.fit(model, data_module)
-    elif config.training_stage == 'validate':
-        trainer.validate(model, data_module)
-    else:
-        trainer.test(model, data_module)
+    if config.split_save_dir:
+        os.makedirs(config.split_save_dir, exist_ok=True)
+        data_module.save_split(os.path.join(config.split_save_dir, config.mode, 'training_split'))
+
+    try:
+        if config.training_stage == 'train':
+            trainer.fit(model, data_module)
+        elif config.training_stage == 'validate':
+            trainer.validate(model, data_module)
+        else:
+            trainer.test(model, data_module)
+    except (KeyboardInterrupt, RuntimeError):
+        pass
+
+    with open(os.path.join(logger.log_dir, 'configuration.yaml'), 'w') as f:
+        f.write(OmegaConf.to_yaml(config))
 
 
 if __name__ == "__main__":
