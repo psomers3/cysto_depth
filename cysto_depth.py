@@ -3,41 +3,16 @@
 import os
 import hydra
 from omegaconf import OmegaConf
-from config.training_config import CystoDepthConfig, CallbackConfig
+from config.training_config import CystoDepthConfig
 from simple_parsing import ArgumentParser
 from typing import *
-import inspect
+from utils.general import get_default_args, get_callbacks
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from models.depth_model import DepthEstimationModel
 from data.depth_datamodule import EndoDepthDataModule
 from data.gan_datamodule import GANDataModule
 from models.gan_model import GAN
-
-
-def get_default_args(func) -> dict:
-    """
-    Get expected arguments and their defaults for a function
-    :param func: function to get defaults from
-    :return: dictionary of function argument names and default values
-    """
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
-
-
-def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
-    callbacks = []
-    if configuration.early_stop_patience:
-        callbacks.append(pl.callbacks.EarlyStopping(monitor=configuration.early_stop_metric,
-                                                    patience=configuration.early_stop_patience))
-    callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration.ckpt_metric,
-                                                  save_top_k=configuration.ckpt_save_top_k,
-                                                  every_n_epochs=configuration.ckpt_every_n_epochs))
-    return callbacks
 
 
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
