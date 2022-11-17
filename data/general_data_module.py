@@ -29,15 +29,17 @@ class FileLoadingDataModule(pl.LightningDataModule):
 
         :param split: can be one of the following:
                      - dictionary of regex strings to filter the filenames with:
-                       {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"} <- i.e. if divided into subfolders
+                       {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"} <- i.e. if divided into
+                       subfolders
                      - dictionary of floats specifying the random data split:
                        {'train': 0.5, 'validate': 0.3, 'test': 0.2}
                      - A combination of the two previous options:
                        {'train': 0.75, 'validate': 0.25, 'test': ".*model_01.*"}
-                       The files for any regex matches will be assigned first and the remainder will respect the float splits
-                     - string pointing to a file from a previously saved split. Needs to be a json file with a dictionary
-                       of the form json_dict[stage][role] = List[files], where stage is one of ['train', 'validate', 'test']
-                       and role matches the keys provided in `directories`.
+                       The files for any regex matches will be assigned first and the remainder will respect the float
+                       splits
+                     - string pointing to a file from a previously saved split. Needs to be a json file with a
+                       dictionary of the form json_dict[stage][role] = List[files], where stage is one of
+                       ['train', 'validate', 'test'] and role matches the keys provided in `directories`.
                      split defaults to the first example assuming subfolders with "train", "val", and "test"
 
         :param workers_per_loader: cpu threads to use for each data loader.
