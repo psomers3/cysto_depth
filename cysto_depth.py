@@ -61,8 +61,9 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
     trainer = pl.Trainer(**trainer_dict)
 
     if config.split_save_dir:
-        os.makedirs(config.split_save_dir, exist_ok=True)
-        data_module.save_split(os.path.join(config.split_save_dir, config.mode, 'training_split'))
+        save_dir = os.path.join(config.split_save_dir, config.mode)
+        os.makedirs(save_dir, exist_ok=True)
+        data_module.save_split(os.path.join(save_dir, 'training_split'))
 
     try:
         if config.training_stage == 'train':
