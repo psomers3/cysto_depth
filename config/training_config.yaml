@@ -1,0 +1,3 @@
+data_directories:
+  - /Users/peter/isys/output/color
+  - /Users/peter/isys/output/depth

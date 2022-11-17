@@ -3,16 +3,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning import loggers as pl_loggers
 import argparse
-
-from data.depth_datamodule import DepthDataModule
+from data.depth_datamodule import EndoDepthDataModule
 from models.depth_model import DepthEstimationModel
 from models.gan_model import GAN
 import glob
 import os
 import shutil
-import matplotlib.pyplot as plt
-plt.rcParams["font.family"] = "Times New Roman"
-plt.rcParams.update({'font.size': "26"})
 
 
 def parse_args():
@@ -170,14 +166,3 @@ if __name__ == "__main__":
                                    dataset_dir=dataset_dir,
                                    generate_data=generate_gan_data)
         trainer.test(adapted_model, depth_dm)
-        # print("Testing Un-Adapted Model")
-        # unadapted_depth_model = DepthEstimationModel.load_from_checkpoint("../lightning_logs/depth/default/epoch=9-step=6149.ckpt")
-        # unadapted_model = GAN(unadapted_depth_model)
-        # cycle_gan_data_dir = "../datasets/cycle_gan_data"
-        # # TODO reset logger
-        # depth_dm = DepthDataModule(batch_size=batch_size,
-        #                            annotations_dir=annotations_path,
-        #                            synth_data_dir=synth_data_dir,
-        #                            gan_data_dir=cycle_gan_data_dir,
-        #                            generate_data=False)
-        # trainer.test(unadapted_model, depth_dm)

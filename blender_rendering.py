@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from argparse import ArgumentParser
 from omegaconf import OmegaConf, DictConfig
-from config import MainConfig
+from config.blender_config import MainConfig
 import blender.blender_utils as butils
 from blender.blender_cam_utils import get_blender_camera_from_3x3_P
 import json

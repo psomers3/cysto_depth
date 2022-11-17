@@ -22,8 +22,6 @@ class GANDataset(Dataset):
         else:
             self.img_dir = os.path.join(img_dir,"val")
             self.annotations = annotations[annotations["Set"]== "Train"]
-        
-
 
     def __len__(self):
         return len(os.listdir(self.img_dir))
