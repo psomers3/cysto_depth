@@ -1,4 +1,3 @@
-import torch
 from typing import *
 from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset

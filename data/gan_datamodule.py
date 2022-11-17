@@ -127,6 +127,8 @@ class GANDataModule(pl.LightningDataModule):
             # TODO: Handle videos not in the annotations csv
 
     def setup(self, stage: str = None):
+        # NOTE!! if any SynchronizeTransforms are used, then each dataset needs its own set of transforms. See the
+        # EndoDepthDataModule
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0])
         affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
