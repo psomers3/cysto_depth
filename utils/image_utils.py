@@ -80,7 +80,7 @@ def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_sca
 
         # rgb img
         elif tensor_squeezed.ndim == 3:
-            tensor_squeezed = trans(tensor_squeezed)
+            # tensor_squeezed = trans(tensor_squeezed)
             img = tensor_squeezed.cpu().detach().numpy()
             ratios.append(1)  # move color channel dimension to end
             img = np.moveaxis(img, 0, 2)

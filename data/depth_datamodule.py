@@ -50,7 +50,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
                                                                                                           [True]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
-        color_transforms = torch_transforms.Compose([mask, squarify, color_jitter, affine_transform])
+        color_transforms = torch_transforms.Compose([color_jitter, mask, squarify, affine_transform])
         depth_transforms = torch_transforms.Compose([channel_slice, mask, squarify, affine_transform])
         transforms = [color_transforms, depth_transforms]
         if self.using_normals:

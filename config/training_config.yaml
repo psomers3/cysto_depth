@@ -4,6 +4,7 @@ mode: synthetic
 training_stage: train
 split_save_dir: ./splits
 synthetic_config:
+  max_epochs: 300
   data_roles:
     - color
     - depth

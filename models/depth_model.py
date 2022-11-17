@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 from torch import optim
 import torch
 from models.base_model import BaseModel
-
+from typing import *
 from utils.loss import BerHu, GradientLoss
 from models.adaptive_encoder import AdaptiveEncoder
 from utils.image_utils import generate_heatmap_fig
@@ -18,6 +18,7 @@ class DepthEstimationModel(BaseModel):
         self.decoder = Decoder()
         self.berhu = BerHu()
         self.gradloss = GradientLoss()
+        self.validation_images = None
         if kwargs.get('resume_from_checkpoint', None):
             self.encoder = AdaptiveEncoder(adaptive_gating)
             self.load_state_dict(kwargs['resume_from_checkpoint'], strict=False)
@@ -57,15 +58,20 @@ class DepthEstimationModel(BaseModel):
         self.log("train_loss", loss)
         return loss
 
-    def shared_val_test_step(self, batch, batch_idx, prefix):
+    def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
         synth_img, synth_label = batch
         # only final depth map is of interest during validation
         y_hat = self(synth_img)[-1]
         label = synth_label
         metric_dict, _ = self.calculate_metrics(prefix, y_hat, label)
         self.log_dict(metric_dict)
-        # if batch_idx == 0:
-        #     self.plot(prefix, synth_img, y_hat, label, real_img, real_hat)
+        if batch_idx == 0:
+            # do plot on the same images without differing augmentations
+            if self.validation_images is None:
+                self.validation_images = (synth_img.clone(), synth_label.clone())
+            synth_img, synth_label = self.validation_images
+            y_hat = self(synth_img)[-1]
+            self.plot(prefix, synth_img, y_hat, label)
         return metric_dict
 
     def test_step(self, batch, batch_idx):
@@ -74,7 +80,7 @@ class DepthEstimationModel(BaseModel):
     def validation_step(self, batch, batch_idx):
         return self.shared_val_test_step(batch, batch_idx, "val")
 
-    def plot(self, prefix, synth_img, prediction, label, real_img, real_hat):
+    def plot(self, prefix, synth_img, prediction, label):
         kwargs1 = {}
         kwargs2 = {}
         max_num_samples = 7
@@ -84,8 +90,8 @@ class DepthEstimationModel(BaseModel):
         self.gen_plots(zip(synth_img[:max_num_samples], prediction[:max_num_samples], label[:max_num_samples]),
                        "{}-synth-prediction".format(prefix), labels=["Synth Image", "Depth Predicted", "Depth GT"],
                        **kwargs1)
-        self.gen_plots(zip(real_img[:max_num_samples], real_hat[:max_num_samples]), "{}-real-prediction".format(prefix),
-                       labels=["Real Image", "Real Predicted"], **kwargs2)
+        # self.gen_plots(zip(real_img[:max_num_samples], real_hat[:max_num_samples]), "{}-real-prediction".format(prefix),
+        #                labels=["Real Image", "Real Predicted"], **kwargs2)
 
     def forward(self, _input):
         skip_outs, _ = self.encoder(_input)
