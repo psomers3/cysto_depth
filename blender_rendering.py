@@ -1,5 +1,6 @@
 import sys
 import os
+
 sys.path.append(os.path.dirname(__file__))  # So blender's python can find this folder
 import shutil
 import bpy
@@ -68,7 +69,9 @@ def blender_rendering():
 
     # add resection loop
     loop_angle_offset = bpy.data.objects.new('endo_angle', None)
-    resection_loop = butils.add_resection_loop(config.resection_loop, collection=endo_collection, parent=loop_angle_offset)
+    resection_loop, wire, insulation = butils.add_resection_loop(config.resection_loop,
+                                                                 collection=endo_collection,
+                                                                 parent=loop_angle_offset)
     loop_angle_offset.parent = endo_tip
     loop_angle_offset.rotation_euler = Vector(np.radians([-config.endoscope_angle, 0, 0]))
     endo_collection.objects.link(loop_angle_offset)
@@ -80,7 +83,7 @@ def blender_rendering():
 
     bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0  # turn off global lighting
     if args.sample:
-        stl_files = [stl_files[np.random.randint(0, len(stl_files)-1)]]
+        stl_files = [stl_files[np.random.randint(0, len(stl_files) - 1)]]
 
     # set paths for rendering outputs
     output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)

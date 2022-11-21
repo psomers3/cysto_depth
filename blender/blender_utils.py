@@ -600,4 +600,4 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
         collection.objects.link(wire)
         collection.objects.link(insulation)
         collection.objects.link(resection_loop)
-    return resection_loop
+    return resection_loop, wire, insulation
