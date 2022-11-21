@@ -115,6 +115,8 @@ class SyntheticTrainingConfig:
     """ Whether to use a single decoder when predicting normals """
     inverse_depth: bool = "${..inverse_depth}"
     """ Whether to predict the inverse of the depth """
+    fast_dev_run: bool = False
+    """ fast run through all the code (5 batches) to check for errors """
 
 
 @dataclass
