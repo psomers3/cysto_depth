@@ -101,9 +101,8 @@ class EndoLightConfig:
 @dataclass
 class TumorParticleConfig:
     stl_file: str = MISSING
-    # density: float = 4
     volume_max: float = 0.1
-    scaling_range: List[float] = field(default_factory=lambda:  [0.1, 1])
+    scaling_range: List[float] = field(default_factory=lambda: [0.1, 1])
     rotation_range: List[float] = field(default_factory=lambda: [0, 360])
     amount: int = 10
 
@@ -113,7 +112,21 @@ class DiverticulumConfig:
     amount: float = 2
     subdivisions_sphere: int = 2
     radius_sphere_range: List[float] = field(default_factory=lambda: [0.001, 0.020])
-    radius_opening_range: List[float] = field(default_factory=lambda: [0.0001, 0.0004])
+    translation_range: List[float] = field(default_factory=lambda: [0.0001, 0.0004])
+
+
+@dataclass
+class ResectionLoopConfig:
+    wire_stl: str = MISSING
+    """ path to the STL for the wire """
+    insulation_stl: str = MISSING
+    """ path to the STL for the insulation """
+    scaling_factor: float = 0.001
+    """ initial scaling """
+    euler_rotation: List[float] = field(default_factory=lambda: [90, 0, 0])
+    """ initial rotation on load """
+    max_extension: float = 5
+    """ maximum distance the wire can be extended from the endoscope """
 
 
 @dataclass
@@ -140,3 +153,5 @@ class MainConfig:
     endo_image_size: List[float] = field(default_factory=lambda: [1920, 1080])
     subdivision_mod: SubdivisionModConfig = SubdivisionModConfig()
     clear_output_folder: bool = False
+    resection_loop: ResectionLoopConfig = ResectionLoopConfig()
+    endoscope_angle: float = 30

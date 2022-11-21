@@ -4,7 +4,7 @@ import os
 os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 from pytorch3d.renderer.lighting import PointLights
 from pytorch3d.renderer.materials import Materials
-from pytorch3d.renderer.cameras import PerspectiveCameras, get_ndc_to_screen_transform, get_screen_to_ndc_transform
+from pytorch3d.renderer.cameras import PerspectiveCameras
 import torch
 import json
 from utils.exr_utils import get_circular_mask_4_img

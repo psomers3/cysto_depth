@@ -66,6 +66,23 @@ def rf_rq(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return r, q
 
 
+def get_image_size_from_intrisics(P):
+    """
+
+    :param P: 3x3 intrinsics matrix
+    :return:
+    """
+    _P = np.zeros((3, 4))
+    _P[:3, :3] = P
+    P = _P
+    # get krt
+    K, R_world2cv, T_world2cv = KRT_from_P(np.matrix(P))
+    # sensor_height_in_mm = 1  # doesn't matter
+    resolution_x_in_px = K[0, 2] * 2  # principal point assumed at the center
+    resolution_y_in_px = K[1, 2] * 2  # principal point assumed at the center
+    return int(resolution_x_in_px), int(resolution_y_in_px)
+
+
 def get_blender_camera_from_3x3_P(P,
                                   scene: bpy.types.Scene = None,
                                   clip_limits: List[float] = None,

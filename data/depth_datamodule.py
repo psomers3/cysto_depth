@@ -10,7 +10,6 @@ class EndoDepthDataModule(FileLoadingDataModule):
                  batch_size,
                  color_image_directory: str,
                  depth_image_directory: str,
-                 normals_image_directory: str = None,
                  split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6):
@@ -23,17 +22,12 @@ class EndoDepthDataModule(FileLoadingDataModule):
         :param batch_size: batch sized to use for training.
         :param color_image_directory: path to the color images. Will be searched recursively.
         :param depth_image_directory: path to the depth images. Will be searched recursively.
-        :param normals_image_directory: path to the normals (in camera coords). Will be searched recursively. Ignored
-                                        if None.
         :param split: see parent class FileLoadingDataModule.
         :param image_size: final `square` image size to return for training.
         :param workers_per_loader: cpu threads to use for each data loader.
         """
 
         directories = {'color': color_image_directory, 'depth': depth_image_directory}
-        self.using_normals = normals_image_directory is not None
-        if self.using_normals:
-            directories['normals'] = normals_image_directory
         super().__init__(batch_size, directories, split, workers_per_loader)
         self.save_hyperparameters("batch_size")
         self.image_size = image_size
@@ -44,7 +38,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
 
             :param stage: one of 'train', 'val', 'test'
         """
-        num_synchros = 3 if self.using_normals else 2
+        num_synchros = 2
         # normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
@@ -60,9 +54,6 @@ class EndoDepthDataModule(FileLoadingDataModule):
         color_transforms = torch_transforms.Compose([color_jitter, mask, squarify, affine_transform])
         depth_transforms = torch_transforms.Compose([channel_slice, to_mm, mask, squarify, affine_transform])
         transforms = [color_transforms, depth_transforms]
-        if self.using_normals:
-            normals_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
-            transforms.append(normals_transforms)
         return transforms
 
     def setup(self, stage: str = None):

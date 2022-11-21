@@ -13,6 +13,7 @@ from blender.blender_cam_utils import get_blender_camera_from_3x3_P
 import json
 import numpy as np
 import debugpy
+from mathutils import Vector
 
 
 def start_debugger():
@@ -49,22 +50,35 @@ def blender_rendering():
     cam_matrix = np.asarray(json.load(open(config.camera_intrinsics, 'r'))['IntrinsicMatrix']).T
     camera, cam_data = get_blender_camera_from_3x3_P(cam_matrix, scene=scene, clip_limits=[0.001, 0.5],
                                                      scale=config.blender.render.resolution_percentage / 100)
+    butils.apply_transformations(camera)
     scene.camera = camera
 
     particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
     diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
 
+    # setup collection hierarchy
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
     scene.collection.children.link(endo_collection)
     scene.collection.children.link(bladder_collection)
-
     endo_collection.objects.link(camera)
+    endo_tip = bpy.data.objects.new('endo_tip', None)
+    endo_collection.objects.link(endo_tip)
+    camera.parent = endo_tip
+
+    # add resection loop
+    loop_angle_offset = bpy.data.objects.new('endo_angle', None)
+    resection_loop = butils.add_resection_loop(config.resection_loop, collection=endo_collection, parent=loop_angle_offset)
+    loop_angle_offset.parent = endo_tip
+    loop_angle_offset.rotation_euler = Vector(np.radians([-config.endoscope_angle, 0, 0]))
+    endo_collection.objects.link(loop_angle_offset)
+
+    # add light surface
     light, emission_node = butils.add_surface_lighting(**config.endo_light,
                                                        collection=endo_collection,
-                                                       parent_object=camera)
+                                                       parent_object=endo_tip)
 
-    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
+    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0  # turn off global lighting
     if args.sample:
         stl_files = [stl_files[np.random.randint(0, len(stl_files)-1)]]
 
@@ -78,7 +92,7 @@ def blender_rendering():
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
     endo_collection.objects.link(random_position)
-    camera.parent = random_position
+    endo_tip.parent = random_position
     shrinkwrap_constraint = butils.add_shrinkwrap_constraint(random_position, config.shrinkwrap)
 
     for stl_file in stl_files:
@@ -95,15 +109,16 @@ def blender_rendering():
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]
-
+        camera.rotation_euler = Vector(np.radians([0, 0, 180]))
         # set random scenes and render
         for i in range(1, config.samples_per_model + 1):
             random_position.rotation_euler = (np.random.uniform(0, np.radians(360), size=3))
-            camera.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(np.asarray(config.view_angle_max))
+            endo_tip.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(np.asarray(config.view_angle_max))
             shrinkwrap_constraint.distance = np.random.uniform(*config.distance_range, 1)
             emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
             random_position.keyframe_insert(frame=i, data_path="rotation_euler")
-            camera.keyframe_insert(frame=i, data_path="rotation_euler")
+            endo_tip.keyframe_insert(frame=i, data_path="rotation_euler")
+            camera.keyframe_insert(frame=i, data_path='rotation_euler')
             shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
             emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
 

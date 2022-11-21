@@ -568,3 +568,36 @@ def add_subdivision_modifier(obj: bpy.types.Object, config: bconfig.SubdivisionM
     """
     modifier = obj.modifiers.new(type='SUBSURF', name='smoothing')
     set_blender_data(modifier, config)
+
+
+def add_resection_loop(config: bconfig.ResectionLoopConfig,
+                       collection: bpy.types.Collection = None,
+                       parent: bpy.types.Object = None) -> Tuple[bpy.types.Object, bpy.types.Object, bpy.types.Object]:
+    """
+    Adds a cutting loop to the endoscope.
+    :param collection: collection to add the objects to.
+    :param config: the configuration settings for adding the loop
+    :param parent: an optional blender object to set as the parent (i.e. the camera)
+    :return: tuple with object containing the resection loop items, wire, and insulation
+    """
+
+    wire = import_stl(config.wire_stl)
+    insulation = import_stl(config.insulation_stl)
+    wire.scale = Vector([config.scaling_factor] * 3)
+    insulation.scale = Vector([config.scaling_factor] * 3)
+    wire.rotation_euler = Vector(np.radians(config.euler_rotation))
+    insulation.rotation_euler = Vector(np.radians(config.euler_rotation))
+    apply_transformations(wire)
+    apply_transformations(insulation)
+    resection_loop = bpy.data.objects.new('resection_loop', None)
+    wire.parent = resection_loop
+    insulation.parent = resection_loop
+    if parent:
+        resection_loop.parent = parent
+    if collection is not None:
+        bpy.context.scene.collection.objects.unlink(wire)
+        bpy.context.scene.collection.objects.unlink(insulation)
+        collection.objects.link(wire)
+        collection.objects.link(insulation)
+        collection.objects.link(resection_loop)
+    return resection_loop

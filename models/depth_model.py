@@ -67,8 +67,7 @@ class DepthEstimationModel(BaseModel):
         if batch_idx == 0:
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
-                max_depth = synth_label.max()
-                self.plot_minmax = [None, (0, max_depth), (0, max_depth)]
+                self.plot_minmax = [[None, (0, img.max()), (0, img.max())] for img in synth_label]
                 self.validation_images = (synth_img.clone(), synth_label.clone())
             synth_img, synth_label = self.validation_images
             y_hat = self(synth_img)[-1]
@@ -94,8 +93,8 @@ class DepthEstimationModel(BaseModel):
 
     def gen_plots(self, imgs, prefix, labels=None, centers=None, minmax=None):
         if minmax is None:
-            minmax = []
+            minmax = [[] for _ in range(len(imgs))]
         for idx, imgs in enumerate(imgs):
-            fig = generate_heatmap_fig(imgs, labels, centers, minmax=minmax)
+            fig = generate_heatmap_fig(imgs, labels, centers, minmax=minmax[idx])
             self.logger.experiment.add_figure("{}-{}".format(prefix, idx), fig, self.global_step)
             plt.close(fig)

@@ -9,6 +9,9 @@ view_angle_max: [45, 45, 45]
 emission_range: [30, 30]
 render_normals: true
 clear_output_folder: True
+resection_loop:
+  wire_stl: /Users/peter/isys/resection_loop/tueb_wire.STL
+  insulation_stl: /Users/peter/isys/resection_loop/tueb_insulation.STL
 
 endo_light:
   stl_file: /Users/peter/isys/endo_lights/tuebingen_light.STL
