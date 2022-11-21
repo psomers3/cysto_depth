@@ -114,6 +114,8 @@ class SyntheticTrainingConfig:
     merged_decoder: bool = True
     """ Whether to use a single decoder when predicting normals """
     inverse_depth: bool = "${../inverse_depth}"
+    fast_dev_run: bool = False
+    """ fast run through all the code (5 batches) to check for errors """
 
 
 @dataclass
