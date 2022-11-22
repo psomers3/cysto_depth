@@ -46,9 +46,11 @@ def blender_rendering():
         if os.path.exists(config.output_folder):
             shutil.rmtree(config.output_folder)
 
+
     for material_file in config.materials_files:
         with bpy.data.libraries.load(material_file) as (data_from, data_to):
             data_to.materials = data_from.materials
+
 
     scene, view_layer = butils.init_blender(config.blender)
     scene.frame_end = config.samples_per_model
@@ -199,6 +201,8 @@ def blender_rendering():
                     scene.frame_set(frame_number)
                     bpy.ops.render.render(write_still=True, scene=scene.name)
                 loop_angle_offset.location = (0, 0, 0)
+
+            loop_angle_offset.location = (0, 0, 0)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)
