@@ -54,9 +54,6 @@ def blender_rendering():
     butils.apply_transformations(camera)
     scene.camera = camera
 
-    particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
-    diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
-
     # setup collection hierarchy
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
@@ -66,6 +63,11 @@ def blender_rendering():
     endo_tip = bpy.data.objects.new('endo_tip', None)
     endo_collection.objects.link(endo_tip)
     camera.parent = endo_tip
+
+    particle_nodes, tumor = butils.add_tumor_particle_nodegroup(collection=bladder_collection, **config.tumor_particles)
+    tumor.data.materials.append(None)
+    tumor.material_slots[0].link = 'OBJECT'
+    diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
 
     # add resection loop
     loop_angle_offset = bpy.data.objects.new('endo_angle', None)
@@ -85,13 +87,31 @@ def blender_rendering():
     if args.sample:
         stl_files = [stl_files[np.random.randint(0, len(stl_files) - 1)]]
 
+    scene.node_tree.nodes.clear()
+    scene.view_layers["ViewLayer"].use_pass_z = True
+    default_material = bpy.data.materials['Material']
+
+    if config.render_normals:
+        normals_material = butils.create_normals_material()
+        bpy.ops.scene.new(type='LINK_COPY')
+        normals_scene = bpy.context.scene
+        normals_scene.name = 'normals_scene'
+        normals_scene.render.engine = 'BLENDER_EEVEE'
+        normals_node_tree: bpy.types.NodeTree = normals_scene.node_tree
+        normals_node_tree.nodes.clear()
+        rl = normals_node_tree.nodes.new('CompositorNodeRLayers')
+        rl.scene = normals_scene
+        img_node = normals_node_tree.nodes.new('CompositorNodeOutputFile')
+        img_node.format.file_format = "OPEN_EXR"
+        normals_node_tree.links.new(rl.outputs['Image'], img_node.inputs['Image'])
+        img_node.base_path = os.path.join(config.output_folder, 'normal')
+
     # set paths for rendering outputs
-    output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
+    output_nodes = butils.add_render_output_nodes(scene)
     output_nodes[0].base_path = os.path.join(config.output_folder, 'color')
     output_nodes[1].base_path = os.path.join(config.output_folder, 'depth')
     if config.render_normals:
-        output_nodes[2].base_path = os.path.join(config.output_folder, 'normal')
-
+        output_nodes.append(img_node)
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
     endo_collection.objects.link(random_position)
@@ -109,6 +129,8 @@ def blender_rendering():
         particles = stl_obj.modifiers.new('Particles', 'NODES')
         particles.node_group = particle_nodes
         butils.add_subdivision_modifier(stl_obj, config.subdivision_mod)
+        stl_obj.data.materials.append(None)
+        stl_obj.material_slots[0].link = 'OBJECT'
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]
@@ -128,10 +150,14 @@ def blender_rendering():
             if args.render:
                 # render per frame so any in-between processing (i.e. normals transformation) can be done.
                 scene.frame_set(i)
+                stl_obj.material_slots[0].material = default_material
+                tumor.material_slots[0].material = default_material
+                scene.node_tree.nodes[0].name = scene.name
                 bpy.ops.render.render(write_still=True, scene=scene.name)
                 if config.render_normals:
-                    norms_file = os.path.join(output_nodes[2].base_path, f'{stl_obj.name}_{i:05d}.exr')
-                    butils.convert_norm_exr_2_cam(norms_file, camera)
+                    tumor.material_slots[0].material = normals_material
+                    stl_obj.material_slots[0].material = normals_material
+                    bpy.ops.render.render(write_still=True, scene=normals_scene.name)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)

@@ -28,8 +28,8 @@ class PhongDataSet(ImageDataset):
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=((1, 1, 1),),
                                  specular_color=((.0, .0, .0),),
-                                 ambient_color=((0.0, 0.0, 0.0),),
-                                 attenuation_factor=(4,))
+                                 ambient_color=((0.2, 0.2, 0.2),),
+                                 attenuation_factor=(0,))
 
     def __getitem__(self, idx):
         color, depth, normals = super(PhongDataSet, self).__getitem__(idx)
@@ -106,12 +106,12 @@ class PhongDataModule(FileLoadingDataModule):
         self.data_train = PhongDataSet(**shared_params,
                                        files=list(zip(*self.split_files['train'].values())),
                                        transforms=self.get_transforms('train'))
-        self.data_val = PhongDataSet(**shared_params,
-                                     files=list(zip(*self.split_files['validate'].values())),
-                                     transforms=self.get_transforms('validate'))
-        self.data_test = PhongDataSet(**shared_params,
-                                      files=list(zip(*self.split_files['test'].values())),
-                                      transforms=self.get_transforms('test'))
+        # self.data_val = PhongDataSet(**shared_params,
+        #                              files=list(zip(*self.split_files['validate'].values())),
+        #                              transforms=self.get_transforms('validate'))
+        # self.data_test = PhongDataSet(**shared_params,
+        #                               files=list(zip(*self.split_files['test'].values())),
+        #                               transforms=self.get_transforms('test'))
 
 
 if __name__ == '__main__':
@@ -125,12 +125,12 @@ if __name__ == '__main__':
     color_dir = r'../test/output/color'
     depth_dir = r'../test/output/depth'
     normals_dir = r'../test/output/normal'
-    dm = PhongDataModule(batch_size=3,
+    dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
                          camera_intrinsics=intrinsics,
-                         split={'train': .5, 'validate': 0.25, 'test': .25})
+                         split={'train': .9, 'validate': 0.05, 'test': 0.05})
     dm.setup('fit')
     loader = dm.train_dataloader()
     matplotlib_show(*next(iter(loader)))

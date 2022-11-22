@@ -7,7 +7,7 @@ import re
 import json
 from data.image_dataset import ImageDataset
 
-_mac_regex = re.compile(r'^(?!.*\._)')
+_mac_regex = re.compile(r'^(?!.*\._|.*\.DS)')
 
 
 class FileLoadingDataModule(pl.LightningDataModule):

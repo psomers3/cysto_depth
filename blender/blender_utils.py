@@ -192,7 +192,7 @@ def new_material(name: str) -> bpy.types.Material:
     if mat is None:
         mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
-    if mat.node_tree:
+    if mat.node_tree is not None:
         mat.node_tree.links.clear()
         mat.node_tree.nodes.clear()
     return mat
@@ -253,8 +253,9 @@ def add_tumor_particle_nodegroup(stl_file: str,
                                  amount: float = 10,
                                  volume_max: float = 0.1,
                                  scaling_range: List[float] = None,
-                                 rotation_range: List[float] = None) \
-        -> bpy.types.NodeGroup:
+                                 rotation_range: List[float] = None,
+                                 collection: bpy.types.Collection = None) \
+        -> Tuple[bpy.types.NodeGroup, bpy.types.Object]:
     """
     Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
 
@@ -263,7 +264,8 @@ def add_tumor_particle_nodegroup(stl_file: str,
     :param volume_max: volume of object referenced for the instances
     :param scaling_range: range in which scaling of instances varies
     :param rotation_range: range in which rotation of instances varies
-    :return: particle scattering node group
+    :param collection: optional collection to add stl model to
+    :return: particle scattering node group and the stl object it is based on
     """
     if scaling_range is None:
         scaling_range = [0.1, 1]
@@ -275,6 +277,9 @@ def add_tumor_particle_nodegroup(stl_file: str,
     # apply transforms
     apply_transformations(particle_ref_object)
     particle_ref_object.hide_render = True
+    particle_ref_object.hide_viewport = True
+    if collection is not None:
+        collection.objects.link(particle_ref_object)
     # set up node group
     particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
     nodes = particle_nodegroup.nodes
@@ -314,7 +319,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
     links.new(rotation_vector.outputs['Value'], instance_on_points.inputs['Rotation'])
     links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
     links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
-    return particle_nodegroup
+    return particle_nodegroup, particle_ref_object
 
 
 def add_diverticulum_nodegroup(amount: float = 2,
@@ -440,6 +445,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
     """
     tree = scene.node_tree
     rl = tree.nodes.new('CompositorNodeRLayers')
+    rl.scene = scene
     return_list = [None, None, None]
     links = tree.links
     if depth:
@@ -601,3 +607,16 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
         collection.objects.link(insulation)
         collection.objects.link(resection_loop)
     return resection_loop, wire, insulation
+
+
+def create_normals_material(name: str = 'normals') -> bpy.types.Material:
+    mat = new_material(name)
+    mat.use_nodes = True
+    output = mat.node_tree.nodes.new('ShaderNodeOutputMaterial')
+    geometry = mat.node_tree.nodes.new('ShaderNodeNewGeometry')
+    transform_2_camera = mat.node_tree.nodes.new('ShaderNodeVectorTransform')
+    transform_2_camera.vector_type = 'NORMAL'
+    transform_2_camera.convert_to = 'CAMERA'
+    mat.node_tree.links.new(geometry.outputs['Normal'], transform_2_camera.inputs['Vector'])
+    mat.node_tree.links.new(transform_2_camera.outputs['Vector'], output.inputs['Surface'])
+    return mat

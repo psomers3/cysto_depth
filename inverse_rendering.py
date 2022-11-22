@@ -127,6 +127,8 @@ def render_rgbd(depth_map: torch.Tensor,
     inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix))
     inv_intrinsic = inv_intrinsic.to(metal)
     points_in_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
+    flip = torch.Tensor([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+    points_in_3d = torch.matmul(flip[None], points_in_3d)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=0), dim=-1)
     ambient_color, diffuse_color, specular_color, attenuation = apply_lighting(positions,
                                                                                normals_reshaped,

@@ -1,14 +1,14 @@
 models_dir: /Users/peter/isys/bladder_models
-bladder_model_regex: '^(?!.*\._).*smooth'  # because ignore mac's ._ files...
+bladder_model_regex: '^(?!.*\._|.*\.DS).*smooth'  # because ignore mac's ._ files...
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test/output
-samples_per_model: 20
+samples_per_model: 1
 distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [30, 30]
 render_normals: true
-clear_output_folder: True
+clear_output_folder: false
 resection_loop:
   wire_stl: /Users/peter/isys/resection_loop/tueb_wire.STL
   insulation_stl: /Users/peter/isys/resection_loop/tueb_insulation.STL
@@ -49,7 +49,7 @@ blender:
       color_mode: 'RGB'
     engine: 'CYCLES'
     threads_mode: 'FIXED'
-    threads: 64
+    threads: 6
     use_persistent_data: true
   cycles:
     adaptive_min_samples: 64
