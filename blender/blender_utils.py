@@ -779,3 +779,16 @@ def update_bladder_material(config: bconfig.BladderMaterialConfig, material_name
     mat.node_tree.nodes['Volume Absorption'].inputs['Density'].default_value = config.volume_absorbtion_density
     mat.node_tree.nodes['Volume Scatter'].inputs['Density'].default_value = config.volume_scatter_density
     mat.node_tree.nodes['Volume Scatter'].inputs['Anisotropy'].default_value = config.volume_scatter_anisotropy
+
+
+def create_normals_material(name: str = 'normals') -> bpy.types.Material:
+    mat = new_material(name)
+    mat.use_nodes = True
+    output = mat.node_tree.nodes.new('ShaderNodeOutputMaterial')
+    geometry = mat.node_tree.nodes.new('ShaderNodeNewGeometry')
+    transform_2_camera = mat.node_tree.nodes.new('ShaderNodeVectorTransform')
+    transform_2_camera.vector_type = 'NORMAL'
+    transform_2_camera.convert_to = 'CAMERA'
+    mat.node_tree.links.new(geometry.outputs['Normal'], transform_2_camera.inputs['Vector'])
+    mat.node_tree.links.new(transform_2_camera.outputs['Vector'], output.inputs['Surface'])
+    return mat
