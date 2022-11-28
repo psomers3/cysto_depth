@@ -140,6 +140,10 @@ class ResectionLoopConfig:
     """ path to the STL for the wire """
     insulation_stl: str = MISSING
     """ path to the STL for the insulation """
+    extension_direction: List[float] = field(default_factory=lambda : [1, 0, 0])
+    """ direction in which the tool is extended in the coordinates of the stl-file"""
+    no_clip_points: List[List[float]] = field(default_factory=lambda: [[0, 0, 0]])
+    """ points of the tool where clipping is prevented in the coordinates of the stl-file"""
     scaling_factor: float = 0.001
     """ initial scaling """
     euler_rotation: List[float] = field(default_factory=lambda: [90, 0, 0])
