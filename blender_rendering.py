@@ -62,6 +62,9 @@ def blender_rendering():
     butils.apply_transformations(camera)
     scene.camera = camera
 
+    particle_nodes = butils.add_tumor_particle_nodegroup(**config.tumor_particles)
+    diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
+
     # setup collection hierarchy
     endo_collection = bpy.data.collections.new("Endoscope")
     bladder_collection = bpy.data.collections.new("Bladder")
@@ -71,11 +74,6 @@ def blender_rendering():
     endo_tip = bpy.data.objects.new('endo_tip', None)
     endo_collection.objects.link(endo_tip)
     camera.parent = endo_tip
-
-    particle_nodes, tumor = butils.add_tumor_particle_nodegroup(collection=bladder_collection, **config.tumor_particles)
-    tumor.data.materials.append(None)
-    tumor.material_slots[0].link = 'OBJECT'
-    diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
 
     # add resection loop
     loop_angle_offset = bpy.data.objects.new('endo_angle', None)
@@ -111,6 +109,10 @@ def blender_rendering():
                                                   normals=config.render_normals,
                                                   custom_normals_label='raw_normals',
                                                   custom_depth_label='raw_depth')
+    output_nodes[0].base_path = os.path.join(config.output_folder, 'color')
+    output_nodes[1].base_path = os.path.join(config.output_folder, 'depth')
+    if config.render_normals:
+        output_nodes[2].base_path = os.path.join(config.output_folder, 'normal')
 
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
