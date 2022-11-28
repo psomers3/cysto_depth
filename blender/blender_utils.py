@@ -671,10 +671,10 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
     links = wire_material.node_tree.links
     output = nodes.new(type='ShaderNodeOutputMaterial')
     shader = nodes.new(type='ShaderNodeBsdfPrincipled')
-    shader.inputs[0].default_value = config.wire_base_color  # Base Color
-    shader.inputs[6].default_value = config.wire_metallic  # Metallic
-    shader.inputs[9].default_value = config.wire_roughness  # Roughness
-    shader.inputs[10].default_value = config.wire_anisotropic  # Anisotropic
+    shader.inputs[0].default_value = config.wire_base_color     # Base Color
+    shader.inputs[6].default_value = config.wire_metallic       # Metallic
+    shader.inputs[9].default_value = config.wire_roughness      # Roughness
+    shader.inputs[10].default_value = config.wire_anisotropic   # Anisotropic
     links.new(shader.outputs[0], output.inputs[0])
     wire.data.materials.append(wire_material)
 
