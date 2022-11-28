@@ -214,7 +214,7 @@ def new_material(name: str) -> bpy.types.Material:
     if mat is None:
         mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
-    if mat.node_tree is not None:
+    if mat.node_tree:
         mat.node_tree.links.clear()
         mat.node_tree.nodes.clear()
     return mat
@@ -302,9 +302,6 @@ def add_tumor_particle_nodegroup(stl_file: str,
     # apply transforms
     apply_transformations(particle_ref_object)
     particle_ref_object.hide_render = True
-    particle_ref_object.hide_viewport = True
-    if collection is not None:
-        collection.objects.link(particle_ref_object)
     # set up node group
     particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
     nodes = particle_nodegroup.nodes
@@ -353,7 +350,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
 
     links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
     links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
-    return particle_nodegroup, particle_ref_object
+    return particle_nodegroup
 
 
 def add_diverticulum_nodegroup(amount: float = 2,
@@ -487,7 +484,6 @@ def add_render_output_nodes(scene: bpy.types.Scene,
     """
     tree = scene.node_tree
     rl = tree.nodes.new('CompositorNodeRLayers')
-    rl.scene = scene
     return_list = [None, None, None]
     links = tree.links
     if depth:
