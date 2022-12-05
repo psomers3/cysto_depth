@@ -21,11 +21,12 @@ class DepthEstimationModel(BaseModel):
         self.validation_images = None
         if kwargs.get('resume_from_checkpoint', None):
             self.encoder = AdaptiveEncoder(adaptive_gating)
-            self.load_state_dict(kwargs['resume_from_checkpoint'], strict=False)
+            ckpt = self.load_from_checkpoint(kwargs['resume_from_checkpoint'], strict=False)
+            self.load_state_dict(ckpt.state_dict())
             for param in self.decoder.parameters():
                 param.requires_grad_ = False
         else:
-            self.encoder = VanillaEncoder()
+            self.encoder = AdaptiveEncoder(adaptive_gating)
 
     def configure_optimizers(self):
         if self.hparams.optimizer == 'adam':

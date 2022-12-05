@@ -58,6 +58,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
     logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
     trainer_dict.update({'logger': logger})
+    trainer_dict.pop('resume_from_checkpoint')
     trainer = pl.Trainer(**trainer_dict)
 
     if config.split_save_dir:
@@ -72,8 +73,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
             trainer.validate(model, data_module)
         else:
             trainer.test(model, data_module)
-    except (KeyboardInterrupt, RuntimeError):
-        pass
+    except (KeyboardInterrupt, RuntimeError) as e:
+        print(e)
 
     with open(os.path.join(logger.log_dir, 'configuration.yaml'), 'w') as f:
         f.write(OmegaConf.to_yaml(config))

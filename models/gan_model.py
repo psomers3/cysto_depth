@@ -14,7 +14,6 @@ from utils.image_utils import generate_heatmap_fig, set_bn_eval, generate_final_
 class GAN(BaseModel):
     def __init__(
             self,
-            depth_model=None,
             preadapted_model=None,
             image_gan: bool = False,
             res_transfer=True,
@@ -23,7 +22,7 @@ class GAN(BaseModel):
     ):
         super().__init__()
         self.save_hyperparameters()
-
+        depth_model = DepthEstimationModel.load_from_checkpoint(kwargs.get('synthetic_base_model'), strict=False)
         if res_transfer:
             self.generator = AdaptiveEncoder(adaptive_gating)
             if preadapted_model:
@@ -39,7 +38,7 @@ class GAN(BaseModel):
             self.depth_model = depth_model
         else:
             self.depth_model = DepthEstimationModel()
-        self.depth_model.requires_grad_(False)
+        self.depth_model.requires_grad = False
 
         d_in_shapes = [512, 256, 128, 64, 64]
         d_feat_list = []

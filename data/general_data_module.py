@@ -106,8 +106,9 @@ class FileLoadingDataModule(pl.LightningDataModule):
         """
         if file_name[-4:] != 'json':
             file_name = f'{file_name}.json'
+        split_files = self.split_files if isinstance(self.split_files, dict) else dict(self.split_files)
         with open(file_name, 'w') as f:
-            json.dump(self.split_files, f)
+            json.dump(split_files, f)
 
     def setup(self, stage: str = None):
         """

@@ -107,9 +107,10 @@ def blender_rendering():
         img_node.base_path = os.path.join(config.output_folder, 'normal')
 
     # set paths for rendering outputs
-    output_nodes = butils.add_render_output_nodes(scene)
+    output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
     output_nodes[0].base_path = os.path.join(config.output_folder, 'color')
     output_nodes[1].base_path = os.path.join(config.output_folder, 'depth')
+    output_nodes[2].base_path = os.path.join(config.output_folder, 'normals')
     if config.render_normals:
         output_nodes.append(img_node)
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
@@ -158,6 +159,8 @@ def blender_rendering():
                     tumor.material_slots[0].material = normals_material
                     stl_obj.material_slots[0].material = normals_material
                     bpy.ops.render.render(write_still=True, scene=normals_scene.name)
+                    norms_file = os.path.join(output_nodes[2].base_path, f'{stl_obj.name}_{i:05d}.exr')
+                    butils.convert_norm_exr_2_cam(norms_file, camera)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)

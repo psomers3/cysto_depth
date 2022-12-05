@@ -164,13 +164,13 @@ def render_rgbd(depth_map: torch.Tensor,
     flattened = rgbd_locations.reshape(1, rgbd_locations.shape[-3] * rgbd_locations.shape[-2], rgbd_locations.shape[-1])
     inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix))
     points_in_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
-    flip = torch.Tensor([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
-    points_in_3d = torch.matmul(flip[None], points_in_3d)
+    # flip = torch.Tensor([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+    # points_in_3d = torch.matmul(flip[None], points_in_3d)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=0), dim=-1)
-    normals_flipped = torch.matmul(flip[None], torch.unsqueeze(normals_reshaped, dim=-1))
-    normals_flipped = torch.squeeze(normals_flipped, dim=-1)
+    # normals_flipped = torch.matmul(flip[None], torch.unsqueeze(normals_reshaped, dim=-1))
+    # normals_flipped = torch.squeeze(normals_flipped, dim=-1)
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
-                                                                               normals_flipped,
+                                                                               normals_reshaped,
                                                                                spot_light,
                                                                                torch.Tensor([0, 0, 0])[None],
                                                                                uniform_material)

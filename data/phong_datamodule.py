@@ -27,13 +27,15 @@ class PhongDataSet(ImageDataset):
         self.material = Materials(shininess=1)
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=((1, 1, 1),),
-                                 specular_color=((.0, .0, .0),),
-                                 ambient_color=((0.2, 0.2, 0.2),),
+                                 specular_color=((1, 1, 1),),
+                                 ambient_color=((0.0, 0.0, 0.0),),
                                  attenuation_factor=(0,))
 
     def __getitem__(self, idx):
         color, depth, normals = super(PhongDataSet, self).__getitem__(idx)
+        print(f'max: {normals.max()},  min: {normals.min()}')
         # normals = get_normals_from_depthmap(torch.permute(depth*1e3, (1, 2, 0)))
+        # normals[:2, :, :] *= -1
         rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
                                self.grey,
                                torch.permute(normals, (1, 2, 0)),

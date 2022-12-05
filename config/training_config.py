@@ -14,6 +14,8 @@ class TrainerDictConfig:
     """ specify list of gpus to use. defaults to none """
     strategy: Union[str, None] = 'ddp'
     """ leave default even for 1 node because matplotlib is used during training """
+    log_every_n_steps: int = 50
+    """ how often to log during training """
 
 
 @dataclass
@@ -77,8 +79,8 @@ class GANTrainingConfig:
     source_images: str = MISSING
     """ path to synthetically generated images """
     synth_split: dict = field(default_factory=lambda: {'train': .8,
-                                                       'validate': .15,
-                                                       'test': .05})
+                                                       'validate': .1,
+                                                       'test': .1})
     """ The entry to control generation of the data split for training. """
     training_split_file: str = ''
     """ An existing training split json file. If not empty, will be used instead of training_split """

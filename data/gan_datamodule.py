@@ -94,8 +94,9 @@ class GANDataModule(pl.LightningDataModule):
         """
         if file_name[-4:] != 'json':
             file_name = f'{file_name}.json'
+        split_files = self.synth_split if isinstance(self.synth_split, dict) else dict(self.synth_split)
         with open(file_name, 'w') as f:
-            json.dump(self.synth_split, f)
+            json.dump(split_files, f)
 
     def prepare_data(self) -> None:
         if self.generate_data:
