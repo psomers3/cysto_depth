@@ -46,8 +46,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         affine_transform = d_transforms.SynchronizedTransform(transform=d_transforms.RandomAffine(degrees=(0, 360),
                                                                                                   translate=(.1, .1)),
                                                               num_synchros=num_synchros, additional_args=[[True],
-                                                                                                          [False],
-                                                                                                          [True]])
+                                                                                                          [False]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         to_mm = d_transforms.ElementWiseScale(1e3)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
@@ -71,11 +70,9 @@ if __name__ == '__main__':
 
     color_dir = r'/Users/peter/isys/output/color'
     depth_dir = r'/Users/peter/isys/output/depth'
-    normals_dir = r'/Users/peter/isys/output/normal'
     dm = EndoDepthDataModule(batch_size=3,
                              color_image_directory=color_dir,
                              depth_image_directory=color_dir,
-                             normals_image_directory=normals_dir,
                              split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"})
     dm.setup('fit')
     loader = dm.train_dataloader()

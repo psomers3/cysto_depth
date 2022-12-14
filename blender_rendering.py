@@ -92,35 +92,26 @@ def blender_rendering():
     default_material = bpy.data.materials['Material']
 
     if config.render_normals:
-        normals_material = butils.create_normals_material()
-        bpy.ops.scene.new(type='LINK_COPY')
-        normals_scene = bpy.context.scene
-        normals_scene.name = 'normals_scene'
-        normals_scene.render.engine = 'BLENDER_EEVEE'
-        normals_node_tree: bpy.types.NodeTree = normals_scene.node_tree
-        normals_node_tree.nodes.clear()
-        rl = normals_node_tree.nodes.new('CompositorNodeRLayers')
-        rl.scene = normals_scene
-        img_node = normals_node_tree.nodes.new('CompositorNodeOutputFile')
-        img_node.format.file_format = "OPEN_EXR"
-        normals_node_tree.links.new(rl.outputs['Image'], img_node.inputs['Image'])
-        img_node.base_path = os.path.join(config.output_folder, 'normal')
+        aov = scene.view_layers['ViewLayer'].aovs.add()
+        aov.name = 'raw_normals'
 
     # set paths for rendering outputs
-    output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
-    output_nodes[0].base_path = os.path.join(config.output_folder, 'color')
-    output_nodes[1].base_path = os.path.join(config.output_folder, 'depth')
-    output_nodes[2].base_path = os.path.join(config.output_folder, 'normals')
-    if config.render_normals:
-        output_nodes.append(img_node)
+    output_nodes = butils.add_render_output_nodes(scene,
+                                                  normals=config.render_normals,
+                                                  custom_normals_label='raw_normals')
+    [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl))
+     for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
+
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
     endo_collection.objects.link(random_position)
     endo_tip.parent = random_position
     shrinkwrap_constraint = butils.add_shrinkwrap_constraint(random_position, config.shrinkwrap)
+    if config.render_normals:
+        butils.add_normals_to_all_materials()
 
     for stl_file in stl_files:
-        stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection)
+        stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection, flip_normals=False)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
         shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new stl model
         # add node modifier and introduce the tumor particles and the diverticulum
@@ -131,7 +122,11 @@ def blender_rendering():
         particles.node_group = particle_nodes
         butils.add_subdivision_modifier(stl_obj, config.subdivision_mod)
         stl_obj.data.materials.append(None)
-        stl_obj.material_slots[0].link = 'OBJECT'
+        stl_obj.material_slots[0].link = 'OBJECT'  # so that the divercula are seen by the material properly
+
+        # apply materials to bladder wall and tumors
+        stl_obj.material_slots[0].material = default_material
+        tumor.material_slots[0].material = default_material
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]
@@ -149,18 +144,9 @@ def blender_rendering():
             emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
 
             if args.render:
-                # render per frame so any in-between processing (i.e. normals transformation) can be done.
                 scene.frame_set(i)
-                stl_obj.material_slots[0].material = default_material
-                tumor.material_slots[0].material = default_material
                 scene.node_tree.nodes[0].name = scene.name
                 bpy.ops.render.render(write_still=True, scene=scene.name)
-                if config.render_normals:
-                    tumor.material_slots[0].material = normals_material
-                    stl_obj.material_slots[0].material = normals_material
-                    bpy.ops.render.render(write_still=True, scene=normals_scene.name)
-                    norms_file = os.path.join(output_nodes[2].base_path, f'{stl_obj.name}_{i:05d}.exr')
-                    butils.convert_norm_exr_2_cam(norms_file, camera)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)

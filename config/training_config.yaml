@@ -8,11 +8,9 @@ synthetic_config:
   data_roles:
     - color
     - depth
-#    - normals
   data_directories:
     - /Users/peter/isys/output/color
     - /Users/peter/isys/output/depth
-#    - /Users/peter/isys/output/normal
   training_split: {'train': .6, 'validate': 0.4, 'test': ".*00015.*"}
   resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
 gan_config:

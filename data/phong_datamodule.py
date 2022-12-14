@@ -5,14 +5,15 @@ from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
-from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, get_normals_from_depthmap
+from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, get_normals_from_depth_map
 from pytorch3d.renderer.lighting import PointLights
 from pytorch3d.renderer.materials import Materials
 
 
 class PhongDataSet(ImageDataset):
-    def __init__(self, *args, camera_intrinsics, image_size, **kwargs):
+    def __init__(self, *args, camera_intrinsics, image_size, return_normals=False, **kwargs):
         super(PhongDataSet, self).__init__(*args, **kwargs)
+        self.return_normals = return_normals
         self.mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
                                                        num_synchros=2, additional_args=[[None], [0]])
         self.camera_intrinsics = torch.Tensor(camera_intrinsics)
@@ -24,29 +25,30 @@ class PhongDataSet(ImageDataset):
         self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
         self.grey = torch.ones((image_size, image_size, 3)) * .5
 
-        self.material = Materials(shininess=1)
+        self.material = Materials(shininess=5)
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=((1, 1, 1),),
-                                 specular_color=((1, 1, 1),),
+                                 specular_color=((0.2, 0.2, 0.2),),
                                  ambient_color=((0.0, 0.0, 0.0),),
-                                 attenuation_factor=(0,))
+                                 attenuation_factor=(.02,))
 
     def __getitem__(self, idx):
-        color, depth, normals = super(PhongDataSet, self).__getitem__(idx)
-        print(f'max: {normals.max()},  min: {normals.min()}')
-        # normals = get_normals_from_depthmap(torch.permute(depth*1e3, (1, 2, 0)))
-        # normals[:2, :, :] *= -1
-        rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
-                               self.grey,
-                               torch.permute(normals, (1, 2, 0)),
-                               # normals,
-                               self.camera_intrinsics,
-                               self.light,
-                               self.material,
-                               self.resized_pixel_locations)
-        masked_color = self.mask(color)
-        masked_rendering = self.mask(torch.permute(rendered, (2, 0, 1)))
-        return masked_color, masked_rendering
+        color, depth, normals = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
+        # blender_normals = -(normals - 0.5) * 2
+        blender_normals = normals
+        blender_rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
+                                       self.grey,
+                                       blender_normals,
+                                       self.camera_intrinsics,
+                                       self.light,
+                                       self.material,
+                                       self.resized_pixel_locations)
+        masked_color = color  # self.mask(color)
+        # masked_rendering = torch.permute(rendered, (2, 0, 1))  # self.mask(torch.permute(rendered, (2, 0, 1)))
+        if self.return_normals:
+            return masked_color, blender_rendered.permute((2, 0, 1)), blender_normals * 0.5 + 0.5
+        else:
+            return masked_color, blender_rendered.permute((2, 0, 1))
 
 
 class PhongDataModule(FileLoadingDataModule):
@@ -56,6 +58,7 @@ class PhongDataModule(FileLoadingDataModule):
                  depth_image_directory: str,
                  normals_image_directory: str,
                  camera_intrinsics: np.ndarray,
+                 return_normals: bool = False,
                  split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6):
@@ -83,6 +86,7 @@ class PhongDataModule(FileLoadingDataModule):
         self.save_hyperparameters()
         self.camera_intrinsics = camera_intrinsics
         self.image_size = image_size
+        self.return_normals = return_normals
 
     def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
@@ -106,6 +110,7 @@ class PhongDataModule(FileLoadingDataModule):
     def setup(self, stage: str = None):
         shared_params = {'camera_intrinsics': self.camera_intrinsics, 'image_size': self.image_size}
         self.data_train = PhongDataSet(**shared_params,
+                                       return_normals=self.return_normals,
                                        files=list(zip(*self.split_files['train'].values())),
                                        transforms=self.get_transforms('train'))
         # self.data_val = PhongDataSet(**shared_params,
@@ -124,14 +129,15 @@ if __name__ == '__main__':
                            [0, 1039.8075384016558, 0],
                            [878.9617517840989, 572.9404979327502, 1]]).T
 
-    color_dir = r'../test/output/color'
-    depth_dir = r'../test/output/depth'
-    normals_dir = r'../test/output/normal'
+    color_dir = r'../test2/output/color'
+    depth_dir = r'../test2/output/depth'
+    normals_dir = r'../test2/output/normals'
     dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
                          camera_intrinsics=intrinsics,
+                         return_normals=False,
                          split={'train': .9, 'validate': 0.05, 'test': 0.05})
     dm.setup('fit')
     loader = dm.train_dataloader()

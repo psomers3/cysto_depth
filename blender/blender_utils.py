@@ -80,7 +80,8 @@ def _recursive_rename(name: str, count: int = 0) -> str:
 def import_stl(stl_file: str,
                center: bool = False,
                smooth_shading: bool = True,
-               collection: bpy.types.Collection = None) -> bpy.types.Object:
+               collection: bpy.types.Collection = None,
+               flip_normals: bool = False) -> bpy.types.Object:
     """
     import an STL into blender
 
@@ -88,6 +89,7 @@ def import_stl(stl_file: str,
     :param center: whether to move the stl's center of volume to the origin
     :param smooth_shading: sets the model to be displayed as smooth
     :param collection: a collection to put the object in
+    :param flip_normals: flip all the normals
     :return: the blender Object for the STL mesh object
     """
     object_name = os.path.splitext(os.path.basename(stl_file))[0]
@@ -109,8 +111,27 @@ def import_stl(stl_file: str,
     if smooth_shading:
         obj.select_set(True)
         bpy.ops.object.shade_smooth()
+
+    if flip_normals:
+        flip_mesh_normals(obj)
     obj.select_set(False)
     return obj
+
+
+def flip_mesh_normals(obj: bpy.types.Object) -> None:
+    """
+    Flip all the normals on an object's mesh
+    :param obj: blender object that is a mesh
+    :return:
+    """
+    bm = bmesh.new()
+    me = obj.data
+    bm.from_mesh(me)
+    for f in bm.faces:
+        f.normal_flip()
+    bm.normal_update()  # not sure if req'd
+    bm.to_mesh(me)
+    me.update()
 
 
 def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
@@ -272,7 +293,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
     if rotation_range is None:
         rotation_range = [0, 360]
     # create reference object from .stl-file
-    particle_ref_object = import_stl(str(stl_file), center=True)
+    particle_ref_object = import_stl(str(stl_file), center=True, flip_normals=True)
     scale_mesh_volume(particle_ref_object, volume_max)
     # apply transforms
     apply_transformations(particle_ref_object)
@@ -432,6 +453,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
                             color: bool = True,
                             depth: bool = True,
                             normals: bool = False,
+                            custom_normals_label: str = "",
                             view_layer: str = "ViewLayer") -> List[bpy.types.Node]:
     """
     Modify the graph of a scene's node tree to include color and depth outputs
@@ -439,6 +461,8 @@ def add_render_output_nodes(scene: bpy.types.Scene,
     :param color: whether to include color as output.
     :param depth: whether to include the depth as output.
     :param normals: whether to include the normals as output.
+    :param custom_normals_label: a user-defined AOV output to use for the normals. If empty, defaults to the usual
+                                 normals pass.
     :param scene: the scene to create the rendering for.
     :param view_layer: the view layer in the scene to enable the rendering passes for.
     :returns: image node, depth node, normals node  <- will be None if option not enabled.
@@ -468,7 +492,8 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         # create normals output node
         normal_node = tree.nodes.new('CompositorNodeOutputFile')
         normal_node.format.file_format = "OPEN_EXR"
-        links.new(rl.outputs['Normal'], normal_node.inputs['Image'])  # link Z to output
+        normals_label = custom_normals_label if custom_normals_label else "Normal"
+        links.new(rl.outputs[normals_label], normal_node.inputs['Image'])  # link Z to output
         return_list[2] = normal_node
 
     return return_list
@@ -587,8 +612,8 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
     :return: tuple with object containing the resection loop items, wire, and insulation
     """
 
-    wire = import_stl(config.wire_stl)
-    insulation = import_stl(config.insulation_stl)
+    wire = import_stl(config.wire_stl, flip_normals=True)
+    insulation = import_stl(config.insulation_stl, flip_normals=True)
     wire.scale = Vector([config.scaling_factor] * 3)
     insulation.scale = Vector([config.scaling_factor] * 3)
     wire.rotation_euler = Vector(np.radians(config.euler_rotation))
@@ -609,14 +634,24 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
     return resection_loop, wire, insulation
 
 
-def create_normals_material(name: str = 'normals') -> bpy.types.Material:
-    mat = new_material(name)
-    mat.use_nodes = True
-    output = mat.node_tree.nodes.new('ShaderNodeOutputMaterial')
-    geometry = mat.node_tree.nodes.new('ShaderNodeNewGeometry')
-    transform_2_camera = mat.node_tree.nodes.new('ShaderNodeVectorTransform')
-    transform_2_camera.vector_type = 'NORMAL'
-    transform_2_camera.convert_to = 'CAMERA'
-    mat.node_tree.links.new(geometry.outputs['Normal'], transform_2_camera.inputs['Vector'])
-    mat.node_tree.links.new(transform_2_camera.outputs['Vector'], output.inputs['Surface'])
-    return mat
+def add_raw_normals_to_material(mat: bpy.types.Material) -> None:
+    """
+    Add an AOV output to the given material that will forward the raw normals in camera space to the rendering
+    compositor. The AOV output is called "raw_normals"
+    :param mat: blender material to foward normals for
+    """
+    geo = mat.node_tree.nodes.new("ShaderNodeNewGeometry")
+    cam_transform = mat.node_tree.nodes.new("ShaderNodeVectorTransform")
+    cam_transform.vector_type = 'NORMAL'
+    cam_transform.convert_to = 'CAMERA'
+    aov = mat.node_tree.nodes.new("ShaderNodeOutputAOV")
+    aov.name = "raw_normals"
+    mat.node_tree.links.new(geo.outputs['Normal'], cam_transform.inputs['Vector'])
+    mat.node_tree.links.new(cam_transform.outputs['Vector'], aov.inputs['Color'])
+
+
+def add_normals_to_all_materials():
+    for material in bpy.data.materials:
+        if material is not None:
+            material.use_nodes = True
+            add_raw_normals_to_material(material)
