@@ -21,6 +21,8 @@ class TrainerDictConfig:
     """ value for gradient clipping during training. Defaults to no clipping. """
     gradient_clip_algorithm: str = 'norm'
     """ type of gradient clipping to do. Either 'value' or 'norm' """
+    fast_dev_run: bool = False
+    """ fast run through all the code (5 batches) to check for errors """
 
 
 @dataclass
@@ -33,6 +35,7 @@ class CallbackConfig:
     """ metric for early stopping"""
     early_stop_check_every: int = 1
     """ check every n validation runs """
+    early_stop_verbose: bool = True
     ckpt_metric: str = '${..monitor_metric}'
     """ metric for model checkpoints """
     ckpt_save_top_k: int = 5
@@ -89,7 +92,7 @@ class SyntheticTrainingConfig:
     max_epochs: int = 10
     monitor_metric: str = 'val_rmse'
     """ main metric to track for performance """
-    val_check_interval: int = 10
+    val_check_interval: Union[int, float] = 1
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 32
@@ -189,13 +192,13 @@ class CystoDepthConfig:
     """ Mode can be one of ['synthetic', 'gan'] """
     training_stage: str = 'train'
     """ Training_stage can be one of ['train', 'test'] """
-    log_directory: str = './logs'
+    log_directory: str = 'logs'
     """ tensorboard log directory """
     adaptive_gating: bool = False
     """ Whether to turn on adaptive gating for domain adaptation """
     image_gan: bool = False
     """ Whether uses full output for discriminator instead of patches """
-    num_workers: int = 6
+    num_workers: int = 8
     """ Number of workers to use during data loading """
     image_size: int = 256
     """ Final square size to make all images """

@@ -1,35 +1,38 @@
-log_directory: ./logs
+glog_directory: ./logs
 print_config: true
 adaptive_gating: false
 mode: synthetic
 training_stage: train
-split_save_dir: ./splits
 inverse_depth: true
+split_save_dir: splits
 synthetic_config:
   max_epochs: 300
-  val_check_interval: 1
-  batch_size: 2
   data_roles:
     - color
     - depth
+   # - normals
   data_directories:
-    - /Users/peter/isys/2023_01_25/color
-    - /Users/peter/isys/2023_01_25/depth
-  training_split: {'train': .33, 'validate': 0.33, 'test': .33}
-#  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
+    - ../datasets/Johannes/BlankMaterials_par_dis/color
+    - ../datasets/Johannes/BlankMaterials_par_dis/depth
+#    - /Users/peter/isys/output/normal
+  batch_size: 32
+  training_split: {'train': .6, 'validate': 0.4, 'test': ".*Image001.*"}
+  #resume_from_checkpoint: logs/synthetic/lightning_logs/version_0/checkpoints/epoch=11-step=312.ckpt
+  monitor_metric: val_rmse
+  val_check_interval: 1
+  callbacks:
+    early_stop_patience: 15
+
 gan_config:
-  source_images:
-    - /Users/peter/Desktop/2023_01_25/color
-    - /Users/peter/Desktop/2023_01_25/color
-  synthetic_base_model: ./retrain_logs/synthetic/lightning_logs/version_15/checkpoints/epoch=0-step=1.ckpt
-  synth_split: {'train': .6, 'validate': .2, 'test': .2}
+  source_images: ../datasets/Johannes/BlankMaterials_par_dis/output/color
+  synthetic_base_model: logs/synthetic/lightning_logs/version_14/checkpoints/epoch=82-step=2158.ckpt
   generate_data: False
-  videos_folder:
-    - /Users/peter/isys/videos
-  image_output_folder: ./gan_data
+  videos_folder:  ../datasets/gan_data
+  image_output_folder: ../datasets/gan_data
 trainer_config:
   gpus: []
   strategy: null
   accelerator: cpu
   log_every_n_steps: 1
   gradient_clip_val: 0.3
+  fast_dev_run: false
