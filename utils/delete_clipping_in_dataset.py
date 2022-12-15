@@ -2,8 +2,11 @@ import os
 from typing import *
 from pathlib import Path
 from utils.exr_utils import exr_2_numpy
+<<<<<<< HEAD
 import cv2
 import numpy as np
+=======
+>>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
 
 
 def delete_clipping(depth_path: str, associated_paths: Union[List[str], str]):
@@ -45,6 +48,7 @@ def reorganize(origin, destination):
                 Path(origin, f).rglob('*.exr')]
 
 
+<<<<<<< HEAD
 def remove_salt_noise(path):
     for image_path in Path(path).glob('*'):
         print(str(image_path))
@@ -56,3 +60,8 @@ if __name__ == '__main__':
   #  reorganize('/scratch/datasets/cysto_depth/depth_data_BlankMaterial_BlankMaterial_par_dis', '../../datasets/Johannes/BlankMaterials_par_dis')
   #  delete_clipping('../../datasets/Johannes/BlankMaterials_par_dis/depth',    '../../datasets/Johannes/BlankMaterials_par_dis/color')
     remove_salt_noise('../../datasets/Particles_diverticulum_tool_materials_151222/depth/bladder_wall')
+=======
+if __name__ == '__main__':
+  #  reorganize('/scratch/datasets/cysto_depth/depth_data_BlankMaterial_BlankMaterial_par_dis', '../../datasets/Johannes/BlankMaterials_par_dis')
+    delete_clipping('../../datasets/Johannes/BlankMaterials_par_dis/depth',    '../../datasets/Johannes/BlankMaterials_par_dis/color')
+>>>>>>> fixed camera clipping and fooling around with the Neural Network stuff

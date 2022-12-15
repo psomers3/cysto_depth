@@ -35,6 +35,7 @@ class DepthEstimationModel(BaseModel):
         self.normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None
         self.validation_images = None
+<<<<<<< HEAD
         self.test_images = None
         self.train_denorm_color_images = None
         self.val_denorm_color_images = None
@@ -62,6 +63,16 @@ class DepthEstimationModel(BaseModel):
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
                                           torch.zeros((1), device=self.device))
         return depth_out
+=======
+        if kwargs.get('resume_from_checkpoint', None):
+            self.encoder = AdaptiveEncoder(adaptive_gating)
+            ckpt = self.load_from_checkpoint(kwargs['resume_from_checkpoint'], strict=False)
+            self.load_state_dict(ckpt.state_dict())
+            for param in self.decoder.parameters():
+                param.requires_grad_ = False
+        else:
+            self.encoder = AdaptiveEncoder(adaptive_gating)
+>>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
 
 
     def create_optimizer(self):
@@ -196,6 +207,7 @@ class DepthEstimationModel(BaseModel):
         return plot_minmax, images
 
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
+<<<<<<< HEAD
         self.setup_losses()
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
@@ -205,6 +217,13 @@ class DepthEstimationModel(BaseModel):
             y_hat_depth = self(synth_img)
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
+=======
+        synth_img, synth_label = batch
+        # only final depth map is of interest during validation
+        y_hat = self(synth_img)[-1]
+        metric_dict, _ = self.calculate_metrics(prefix, y_hat, synth_label)
+        print(metric_dict)
+>>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
         self.log_dict(metric_dict)
         if batch_idx % 20 == 0:
             # do plot on the same images without differing augmentations

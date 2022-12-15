@@ -13,6 +13,7 @@ synthetic_config:
     - depth
    # - normals
   data_directories:
+<<<<<<< HEAD
     -
       - ../datasets/Particles_diverticulum_no_tool_materials_221215/color
     -
