@@ -152,9 +152,10 @@ visual_models/bladder.blend1
 annotations/kitti_annotations.csv
 ._*
 
-#PyCharm
-.idea
-
+# nohup
 nohup
+
+# PyCharm
+.idea
 test
 outputs
