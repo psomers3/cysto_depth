@@ -96,7 +96,9 @@ class GANDataModule(pl.LightningDataModule):
             file_name = f'{file_name}.json'
         split_files = self.synth_split if isinstance(self.synth_split, dict) else dict(self.synth_split)
         with open(file_name, 'w') as f:
-            json.dump(split_files, f)
+            if self.synth_split.__class__.__name__ is 'DictConfig':
+                self.synth_split = dict(self.synth_split)
+            json.dump(self.synth_split, f, default=vars)
 
     def prepare_data(self) -> None:
         if self.generate_data:
@@ -181,9 +183,9 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
 
-    color_dir = r'/Users/peter/isys/output/color'
-    real_output = r'../gan_data'
-    video_dir = r'/Users/peter/isys/videos'
+    color_dir = r'../../datasets/test/output/color'
+    real_output = r'../../datasets/gan_data'
+    video_dir = r'../../datasets/gan_data'
     dm = GANDataModule(batch_size=3,
                        color_image_directory=color_dir,
                        generate_output_directory=real_output,

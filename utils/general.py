@@ -29,7 +29,8 @@ def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
     callbacks = []
     if configuration.early_stop_patience:
         callbacks.append(pl.callbacks.EarlyStopping(monitor=configuration.early_stop_metric,
-                                                    patience=configuration.early_stop_patience))
+                                                    patience=configuration.early_stop_patience,
+                                                    verbose=configuration.early_stop_verbose))
     callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration.ckpt_metric,
                                                   save_top_k=configuration.ckpt_save_top_k,
                                                   every_n_epochs=configuration.ckpt_every_n_epochs))

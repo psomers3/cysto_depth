@@ -23,6 +23,10 @@ class GAN(BaseModel):
         super().__init__()
         self.save_hyperparameters()
         depth_model = DepthEstimationModel.load_from_checkpoint(kwargs.get('synthetic_base_model'), strict=False)
+<<<<<<< HEAD
+=======
+
+>>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
         if res_transfer:
             self.generator = AdaptiveEncoder(adaptive_gating)
             if preadapted_model:

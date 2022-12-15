@@ -214,7 +214,7 @@ def new_material(name: str) -> bpy.types.Material:
     if mat is None:
         mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
-    if mat.node_tree:
+    if mat.node_tree is not None:
         mat.node_tree.links.clear()
         mat.node_tree.nodes.clear()
     return mat
@@ -302,6 +302,9 @@ def add_tumor_particle_nodegroup(stl_file: str,
     # apply transforms
     apply_transformations(particle_ref_object)
     particle_ref_object.hide_render = True
+    particle_ref_object.hide_viewport = True
+    if collection is not None:
+        collection.objects.link(particle_ref_object)
     # set up node group
     particle_nodegroup = bpy.data.node_groups.new('particle-nodes', type='GeometryNodeTree')
     nodes = particle_nodegroup.nodes
@@ -350,7 +353,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
 
     links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
     links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
-    return particle_nodegroup
+    return particle_nodegroup, particle_ref_object
 
 
 def add_diverticulum_nodegroup(amount: float = 2,
@@ -697,6 +700,60 @@ def add_raw_depth_to_material(mat:bpy.types.Material) -> None:
     aov = mat.node_tree.nodes.new("ShaderNodeOutputAOV")
     aov.name = "raw_depth"
     mat.node_tree.links.new(cam.outputs['View Z Depth'], aov.inputs['Color'])
+
+
+def add_raw_normals_to_material(mat: bpy.types.Material) -> None:
+    """
+    Add an AOV output to the given material that will forward the raw normals in camera space to the rendering
+    compositor. The AOV output is called "raw_normals"
+    :param mat: blender material to foward normals for
+    """
+    geo = mat.node_tree.nodes.new("ShaderNodeNewGeometry")
+    cam_transform = mat.node_tree.nodes.new("ShaderNodeVectorTransform")
+    cam_transform.vector_type = 'NORMAL'
+    cam_transform.convert_to = 'CAMERA'
+    aov = mat.node_tree.nodes.new("ShaderNodeOutputAOV")
+    aov.name = "raw_normals"
+    mat.node_tree.links.new(geo.outputs['Normal'], cam_transform.inputs['Vector'])
+    mat.node_tree.links.new(cam_transform.outputs['Vector'], aov.inputs['Color'])
+
+
+def add_normals_to_all_materials() -> None:
+    """
+    Add normals AOV to every registered material
+    """
+    for material in bpy.data.materials:
+        if material is not None:
+            material.use_nodes = True
+            add_raw_normals_to_material(material)
+
+
+def is_inside(p, obj: bpy.types.Object, normals_reversed: bool = False):
+    _, point, normal, face = obj.closest_point_on_mesh(p)
+    p2 = point-p
+    v = p2.dot(normal)
+    if normals_reversed:
+        return v < 0.0
+    else:
+        return v > 0.0
+
+
+def check_image_in_body(cam: bpy.types.Camera, obj: bpy.types.Object, scene: bpy.types.Scene) -> bool:
+    """
+    Return True only if all 4 camera corners are within the body.
+    :param cam:
+    :param obj:
+    :param scene:
+    :return:
+    """
+    frame_local = cam.data.view_frame(scene=scene)
+    frame_corners_global = [cam.matrix_world @ corner for corner in frame_local]
+    for corner in frame_corners_global:
+        if is_inside(corner, obj, True):
+            continue
+        else:
+            return False
+    return True
 
 
 def add_depth_to_all_materials() -> None:
