@@ -133,25 +133,26 @@ def blender_rendering():
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]
         camera.rotation_euler = Vector(np.radians([0, 0, 180]))
-        # set random scenes and render
-        for i in range(1, config.samples_per_model + 1):
-            random_position.rotation_euler = (np.random.uniform(0, np.radians(360), size=3))
-            endo_tip.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(np.asarray(config.view_angle_max))
-            shrinkwrap_constraint.distance = np.random.uniform(*config.distance_range, 1)
-            emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
-            random_position.keyframe_insert(frame=i, data_path="rotation_euler")
-            endo_tip.keyframe_insert(frame=i, data_path="rotation_euler")
-            camera.keyframe_insert(frame=i, data_path='rotation_euler')
-            shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
-            emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
 
-            if args.render:
-                scene.frame_set(i)
-                for material_name in config.bladder_materials:
-                    stl_obj.material_slots[0].material = bpy.data.materials[material_name]
-                    # set folder name to render to
-                    [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl, material_name))
-                     for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
+        for material_name in config.bladder_materials:
+            stl_obj.material_slots[0].material = bpy.data.materials[material_name]
+            # set folder name to render to
+            [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl, material_name))
+             for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
+            # set random scenes and render
+            for i in range(1, config.samples_per_model + 1):
+                random_position.rotation_euler = (np.random.uniform(0, np.radians(360), size=3))
+                endo_tip.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(np.asarray(config.view_angle_max))
+                shrinkwrap_constraint.distance = np.random.uniform(*config.distance_range, 1)
+                emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
+                random_position.keyframe_insert(frame=i, data_path="rotation_euler")
+                endo_tip.keyframe_insert(frame=i, data_path="rotation_euler")
+                camera.keyframe_insert(frame=i, data_path='rotation_euler')
+                shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
+                emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
+
+                if args.render:
+                    scene.frame_set(i)
                     bpy.ops.render.render(write_still=True, scene=scene.name)
 
         if not args.sample:
