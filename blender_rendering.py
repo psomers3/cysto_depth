@@ -81,6 +81,9 @@ def blender_rendering():
     loop_angle_offset.parent = endo_tip
     loop_angle_offset.rotation_euler = Vector(np.radians([-config.endoscope_angle, 0, 0]))
     endo_collection.objects.link(loop_angle_offset)
+    insulation.data.materials.append(None)
+    insulation.material_slots[0].link = 'OBJECT'
+    insulation.material_slots[0].material = bpy.data.materials['insulation']
 
     # add light surface
     light, emission_node = butils.add_surface_lighting(**config.endo_light,
