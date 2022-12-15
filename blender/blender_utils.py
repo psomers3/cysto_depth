@@ -686,3 +686,15 @@ def check_image_in_body(cam: bpy.types.Camera, obj: bpy.types.Object, scene: bpy
         else:
             return False
     return True
+
+
+def update_bladder_material(config: bconfig.BladderMaterialConfig, material_name: str) -> None:
+    """
+    A function to update the values in the bladder material.
+    :param config:
+    :param material_name:
+    """
+    mat = bpy.data.materials[material_name]
+    mat.node_tree.nodes['Volume Absorption'].inputs['Density'].default_value = config.volume_absorbtion_density
+    mat.node_tree.nodes['Volume Scatter'].inputs['Density'].default_value = config.volume_scatter_density
+    mat.node_tree.nodes['Volume Scatter'].inputs['Anisotropy'].default_value = config.volume_scatter_anisotropy

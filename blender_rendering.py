@@ -135,6 +135,7 @@ def blender_rendering():
         camera.rotation_euler = Vector(np.radians([0, 0, 180]))
 
         for material_name in config.bladder_materials:
+            butils.update_bladder_material(config.bladder_material_config, material_name)
             stl_obj.material_slots[0].material = bpy.data.materials[material_name]
             # set folder name to render to
             [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl, material_name))

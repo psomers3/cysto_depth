@@ -130,6 +130,13 @@ class ResectionLoopConfig:
 
 
 @dataclass
+class BladderMaterialConfig:
+    volume_scatter_density: float = 10.0
+    volume_scatter_anisotropy: float = 0.0
+    volume_absorbtion_density: float = 10.0
+
+
+@dataclass
 class MainConfig:
     blender: BlenderConfig = BlenderConfig()
     # path to where the bladder STL models are. This will be searched recursively
@@ -159,3 +166,5 @@ class MainConfig:
     """ list of .blend files containing materials that will be imported """
     bladder_materials: List[str] = field(default_factory=lambda: [])
     """ list of different bladder wall materials to use during rendering """
+    bladder_material_config: BladderMaterialConfig = BladderMaterialConfig()
+    """ Control over parameters inside the bladder material (i.e. volume scattering) """
