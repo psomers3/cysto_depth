@@ -41,7 +41,6 @@ class FileLoadingDataModule(pl.LightningDataModule):
                        dictionary of the form json_dict[stage][role] = List[files], where stage is one of
                        ['train', 'validate', 'test'] and role matches the keys provided in `directories`.
                      split defaults to the first example assuming subfolders with "train", "val", and "test"
-
         :param workers_per_loader: cpu threads to use for each data loader.
         :param exclude_regex: regex for excluding files.
         """
@@ -66,7 +65,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
         image_files = {
-            key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
+            key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and [os.path.islink(f) or os.path.isfile(f)]]
             for key, val in directories.items()
         }
         if exclusion_regex is not None:
@@ -97,7 +96,6 @@ class FileLoadingDataModule(pl.LightningDataModule):
                 for key, file_list in image_files.items():
                     split_files[stage][key] = np.asarray(file_list)[stage_indices].tolist()
                 indices = indices[len(stage_indices):]
-
         return split_files
 
     def save_split(self, file_name: str):

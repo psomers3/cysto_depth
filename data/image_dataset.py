@@ -105,6 +105,7 @@ class ImageDataset(Dataset):
             image = self.transform_to_float_tensor(raw_image)
             if self.transforms[i]:
                 image = self.transforms[i](image)
+
             final_images.append(image)
 
         return final_images

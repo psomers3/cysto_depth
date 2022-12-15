@@ -47,6 +47,7 @@ diverticulum:
   translation_range: [ -0.7, 0.7 ]
 
 shrinkwrap_wire:
+<<<<<<< HEAD
    wrap_mode: "INSIDE"
    distance: .005
    use_track_normal: false
