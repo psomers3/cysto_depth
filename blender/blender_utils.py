@@ -650,8 +650,39 @@ def add_raw_normals_to_material(mat: bpy.types.Material) -> None:
     mat.node_tree.links.new(cam_transform.outputs['Vector'], aov.inputs['Color'])
 
 
-def add_normals_to_all_materials():
+def add_normals_to_all_materials() -> None:
+    """
+    Add normals AOV to every registered material
+    """
     for material in bpy.data.materials:
         if material is not None:
             material.use_nodes = True
             add_raw_normals_to_material(material)
+
+
+def is_inside(p, obj: bpy.types.Object, normals_reversed: bool = False):
+    _, point, normal, face = obj.closest_point_on_mesh(p)
+    p2 = point-p
+    v = p2.dot(normal)
+    if normals_reversed:
+        return v < 0.0
+    else:
+        return v > 0.0
+
+
+def check_image_in_body(cam: bpy.types.Camera, obj: bpy.types.Object, scene: bpy.types.Scene) -> bool:
+    """
+    Return True only if all 4 camera corners are within the body.
+    :param cam:
+    :param obj:
+    :param scene:
+    :return:
+    """
+    frame_local = cam.data.view_frame(scene=scene)
+    frame_corners_global = [cam.matrix_world @ corner for corner in frame_local]
+    for corner in frame_corners_global:
+        if is_inside(corner, obj, True):
+            continue
+        else:
+            return False
+    return True

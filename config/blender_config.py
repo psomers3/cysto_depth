@@ -155,3 +155,7 @@ class MainConfig:
     clear_output_folder: bool = False
     resection_loop: ResectionLoopConfig = ResectionLoopConfig()
     endoscope_angle: float = 30
+    materials_files: List[str] = field(default_factory=lambda: [])
+    """ list of .blend files containing materials that will be imported """
+    bladder_materials: List[str] = field(default_factory=lambda: [])
+    """ list of different bladder wall materials to use during rendering """

@@ -44,6 +44,10 @@ def blender_rendering():
         if os.path.exists(config.output_folder):
             shutil.rmtree(config.output_folder)
 
+    for material_file in config.materials_files:
+        with bpy.data.libraries.load(material_file) as (data_from, data_to):
+            data_to.materials = data_from.materials
+
     scene = butils.init_blender(config.blender)
     scene.frame_end = config.samples_per_model
     stl_files = [f for f in Path(config.models_dir).rglob('*') if re.search(config.bladder_model_regex, str(f))]
@@ -99,8 +103,6 @@ def blender_rendering():
     output_nodes = butils.add_render_output_nodes(scene,
                                                   normals=config.render_normals,
                                                   custom_normals_label='raw_normals')
-    [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl))
-     for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
 
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
@@ -145,8 +147,12 @@ def blender_rendering():
 
             if args.render:
                 scene.frame_set(i)
-                scene.node_tree.nodes[0].name = scene.name
-                bpy.ops.render.render(write_still=True, scene=scene.name)
+                for material_name in config.bladder_materials:
+                    stl_obj.material_slots[0].material = bpy.data.materials[material_name]
+                    # set folder name to render to
+                    [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl, material_name))
+                     for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
+                    bpy.ops.render.render(write_still=True, scene=scene.name)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)

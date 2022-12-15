@@ -3,12 +3,17 @@ bladder_model_regex: '^(?!.*\._|.*\.DS).*smooth'  # because ignore mac's ._ file
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test2/output
-samples_per_model: 3
-distance_range: [0.005, 0.04]
+samples_per_model: 200
+distance_range: [0.000, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [50, 50]
 render_normals: true
-clear_output_folder: false
+clear_output_folder: true
+materials_files:
+  - ./blender/bladder_material.blend
+bladder_materials:
+  - bladder_wall
+
 resection_loop:
   wire_stl: /Users/peter/isys/resection_loop/tueb_wire.STL
   insulation_stl: /Users/peter/isys/resection_loop/tueb_insulation.STL
@@ -44,7 +49,7 @@ blender:
   unit_settings:
     length_unit: "MILLIMETERS"
   render:
-    resolution_percentage: 50
+    resolution_percentage: 30
     image_settings:
       color_mode: 'RGB'
     engine: 'CYCLES'
