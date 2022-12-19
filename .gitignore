@@ -154,5 +154,6 @@ annotations/kitti_annotations.csv
 #PyCharm
 .idea
 
+nohup
 test
 outputs

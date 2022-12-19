@@ -24,18 +24,19 @@ def random_unit_vectors(num_points: int, ndim: int = 3) -> np.ndarray:
     return vec.T
 
 
-def init_blender(configuration: bconfig.BlenderConfig) -> bpy.types.Scene:
+def init_blender(configuration: bconfig.BlenderConfig) -> Tuple[bpy.types.Scene, bpy.types.ViewLayer]:
     """ Initialize blender scene by deleting demo objects and applying settings from configuration
 
     :param configuration: A set of blender configurations to apply to the current scene
-    :returns: the current active scene
+    :returns: the current active scene and view_layer
     """
     context = bpy.context
     scene = context.scene
+    view_layer = context.view_layer
     for c in scene.collection.children:
         bpy.data.collections.remove(c, do_unlink=True)
     set_blender_data(scene, configuration)
-    return scene
+    return scene, view_layer
 
 
 def set_blender_data(item: Any, config: Union[dict, bconfig.BlenderConfig, Any]) -> None:
@@ -152,13 +153,12 @@ def scale_mesh_volume(obj: bpy.types.Object, volume: float) -> None:
 def apply_transformations(obj: bpy.types.Object,
                           location=True,
                           rotation=True,
-                          scale=True) -> None:
+                          scale=True) -> Matrix:
     """
     Set current transformations as permanent for the given object. maintains the object's current physical position and
     resets transformations to default. (i.e. location is now the global origin)
     This affects all children of the object as well.
     https://blender.stackexchange.com/questions/159538/how-to-apply-all-transformations-to-an-object-at-low-level
-
     :param obj: The object to set
     :param location: reset the location
     :param rotation: reset the rotation
@@ -168,16 +168,26 @@ def apply_transformations(obj: bpy.types.Object,
     # obj.data.update()
     # matrix = Matrix.Identity(4)
     # obj.matrix_world = matrix
+    M, basis = get_transformation(obj, location, rotation, scale)
+    if hasattr(obj.data, "transform"):
+        obj.data.transform(M)
+    for c in obj.children:  # TODO: make this recursive
+        c.matrix_local = M @ c.matrix_local
+
+    obj.matrix_basis = basis[0] @ basis[1] @ basis[2]
+
+    return M
+
+
+def get_transformation(obj: bpy.types.Object, location=True, rotation=True, scale=True) -> Tuple[Matrix, List[Matrix]]:
     mb = obj.matrix_basis
     I = Matrix()
     loc, rot, _scale = mb.decompose()
-
     # rotation
     T = Matrix.Translation(loc)
     # R = rot.to_matrix().to_4x4()
     R = mb.to_3x3().normalized().to_4x4()
     S = Matrix.Diagonal(_scale).to_4x4()
-
     transform = [I, I, I]
     basis = [T, R, S]
 
@@ -190,18 +200,9 @@ def apply_transformations(obj: bpy.types.Object,
         swap(1)
     if scale:
         swap(2)
-
     M = transform[0] @ transform[1] @ transform[2]
-    if hasattr(obj.data, "transform"):
-        obj.data.transform(M)
-    for c in obj.children:  # TODO: make this recursive
-        c.matrix_local = M @ c.matrix_local
 
-    obj.matrix_basis = basis[0] @ basis[1] @ basis[2]
-
-
-def apply_surface_displacement():
-    pass
+    return M, basis
 
 
 def new_material(name: str) -> bpy.types.Material:
@@ -279,14 +280,12 @@ def add_tumor_particle_nodegroup(stl_file: str,
         -> Tuple[bpy.types.NodeGroup, bpy.types.Object]:
     """
     Creates node group that scatters instances of the mesh in the stl-file over the targeted object.
-
     :param stl_file: path to the stl file to be used as tumor particle
     :param amount: controls amount of particles added
     :param volume_max: volume of object referenced for the instances
     :param scaling_range: range in which scaling of instances varies
     :param rotation_range: range in which rotation of instances varies
-    :param collection: optional collection to add stl model to
-    :return: particle scattering node group and the stl object it is based on
+    :return: particle scattering node group
     """
     if scaling_range is None:
         scaling_range = [0.1, 1]
@@ -352,7 +351,6 @@ def add_diverticulum_nodegroup(amount: float = 2,
     Creates node group that introduces diverticuli, by scattering instances of a sphere on the surface of the targeted
     object. The spheres are then translated by a random distance along the target surface's normal. Spheres and target
     mesh are combined via boolean union.
-
     :param amount: controls amount of particles added
     :param subdivisions_sphere: mesh detail of the sphere
     :param radius_sphere_range: range in which the radii of the sphere instances vary in m
@@ -395,9 +393,12 @@ def add_diverticulum_nodegroup(amount: float = 2,
     mesh_boolean.operation = 'UNION'
     links.new(group_in.outputs[0], mesh_boolean.inputs[1])
     links.new(translate_instances.outputs['Instances'], mesh_boolean.inputs[1])
+    # turn instances into own meshes
+    realize_instances = nodes.new('GeometryNodeRealizeInstances')
+    links.new(mesh_boolean.outputs['Mesh'], realize_instances.inputs[0])
     # output
     group_out = nodes.new('NodeGroupOutput')
-    links.new(mesh_boolean.outputs['Mesh'], group_out.inputs[0])
+    links.new(realize_instances.outputs['Geometry'], group_out.inputs[0])
 
     # SUBGROUPS: additional groups of nodes which modify the behavior of the main node chain
     # GROUP 1: make amount of instances invariant to the surface area of the target object by calculating the surface
@@ -454,6 +455,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
                             depth: bool = True,
                             normals: bool = False,
                             custom_normals_label: str = "",
+                            custom_depth_label: str = "",
                             view_layer: str = "ViewLayer") -> List[bpy.types.Node]:
     """
     Modify the graph of a scene's node tree to include color and depth outputs
@@ -462,6 +464,8 @@ def add_render_output_nodes(scene: bpy.types.Scene,
     :param depth: whether to include the depth as output.
     :param normals: whether to include the normals as output.
     :param custom_normals_label: a user-defined AOV output to use for the normals. If empty, defaults to the usual
+                                 normals pass.
+    :param custom_depth_label: a user-defined AOV output to use for the normals. If empty, defaults to the usual
                                  normals pass.
     :param scene: the scene to create the rendering for.
     :param view_layer: the view layer in the scene to enable the rendering passes for.
@@ -477,7 +481,12 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         # create depth output node
         depth_node = tree.nodes.new('CompositorNodeOutputFile')
         depth_node.format.file_format = "OPEN_EXR"
-        links.new(rl.outputs['Depth'], depth_node.inputs['Image'])  # link Z to output
+        depth_label = 'Depth'
+        if custom_depth_label:
+            depth_label = custom_depth_label
+            aov = scene.view_layers[view_layer].aovs.add()
+            aov.name = 'raw_depth'
+        links.new(rl.outputs[depth_label], depth_node.inputs['Image'])
         return_list[1] = depth_node
 
     if color:
@@ -492,8 +501,13 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         # create normals output node
         normal_node = tree.nodes.new('CompositorNodeOutputFile')
         normal_node.format.file_format = "OPEN_EXR"
-        normals_label = custom_normals_label if custom_normals_label else "Normal"
-        links.new(rl.outputs[normals_label], normal_node.inputs['Image'])  # link Z to output
+        normals_label = "Normal"
+        if custom_normals_label:
+            normals_label = custom_normals_label
+            aov = scene.view_layers[view_layer].aovs.add()
+            aov.name = 'raw_normals'
+
+        links.new(rl.outputs[normals_label], normal_node.inputs['Image'])
         return_list[2] = normal_node
 
     return return_list
@@ -603,13 +617,15 @@ def add_subdivision_modifier(obj: bpy.types.Object, config: bconfig.SubdivisionM
 
 def add_resection_loop(config: bconfig.ResectionLoopConfig,
                        collection: bpy.types.Collection = None,
-                       parent: bpy.types.Object = None) -> Tuple[bpy.types.Object, bpy.types.Object, bpy.types.Object]:
+                       parent: bpy.types.Object = None) \
+        -> Tuple[bpy.types.Object, bpy.types.Object, bpy.types.Object, bpy.types.Object, List[bpy.types.Object]]:
     """
     Adds a cutting loop to the endoscope.
     :param collection: collection to add the objects to.
     :param config: the configuration settings for adding the loop
     :param parent: an optional blender object to set as the parent (i.e. the camera)
-    :return: tuple with object containing the resection loop items, wire, and insulation
+    :return: tuple with objects containing the resection loop items, wire, insulation, extension direction,
+             and no-clip-points.
     """
 
     wire = import_stl(config.wire_stl, flip_normals=True)
@@ -618,11 +634,32 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
     insulation.scale = Vector([config.scaling_factor] * 3)
     wire.rotation_euler = Vector(np.radians(config.euler_rotation))
     insulation.rotation_euler = Vector(np.radians(config.euler_rotation))
-    apply_transformations(wire)
+    transform = apply_transformations(wire)
     apply_transformations(insulation)
+    # retrieve, format and transform direction and no-clip-points
+    direction = np.array(config.extension_direction)
+    direction = direction.transpose()
+    direction = np.append(direction, [1], axis=0)
+    loop_extension_direction = np.array(transform) @ direction
+    points = np.array(config.no_clip_points)
+    points = points.transpose()
+    points = np.append(points, [[1] * points.shape[1]], axis=0)
+    loop_no_clip_points = np.array(transform) @ points
     resection_loop = bpy.data.objects.new('resection_loop', None)
     wire.parent = resection_loop
     insulation.parent = resection_loop
+    wire_material = new_material('reflective_metal')
+    nodes = wire_material.node_tree.nodes
+    links = wire_material.node_tree.links
+    output = nodes.new(type='ShaderNodeOutputMaterial')
+    shader = nodes.new(type='ShaderNodeBsdfPrincipled')
+    shader.inputs[0].default_value = config.wire_base_color  # Base Color
+    shader.inputs[6].default_value = config.wire_metallic  # Metallic
+    shader.inputs[9].default_value = config.wire_roughness  # Roughness
+    shader.inputs[10].default_value = config.wire_anisotropic  # Anisotropic
+    links.new(shader.outputs[0], output.inputs[0])
+    wire.data.materials.append(wire_material)
+
     if parent:
         resection_loop.parent = parent
     if collection is not None:
@@ -631,7 +668,29 @@ def add_resection_loop(config: bconfig.ResectionLoopConfig,
         collection.objects.link(wire)
         collection.objects.link(insulation)
         collection.objects.link(resection_loop)
-    return resection_loop, wire, insulation
+    return resection_loop, wire, insulation, loop_extension_direction, loop_no_clip_points
+
+
+def add_raw_depth_to_material(mat:bpy.types.Material) -> None:
+    """
+        Add an AOV output to the given material that will forward the raw z-depth in camera space to the rendering
+        compositor. The AOV output is called "raw_depth"
+        :param mat: blender material to foward normals for
+        """
+    cam = mat.node_tree.nodes.new("ShaderNodeCameraData")
+    aov = mat.node_tree.nodes.new("ShaderNodeOutputAOV")
+    aov.name = "raw_depth"
+    mat.node_tree.links.new(cam.outputs['View Z Depth'], aov.inputs['Color'])
+
+
+def add_depth_to_all_materials() -> None:
+    """
+    Add normals AOV to every registered material
+    """
+    for material in bpy.data.materials:
+        if material is not None:
+            material.use_nodes = True
+            add_raw_depth_to_material(material)
 
 
 def add_raw_normals_to_material(mat: bpy.types.Material) -> None:

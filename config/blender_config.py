@@ -124,9 +124,23 @@ class ResectionLoopConfig:
     scaling_factor: float = 0.001
     """ initial scaling """
     euler_rotation: List[float] = field(default_factory=lambda: [90, 0, 0])
-    """ initial rotation on load """
+    """ initial rotation on load (euler XYZ)"""
     max_extension: float = 5
     """ maximum distance the wire can be extended from the endoscope """
+    extension_direction: List[float] = field(default_factory=lambda: [1.0, 0.0, 0.0])
+    """ direction in which the tool is extended in the coordinates of the stl-file"""
+    no_clip_points: List[List[float]] = field(default_factory=lambda: [[0.0, 0.0, 0.0]])
+    """ points of the tool where clipping is prevented in the coordinates of the stl-file"""
+    max_retraction: float = 5
+    """ maximum distance the insulation can be retracted from the wire """
+    wire_base_color: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
+    """ material of wire: base color """
+    wire_metallic: float = 1
+    """ material of wire: value of the shader property 'Metallic' """
+    wire_roughness: float = 0.2
+    """ material of wire: roughness """
+    wire_anisotropic: float = 1
+    """ material of wire: value of the shader property 'Anisotropic' """
 
 
 @dataclass
@@ -151,7 +165,8 @@ class MainConfig:
     diverticulum: DiverticulumConfig = DiverticulumConfig()
     output_folder: str = MISSING
     samples_per_model: int = 3
-    shrinkwrap: ShrinkwrapConfig = ShrinkwrapConfig()
+    shrinkwrap_wire: ShrinkwrapConfig = ShrinkwrapConfig()
+    shrinkwrap_tool: ShrinkwrapConfig = ShrinkwrapConfig()
     distance_range: List[float] = field(default_factory=lambda: [0.005, 0.05])
     # the maximum angles in degrees to randomly rotate the endoscope after positioning it.
     view_angle_max: List[float] = field(default_factory=lambda: [60, 60, 60])

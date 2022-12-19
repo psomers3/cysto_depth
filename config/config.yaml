@@ -17,6 +17,8 @@ bladder_materials:
 resection_loop:
   wire_stl: /Users/peter/isys/resection_loop/tueb_wire.STL
   insulation_stl: /Users/peter/isys/resection_loop/tueb_insulation.STL
+  extension_direction: [0, -1, 0]
+  no_clip_points: [[0.0, 0.0, -2.5], [2.0, 0.0, 0.0], [-2.0, 0.0, 0.0]]
 
 endo_light:
   stl_file: /Users/peter/isys/endo_lights/tuebingen_light.STL
@@ -38,12 +40,18 @@ diverticulum:
   radius_sphere_range: [ 0.001, 0.02 ] #m
   translation_range: [ -0.7, 0.7 ]
 
-shrinkwrap:
-  wrap_mode: "ON_SURFACE"
-  distance: .01
-  use_track_normal: false
-  shrinkwrap_type: "PROJECT"
-  project_axis: "NEG_Z"
+shrinkwrap_wire:
+   wrap_mode: "INSIDE"
+   distance: .005
+   use_track_normal: false
+   shrinkwrap_type: "PROJECT"
+   project_axis: "POS_Z"
+
+shrinkwrap_tool:
+   wrap_mode: "INSIDE"
+   shrinkwrap_type: "NEAREST_SURFACE"
+   distance: 0.005
+   use_track_normal: false
 
 blender:
   unit_settings:
