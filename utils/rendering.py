@@ -150,27 +150,6 @@ def phong_lighting(points, normals, lights, camera_positions, materials) \
     return ambient_color, diffuse_color, specular_color, light_attenuation
 
 
-# def blinn_phong_lighting(points, normals, lights, camera_positions, materials) \
-#         -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-#     """
-#         This expects images as channels last
-#
-#     Args:
-#         points: torch tensor of shape (N, ..., 3) or (P, 3).
-#         normals: torch tensor of shape (N, ..., 3) or (P, 3)
-#         lights: instance of the Lights class.
-#         camera_positions: camera positions.
-#         materials: instance of the Materials class.
-#
-#     Returns:
-#         ambient_color: same shape as materials.ambient_color
-#         diffuse_color: same shape as the input points
-#         specular_color: same shape as the input points
-#         attenuation: shape is similar to input points, except last dimension is 1
-#     """
-#
-#
-#
 def get_points_in_3d(pixel_locations: torch.Tensor,
                      depth_map: torch.Tensor,
                      cam_intrinsic_matrix: torch.Tensor) -> torch.Tensor:
@@ -191,7 +170,6 @@ def get_normals_from_3d_points(points_3d: torch.Tensor):
     dx, dy, dz = [(d[0] + d[1])/2 for d in [dx, dy, dz]]
     gradients = torch.dstack([dx, dy, dz])
     normals = torch.nn.functional.normalize(gradients, dim=-1)
-    # normals *= -1
     return normals
 
 
@@ -211,33 +189,14 @@ def render_rgbd(depth_map: torch.Tensor,
                 uniform_material,
                 pixel_locations: torch.Tensor) -> torch.Tensor:
     color_reshaped = color_image.reshape((color_image.shape[-3] * color_image.shape[-2], color_image.shape[-1]))
-    # calculated_normals = get_normals_from_depth_map(depth_map, cam_intrinsic_matrix, pixel_locations)
-    # calculated_normals = calculated_normals.reshape((calculated_normals.shape[0]*calculated_normals.shape[1], 3))
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=0), dim=-1)
     normals_image = normals_image.permute((1, 2, 0))
     normals_reshaped = normals_image.reshape((normals_image.shape[0] * normals_image.shape[1], 3))
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
-                                                                               # calculated_normals,
                                                                                normals_reshaped,
                                                                                spot_light,
                                                                                torch.Tensor([0, 0, 0])[None],
                                                                                uniform_material)
     pixels = attenuation * ((ambient_color + diffuse_color) * color_reshaped + specular_color)
     return torch.reshape(pixels, color_image.shape)
-
-
-# def get_normals_from_depthmap(depth_map: torch.Tensor) -> torch.Tensor:
-#     zy, zx = torch.gradient(depth_map, dim=[0, 1])
-#     # You may also consider using Sobel to get a joint Gaussian smoothing and differentation
-#     # to reduce noise
-#     # zx = cv2.Sobel(depth_map, cv2.CV_64F, 1, 0, ksize=5)
-#     # zy = cv2.Sobel(depth_map, cv2.CV_64F, 0, 1, ksize=5)
-#
-#     normal = torch.dstack((-zx, -zy, torch.ones_like(depth_map)))
-#     # n = torch.linalg.norm(normal, axis=2)
-#     normal = torch.nn.functional.normalize(normal, p=2, dim=2)
-#     # normal[:, :, 0] /= n
-#     # normal[:, :, 1] /= n
-#     # normal[:, :, 2] /= n
-#     return normal

@@ -20,7 +20,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
     config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
     if config.print_config:
         print(OmegaConf.to_yaml(config))
-
+    exit(0)
     assert config.training_stage.lower() in ['train', 'validate', 'test']
     assert config.mode.lower() in ['synthetic', 'gan']
 

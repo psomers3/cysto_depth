@@ -3,7 +3,7 @@ bladder_model_regex: '^(?!.*\._|.*\.DS).*smooth'  # because ignore mac's ._ file
 camera_intrinsics: test/cam_params.json
 bladder_volume: .0004  # m^3
 output_folder: test/output
-samples_per_model: 1
+samples_per_model: 2
 distance_range: [0.000, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [200, 50]

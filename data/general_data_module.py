@@ -54,13 +54,15 @@ class FileLoadingDataModule(pl.LightningDataModule):
                 self.split_files = json.load(f)
         else:
             self.split_files = self.create_file_split(directories, split, exclude_regex)
-
+        for key, stage in self.split_files.items():
+            if 0 in [len(data_id) for k, data_id in stage.items()]:
+                raise ValueError(f"No files found for one split. Check your directories: {directories}")
         self.data_train: ImageDataset = None
         self.data_val: ImageDataset = None
         self.data_test: ImageDataset = None
 
     @staticmethod
-    def create_file_split(directories: dict, split: dict = None, exclusion_regex: str = None):
+    def create_file_split(directories: dict, split: dict = None, exclusion_regex: str = None) -> dict:
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
         image_files = {

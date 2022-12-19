@@ -1,4 +1,5 @@
 log_directory: ./logs
+print_config: true
 adaptive_gating: true
 mode: gan
 training_stage: train

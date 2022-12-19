@@ -120,6 +120,30 @@ class GANTrainingConfig:
 
 
 @dataclass
+class PhongConfig:
+    """ The configuration for the phong dataset/dataloader """
+    material_shininess: float = 5.0
+    """ how reflective is the material """
+    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
+    """ incoming light color, intensity based on angle to incoming light """
+    specular_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
+    """ specular intensity color """
+    ambient_color: Tuple[float, float, float] = field(default_factory=lambda: (0.0, 0.0, 0.0))
+    """ color that is automatically emitted by the material """
+    attenuation: float = 0.075
+    """ rate at which light falls off. light = 1/(1+attenuation*distance) """
+    camera_intrinsics: List[List[float]] = field(default_factory=lambda: [[1038.1696, 0.0, 0.0],
+                                                                          [0.0, 1039.8075, 0.0],
+                                                                          [878.9617, 572.9404, 1]])
+    """ 3x3 camera intrinsic matrix used for re-projection. Can be path to a numpy file or a numpy matrix. 
+        TODO: implement file loading """
+    return_normals: bool = True
+    """ Whether to return the normals used to render the image """
+    return_depth: bool = True
+    """ Whether to return the depth map used to render the image"""
+
+
+@dataclass
 class CystoDepthConfig:
     """ Configuration for training synthetic depth and/or domain transfer for real cystoscopic videos"""
 
@@ -144,4 +168,5 @@ class CystoDepthConfig:
     synthetic_config: SyntheticTrainingConfig = SyntheticTrainingConfig()
     gan_config: GANTrainingConfig = GANTrainingConfig()
     trainer_config: TrainerDictConfig = TrainerDictConfig()
-
+    phong_config: PhongConfig = PhongConfig()
+    """ The config for the phong dataloader """
