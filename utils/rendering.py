@@ -2,6 +2,20 @@ import torch
 from typing import *
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from pytorch3d.renderer.lighting import PointLights as _PointLights
+# keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
+from pytorch3d.renderer.materials import Materials
+
+
+class PointLights(_PointLights):
+    """ A subclass from PyTorch3D's point light to add attenuation """
+    def __init__(self, *args, **kwargs):
+        super(PointLights, self).__init__(*args, **kwargs)
+
+    def attenuation(self, points) -> torch.Tensor:
+        location = self.reshape_location(points)
+        distance = torch.norm(location - points, dim=-1)
+        return torch.unsqueeze(1 / (1 + (self.attenuation_factor*distance)), dim=-1)
 
 
 def KRT_from_P(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:

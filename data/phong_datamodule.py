@@ -1,14 +1,11 @@
 from typing import *
-import numpy as np
 import torch
 from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
-from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd
+from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
-from pytorch3d.renderer.lighting import PointLights
-from pytorch3d.renderer.materials import Materials
 
 
 class PhongDataSet(ImageDataset):
@@ -126,9 +123,8 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
 
-    intrinsics = np.array([[1038.1696537477499, 0, 0],
-                           [0, 1039.8075384016558, 0],
-                           [878.9617517840989, 572.9404979327502, 1]]).T
+    p_config = PhongConfig()
+    p_config.diffusion_color = (1.0, 0.25, 0.25)
 
     color_dir = '/Users/peter/Desktop/bladder_dataset/color'
     depth_dir = '/Users/peter/Desktop/bladder_dataset/depth'
@@ -137,8 +133,15 @@ if __name__ == '__main__':
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
+                         phong_config=p_config,
                          split={'train': .9, 'validate': 0.05, 'test': 0.05})
     dm.setup('fit')
     loader = dm.train_dataloader()
-    matplotlib_show(*next(iter(loader)))
-    plt.show(block=True)
+    loader_iter = iter(loader)
+    while True:
+        matplotlib_show(*next(loader_iter))
+        plt.show(block=False)
+        plt.pause(5)
+        input("")
+        for i in plt.get_fignums():
+            plt.close(i)

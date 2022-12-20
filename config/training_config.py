@@ -6,6 +6,7 @@ from typing import *
 @dataclass
 class TrainerDictConfig:
     """ Initial settings for PyTorch Lightning Trainer """
+
     accelerator: str = "auto"
     """ Hardware accelerator to use. Is typically set to one of [gpu, cpu, auto] """
     devices: int = 1
@@ -68,8 +69,7 @@ class SyntheticTrainingConfig:
     batch_size: int = 32
     resume_from_checkpoint: Union[str, None] = None
     """ checkpoint to load weights from """
-    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15,
-                                               ckpt_save_top_k=5)
+    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15, ckpt_save_top_k=5)
 
 
 @dataclass
@@ -122,16 +122,17 @@ class GANTrainingConfig:
 @dataclass
 class PhongConfig:
     """ The configuration for the phong dataset/dataloader """
+
     material_shininess: float = 5.0
     """ how reflective is the material """
-    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
+    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 0.5, 0.5))
     """ incoming light color, intensity based on angle to incoming light """
     specular_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
     """ specular intensity color """
     ambient_color: Tuple[float, float, float] = field(default_factory=lambda: (0.0, 0.0, 0.0))
     """ color that is automatically emitted by the material """
     attenuation: float = 0.075
-    """ rate at which light falls off. light = 1/(1+attenuation*distance) """
+    """ rate at which light falls off. intensity = 1/(1+attenuation*distance) """
     camera_intrinsics: List[List[float]] = field(default_factory=lambda: [[1038.1696, 0.0, 0.0],
                                                                           [0.0, 1039.8075, 0.0],
                                                                           [878.9617, 572.9404, 1]])
