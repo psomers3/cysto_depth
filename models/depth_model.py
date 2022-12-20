@@ -91,7 +91,7 @@ class DepthEstimationModel(BaseModel):
                 self.validation_images = (synth_img.clone(),
                                           synth_depth.clone(),
                                           synth_normals.clone() if self.include_normals else None)
-            synth_img, synth_depth = self.validation_images
+            synth_img, synth_depth, synth_normals = self.validation_images
             if self.include_normals:
                 y_hat_depth, y_hat_normals = self(synth_img)
             else:
