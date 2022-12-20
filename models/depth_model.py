@@ -88,15 +88,15 @@ class DepthEstimationModel(BaseModel):
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
                 self.plot_minmax = [[None, (0, img.max()), (0, img.max())] for img in synth_depth]
-                self.validation_images = (synth_img.clone(),
-                                          synth_depth.clone(),
-                                          synth_normals.clone() if self.include_normals else None)
+                self.validation_images = (synth_img.clone().cpu(),
+                                          synth_depth.clone().cpu(),
+                                          synth_normals.clone().cpu() if self.include_normals else None)
             synth_img, synth_depth, synth_normals = self.validation_images
             if self.include_normals:
                 y_hat_depth, y_hat_normals = self(synth_img)
             else:
                 y_hat_depth = self(synth_img)
-            self.plot(prefix, synth_img, y_hat_depth[-1], synth_depth)
+            self.plot(prefix, synth_img, y_hat_depth[-1].cpu(), synth_depth)
         return metric_dict
 
     def test_step(self, batch, batch_idx):
