@@ -45,7 +45,7 @@ class PhongDataSet(ImageDataset):
                                  diffuse_color=(config.diffusion_color,),
                                  specular_color=(config.specular_color,),
                                  ambient_color=(config.ambient_color,),
-                                 attenuation_factor=(config.attenuation,))
+                                 attenuation_factor=config.attenuation)
 
     def __getitem__(self, idx) -> Tuple[torch.Tensor, ...]:
         imgs = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
