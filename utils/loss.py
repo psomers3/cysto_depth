@@ -3,8 +3,19 @@ import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
-
 from utils.metrics import SILog
+
+
+class CosineSimilarity(nn.Module):
+    def __init__(self):
+        super(CosineSimilarity, self).__init__()
+        self.loss = torch.nn.CosineSimilarity(dim=1)
+
+    def forward(self, predicted, target):
+        if not predicted.shape == target.shape:
+            _, _, h, w = target.shape
+            predicted = F.interpolate(predicted, size=(h, w), mode='bilinear', align_corners=True)
+        return (1 - self.loss(predicted, target)).mean()
 
 
 class BerHu(nn.Module):

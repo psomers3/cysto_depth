@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from models.depth_model import DepthEstimationModel
 from data.depth_datamodule import EndoDepthDataModule
+from data.phong_datamodule import PhongDataModule
 from data.gan_datamodule import GANDataModule
 from models.gan_model import GAN
 
@@ -20,7 +21,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
     config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
     if config.print_config:
         print(OmegaConf.to_yaml(config))
-    exit(0)
+
     assert config.training_stage.lower() in ['train', 'validate', 'test']
     assert config.mode.lower() in ['synthetic', 'gan']
 
@@ -32,15 +33,28 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
     if config.mode == "synthetic":
         split = config.synthetic_config.training_split if not config.synthetic_config.training_split_file else \
-                config.synthetic_config.training_split
-        data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
+            config.synthetic_config.training_split
+        if config.predict_normals:
+            data_module = PhongDataModule(batch_size=config.synthetic_config.batch_size,
                                           color_image_directory=config.synthetic_config.data_directories[0],
                                           depth_image_directory=config.synthetic_config.data_directories[1],
+                                          normals_image_directory=config.synthetic_config.data_directories[2],
                                           split=split,
                                           image_size=config.image_size,
-                                          workers_per_loader=config.num_workers)
-        model = DepthEstimationModel(adaptive_gating=config.adaptive_gating, **config.synthetic_config)
-        [trainer_dict.update({key: val})for key, val in config.synthetic_config.items() if key in trainer_dict]
+                                          workers_per_loader=config.num_workers,
+                                          phong_config=config.phong_config)
+        else:
+            data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
+                                              color_image_directory=config.synthetic_config.data_directories[0],
+                                              depth_image_directory=config.synthetic_config.data_directories[1],
+                                              split=split,
+                                              image_size=config.image_size,
+                                              workers_per_loader=config.num_workers)
+        model = DepthEstimationModel(adaptive_gating=config.adaptive_gating,
+                                     include_normals=config.predict_normals,
+                                     use_phong_loss=config.use_phong_loss,
+                                     **config.synthetic_config)
+        [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
     else:
         split = config.gan_config.synth_split if not config.gan_config.training_split_file else \

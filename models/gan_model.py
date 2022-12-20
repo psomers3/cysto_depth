@@ -52,7 +52,7 @@ class GAN(BaseModel):
     def forward(self, z, full_prediction=False):
         if full_prediction:
             encoder_outs, encoder_mare_outs = self.generator(z)
-            return self.depth_model.decoder(encoder_outs)
+            return self.depth_model.depth_decoder(encoder_outs)
         else:
             return self.generator(z)
 
@@ -72,7 +72,7 @@ class GAN(BaseModel):
         if optimizer_idx == 0 and self.global_step >= self.hparams.warmup_steps:
             # output of encoder when evaluating a real image
             encoder_outs, encoder_mare_outs = self.generator(z)
-            decoder_outs_synth = self.depth_model.decoder(encoder_outs)
+            decoder_outs_synth = self.depth_model.depth_decoder(encoder_outs)
 
             img_out = decoder_outs_synth[3]
 
@@ -114,7 +114,7 @@ class GAN(BaseModel):
         elif optimizer_idx > 0:
             if optimizer_idx == 1:
                 y = self.depth_model(x)[-1].detach()
-                y_hat = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
+                y_hat = self.depth_model.depth_decoder(self.generator(z)[0])[-1].detach()
                 d = self.d_img
                 name = "img"
             else:
@@ -155,7 +155,7 @@ class GAN(BaseModel):
 
     def validation_step(self, batch, batch_idx):
         x, z = batch
-        y_hat = self.depth_model.decoder(self.generator(z)[0])
+        y_hat = self.depth_model.depth_decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
         plot_tensors = [z]  # img_adapted, img_unapdated, diff]
@@ -176,7 +176,7 @@ class GAN(BaseModel):
 
     def test_step(self, batch, batch_idx):
         x, z = batch
-        y_hat = self.depth_model.decoder(self.generator(z)[0])
+        y_hat = self.depth_model.depth_decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
         plot_tensors = [z]  # img_adapted, img_unapdated, diff]

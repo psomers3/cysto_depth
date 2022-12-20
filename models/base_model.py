@@ -1,7 +1,5 @@
 import pytorch_lightning as pl
 from utils.metrics import RMSE, Accuracy, RMSELog, RelError, SILog, compute_errors
-from torchvision import transforms
-import torch.nn as nn
 
 
 class BaseModel(pl.LightningModule):
@@ -13,9 +11,6 @@ class BaseModel(pl.LightningModule):
         self.acc = Accuracy()
         self.silog = SILog()
         self.gan = False
-        self.resize = nn.Sequential(
-            transforms.Resize([256, 512]),  # We use single int value inside a list due to torchscript type restrictions
-        )
 
     def calculate_metrics(self, prefix, predicted, target):
         depth_mask = target > 0

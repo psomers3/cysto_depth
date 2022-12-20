@@ -1,0 +1,32 @@
+log_directory: ./logs
+predict_normals: true
+print_config: true
+adaptive_gating: true
+mode: synthetic
+training_stage: train
+split_save_dir: ./splits
+synthetic_config:
+  max_epochs: 300
+  batch_size: 4
+  data_roles:
+    - color
+    - depth
+    - normals
+  data_directories:
+    - /Users/peter/Desktop/bladder_dataset_filtered/color
+    - /Users/peter/Desktop/bladder_dataset_filtered/depth
+    - /Users/peter/Desktop/bladder_dataset_filtered/normals
+  training_split: {'train': .8, 'validate': 0.2, 'test': ".*00015.*"}
+#  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
+gan_config:
+  source_images: /Users/peter/isys/output/color
+#  synthetic_base_model: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
+  synth_split: {'train': .8, 'validate': .1, 'test': .1}
+  generate_data: False
+  videos_folder:  /Users/peter/isys/videos
+  image_output_folder: ./gan_data
+trainer_config:
+  gpus: []
+  strategy: null
+  accelerator: cpu
+  log_every_n_steps: 2

@@ -171,3 +171,7 @@ class CystoDepthConfig:
     trainer_config: TrainerDictConfig = TrainerDictConfig()
     phong_config: PhongConfig = PhongConfig()
     """ The config for the phong dataloader """
+    predict_normals: bool = False
+    """ Whether the network should predict normals """
+    use_phong_loss: bool = True
+    """ Whether to use the phong shading loss for depth and normals """

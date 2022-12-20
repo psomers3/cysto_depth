@@ -14,6 +14,15 @@ class PhongDataSet(ImageDataset):
     color image, phong shaded image, depth (if requested), normals (if requested)
     """
     def __init__(self, *args, image_size: int, config: PhongConfig, **kwargs):
+        """
+
+        :param args:
+        :param image_size:
+        :param config:
+        :param kwargs:
+        """
+        # pop the transforms to apply afterwards because the default ImageDataset will only know of the loaded images
+        # and not the created ones
         self.post_transforms = kwargs.pop('transforms')
         super(PhongDataSet, self).__init__(*args, **kwargs)
         self.return_normals = config.return_normals
@@ -157,9 +166,9 @@ if __name__ == '__main__':
     p_config = PhongConfig()
     p_config.diffusion_color = (1.0, 0.25, 0.25)
 
-    color_dir = '/Users/peter/Desktop/bladder_dataset/color'
-    depth_dir = '/Users/peter/Desktop/bladder_dataset/depth'
-    normals_dir = '/Users/peter/Desktop/bladder_dataset/normals'
+    color_dir = '/Users/peter/Desktop/bladder_dataset_filtered/color'
+    depth_dir = '/Users/peter/Desktop/bladder_dataset_filtered/depth'
+    normals_dir = '/Users/peter/Desktop/bladder_dataset_filtered/normals'
     dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
