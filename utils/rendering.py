@@ -10,6 +10,7 @@ from pytorch3d.renderer.materials import Materials
 class PointLights(_PointLights):
     """ A subclass from PyTorch3D's point light to add attenuation """
     def __init__(self, *args, **kwargs):
+        self.attenuation_factor = kwargs.pop('attenuation_factor')
         super(PointLights, self).__init__(*args, **kwargs)
 
     def attenuation(self, points) -> torch.Tensor:
