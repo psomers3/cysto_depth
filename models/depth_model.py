@@ -87,7 +87,7 @@ class DepthEstimationModel(BaseModel):
         if batch_idx == 0:
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
-                self.plot_minmax = [[None, (0, img.max()), (0, img.max())] for img in synth_depth]
+                self.plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
                 self.validation_images = (synth_img.clone(),
                                           synth_depth.clone(),
                                           synth_normals.clone() if self.include_normals else None)
@@ -107,8 +107,8 @@ class DepthEstimationModel(BaseModel):
 
     def plot(self, prefix, synth_img, prediction, label):
         max_num_samples = 7
-        synth_img = synth_img.clone().cpu()
-        label = label.clone().cpu()
+        # synth_img = synth_img.clone().cpu()
+        # label = label.clone().cpu()
         self.gen_plots(zip(synth_img[:max_num_samples], prediction[:max_num_samples], label[:max_num_samples]),
                        "{}-synth-prediction".format(prefix), labels=["Synth Image", "Depth Predicted", "Depth GT"],
                        minmax=self.plot_minmax)
