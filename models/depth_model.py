@@ -96,7 +96,7 @@ class DepthEstimationModel(BaseModel):
                 y_hat_depth, y_hat_normals = self(synth_img)
             else:
                 y_hat_depth = self(synth_img)
-            self.plot(prefix, synth_img, y_hat_depth, synth_depth)
+            self.plot(prefix, synth_img, y_hat_depth[-1], synth_depth)
         return metric_dict
 
     def test_step(self, batch, batch_idx):
