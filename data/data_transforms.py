@@ -1,6 +1,8 @@
 from utils.image_utils import create_circular_mask
+import numpy as np
 import torch
 from torchvision import transforms as torch_transforms
+from torchvision.transforms import functional as torch_transforms_func
 from typing import *
 
 
@@ -60,6 +62,7 @@ class EndoMask:
     """
     A transform that will apply a mask that covers everything with the mask color except a circle in the center
     """
+
     def __init__(self,
                  mask_color: Union[float, List[float]] = None,
                  radius_factor: Union[float, List[float]] = 1.0):
@@ -83,7 +86,7 @@ class EndoMask:
         if isinstance(self.radius_factor, float):
             radius = self.radius_factor
         else:
-            radius = (self.radius_factor[1]-self.radius_factor[0]) * randomized_radius + self.radius_factor[0]
+            radius = (self.radius_factor[1] - self.radius_factor[0]) * randomized_radius + self.radius_factor[0]
 
         data[:, create_circular_mask(*data.shape[-2:], invert=True, radius_scale=radius)] = mask_color
         return data
@@ -94,6 +97,7 @@ class Squarify:
     A transform to center crop an image to be a square using the shorter image dimension. If image size is provided, the
     square image is then resized to the provided dimension.
     """
+
     def __init__(self, image_size: int = None):
         self.image_size = image_size
         self.resize = None
@@ -133,3 +137,46 @@ class AddGaussianNoise:
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
+
+class PhongAffine:
+    """ special rotation to apply the proper rotation to normals """
+
+    def __init__(self,
+                 degrees: Tuple[float, float],
+                 translate: Tuple[float, float],
+                 use_corner_as_fill: bool = None,
+                 image_size: int = 256):
+        """
+        TODO: implement translation properly... for now DO NOT TRANSLATE
+        :param degrees:
+        :param translate:
+        :param use_corner_as_fill:
+        :param image_size:
+        """
+        self.degrees = degrees
+        self.translate = translate
+        self.use_corner_as_fill = use_corner_as_fill
+        self.image_size = (image_size, image_size)
+
+    def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False, is_normals: bool = False) -> torch.Tensor:
+        border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
+        if self.use_corner_as_fill is None:
+            fill = border_color.tolist() if use_corner_as_fill else 0
+        else:
+            fill = border_color.tolist() if self.use_corner_as_fill else 0
+        degrees, translation, scale, shear = torch_transforms.RandomAffine.get_params(degrees=self.degrees,
+                                                                                      translate=self.translate,
+                                                                                      img_size=self.image_size,
+                                                                                      scale_ranges=None,
+                                                                                      shears=None)
+        if data.shape[0] == 3 and is_normals:
+            radians = np.deg2rad(degrees)
+            rotation_matrix = torch.Tensor([[np.cos(radians), np.sin(radians), 0],
+                                            [-np.sin(radians), np.cos(radians), 0],
+                                            [0, 0, 1]])
+            rotated = rotation_matrix[None] @ data.reshape((data.shape[0], data.shape[1]*data.shape[2])).T.unsqueeze(-1)
+            data = rotated.T.reshape(data.shape)
+
+        transformed = torch_transforms_func.affine(data, degrees, translation, scale, shear, fillcolor=fill)
+        return transformed

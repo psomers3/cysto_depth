@@ -9,16 +9,19 @@ from config.training_config import PhongConfig
 
 
 class PhongDataSet(ImageDataset):
+    """
+    Load images, depth maps, and normals and create a phong shaded image. Order of returned items:
+    color image, phong shaded image, depth (if requested), normals (if requested)
+    """
     def __init__(self, *args, image_size: int, config: PhongConfig, **kwargs):
+        self.post_transforms = kwargs.pop('transforms')
         super(PhongDataSet, self).__init__(*args, **kwargs)
         self.return_normals = config.return_normals
         self.return_depth = config.return_depth
         num_synchros = 2
         num_synchros += 1 if config.return_depth else 0
         num_synchros += 1 if config.return_normals else 0
-        self.mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
-                                                       num_synchros=num_synchros,
-                                                       additional_args=[[None], [0], [0], [0]])
+
         self.camera_intrinsics = torch.Tensor(config.camera_intrinsics)
         self.squarify = d_transforms.Squarify(image_size)
         # get the original camera pixel locations at the desired image resolution
@@ -36,7 +39,8 @@ class PhongDataSet(ImageDataset):
                                  attenuation_factor=(config.attenuation,))
 
     def __getitem__(self, idx) -> Tuple[torch.Tensor, ...]:
-        color, depth, normals = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
+        imgs = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
+        color, depth, normals = [self.squarify(img) for img in imgs]
         rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
                                self.grey,
                                normals,
@@ -44,12 +48,12 @@ class PhongDataSet(ImageDataset):
                                self.light,
                                self.material,
                                self.resized_pixel_locations)
-        return_values = [self.mask(color), self.mask(rendered.permute((2, 0, 1)))]
-        if self.return_normals:
-            return_values.append(self.mask(normals))
+        return_values = [color, rendered.permute((2, 0, 1))]
         if self.return_depth:
-            return_values.append(self.mask(depth))
-        return tuple(return_values)
+            return_values.append(depth)
+        if self.return_normals:
+            return_values.append(normals)
+        return tuple([t(return_values[i]) for i, t in enumerate(self.post_transforms)])
 
 
 class PhongDataModule(FileLoadingDataModule):
@@ -86,24 +90,51 @@ class PhongDataModule(FileLoadingDataModule):
         self.phong_config = phong_config
         self.save_hyperparameters()
         self.image_size = image_size
+        self.num_outputs = 2
+        self.num_outputs += 1 if phong_config.return_depth else 0
+        self.num_outputs += 1 if phong_config.return_normals else 0
 
-    def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
+    def get_transforms(self, split_stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
-            TODO: don't apply random augmentations to validation and test transforms
 
-            :param stage: one of 'train', 'val', 'test'
+            :param split_stage: one of 'train', 'validate', 'test'
         """
-        squarify = d_transforms.Squarify(image_size=self.image_size)
-        color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         to_mm = d_transforms.ElementWiseScale(1e3)
+        mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
+                                                  num_synchros=self.num_outputs,
+                                                  additional_args=[[None], [0], [0], [0]])
+        color_transforms = [mask]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
-        color_transforms = torch_transforms.Compose([color_jitter, squarify])
-        depth_transforms = torch_transforms.Compose([channel_slice, to_mm, squarify])
-        normals_transforms = torch_transforms.Compose([squarify])
-        transforms = [color_transforms, depth_transforms, normals_transforms]
+        depth_transforms = [channel_slice, to_mm, mask]
+        normals_transforms = [mask]
+        phong_transforms = [mask]
+        if split_stage == "train":
+            affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+                                                                                 translate=(0, 0),
+                                                                                 image_size=self.image_size),
+                                                        num_synchros=self.num_outputs,
+                                                        additional_args=[[True],
+                                                                         [False],
+                                                                         [False, True],
+                                                                         [False, True]])
+            color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
+            color_transforms.insert(0, color_jitter)
+            color_transforms.append(affine)
+            depth_transforms.append(affine)
+            normals_transforms.append(affine)
+            phong_transforms.append(affine)
+
+        color_transforms = torch_transforms.Compose(color_transforms)
+        depth_transforms = torch_transforms.Compose(depth_transforms)
+        normals_transforms = torch_transforms.Compose(normals_transforms)
+        phong_transforms = torch_transforms.Compose(phong_transforms)
+        transforms = [color_transforms, phong_transforms, depth_transforms, normals_transforms]
         return transforms
 
     def setup(self, stage: str = None):
+        """
+        :param stage: "fit", "test", or "predict"
+        """
         shared_params = {'image_size': self.image_size}
         self.data_train = PhongDataSet(**shared_params,
                                        config=self.phong_config,
