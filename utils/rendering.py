@@ -144,7 +144,7 @@ def phong_lighting(points, normals, lights, camera_positions, materials) \
         camera_position=camera_positions,
         shininess=materials.shininess,
     )
-    light_attenuation = lights.attentuation(points)
+    light_attenuation = lights.attenuation(points)
     ambient_color = materials.ambient_color * lights.ambient_color
     diffuse_color = materials.diffuse_color * light_diffuse
     specular_color = materials.specular_color * light_specular
