@@ -27,6 +27,8 @@ class CallbackConfig:
     """ patience for early stopping. If null, then no early stopping applied. """
     early_stop_metric: str = '${..monitor_metric}'
     """ metric for early stopping"""
+    early_stop_check_every: int = 1
+    """ check every n validation runs """
     ckpt_metric: str = '${..monitor_metric}'
     """ metric for model checkpoints """
     ckpt_save_top_k: int = 5
@@ -69,7 +71,7 @@ class SyntheticTrainingConfig:
     batch_size: int = 32
     resume_from_checkpoint: Union[str, None] = None
     """ checkpoint to load weights from """
-    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15, ckpt_save_top_k=5)
+    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15, early_stop_check_every=50, ckpt_save_top_k=5)
 
 
 @dataclass

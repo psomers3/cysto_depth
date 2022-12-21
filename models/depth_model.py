@@ -107,8 +107,6 @@ class DepthEstimationModel(BaseModel):
 
     def plot(self, prefix, synth_img, prediction, label):
         max_num_samples = 7
-        # synth_img = synth_img.clone().cpu()
-        # label = label.clone().cpu()
         self.gen_plots(zip(synth_img[:max_num_samples], prediction[:max_num_samples], label[:max_num_samples]),
                        "{}-synth-prediction".format(prefix), labels=["Synth Image", "Depth Predicted", "Depth GT"],
                        minmax=self.plot_minmax)
