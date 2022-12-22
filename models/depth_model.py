@@ -56,13 +56,13 @@ class DepthEstimationModel(BaseModel):
         regularized_normals_loss = 0
         grad_loss = 0
 
-        # iterate through outputs at each level of decoder
+        # iterate through outputs at each level of decoder from output to bottleneck
         for idx, predicted in enumerate(y_hat_depth[::-1]):
             depth_loss += self.berhu(predicted, synth_depth)
             # apply gradient loss after first epoch
             if self.current_epoch > 0:
                 # apply only to high resolution prediction
-                if idx == len(y_hat_depth[::-1]) - 1:
+                if idx == 0:
                     grad_loss += self.hparams.grad_loss_factor * self.gradient_loss(predicted, synth_depth)
         if self.include_normals:
             for idx, predicted in enumerate(y_hat_normals[::-1]):
