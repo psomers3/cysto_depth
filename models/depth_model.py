@@ -2,36 +2,39 @@ from matplotlib import pyplot as plt
 from torch import optim
 import torch
 from models.base_model import BaseModel
+from config.training_config import CystoDepthConfig
 from typing import *
-from utils.loss import BerHu, GradientLoss, CosineSimilarity
+from utils.loss import BerHu, GradientLoss, CosineSimilarity, PhongLoss
 from models.adaptive_encoder import AdaptiveEncoder
 from utils.image_utils import generate_heatmap_fig
 from models.decoder import Decoder
 
 
 class DepthEstimationModel(BaseModel):
-    def __init__(self, adaptive_gating=True, include_normals=False, **kwargs):
+    def __init__(self, config: CystoDepthConfig):
         super().__init__()
         # automatic learning rate finder sets lr to self.lr, else default
-        self.save_hyperparameters()  # saves all keywords and their values passed to init function
+        self.save_hyperparameters(config.synthetic_config)
         self.depth_decoder = Decoder()
-        self.normals_decoder = Decoder(3) if include_normals else None
+        self.normals_decoder = Decoder(3) if config.predict_normals else None
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss = CosineSimilarity()
+        self.phong_loss = PhongLoss(image_size=config.image_size, config=config.phong_config)
         self.regularized_normals_loss = torch.nn.MSELoss()
         self.validation_images = None
-        self.include_normals = include_normals
-        if kwargs.get('resume_from_checkpoint', None):
-            self.encoder = AdaptiveEncoder(adaptive_gating)
-            ckpt = self.load_from_checkpoint(kwargs['resume_from_checkpoint'], strict=False)
+        self.include_normals = config.predict_normals
+        self.use_phong_loss = config.use_phong_loss
+        self.use_adaptive_gating = config.adaptive_gating
+        if config.synthetic_config.resume_from_checkpoint:
+            self.encoder = AdaptiveEncoder(self.use_adaptive_gating)
+            ckpt = self.load_from_checkpoint(config.synthetic_config.resume_from_checkpoint, strict=False)
             self.load_state_dict(ckpt.state_dict())
         else:
-            self.encoder = AdaptiveEncoder(adaptive_gating)
+            self.encoder = AdaptiveEncoder(self.use_adaptive_gating)
 
     def configure_optimizers(self):
-        if self.hparams.optimizer == 'adam':
-            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams.lr)
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams.lr)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return {
             "optimizer": optimizer,
@@ -55,6 +58,7 @@ class DepthEstimationModel(BaseModel):
         normals_loss = 0
         regularized_normals_loss = 0
         grad_loss = 0
+        phong_loss = 0
 
         # iterate through outputs at each level of decoder from output to bottleneck
         for idx, predicted in enumerate(y_hat_depth[::-1]):
@@ -69,6 +73,8 @@ class DepthEstimationModel(BaseModel):
                 normals_loss += self.normals_loss(predicted, synth_normals)
                 norm = torch.linalg.norm(predicted, dim=1)
                 regularized_normals_loss += self.regularized_normals_loss(norm, torch.ones_like(norm))
+            if self.use_phong_loss:
+                phong_loss += self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)
 
         loss = depth_loss + grad_loss + normals_loss + regularized_normals_loss
         self.log("training_loss", loss)

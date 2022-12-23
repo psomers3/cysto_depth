@@ -3,9 +3,11 @@ import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
+import data.data_transforms as d_transforms
 from utils.metrics import SILog
 from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
+from typing import *
 
 
 class CosineSimilarity(nn.Module):
@@ -79,32 +81,41 @@ class PhongLoss(nn.Module):
         self.config = config
         self.camera_intrinsics = torch.Tensor(config.camera_intrinsics)
         self.camera_intrinsics.requires_grad_(False)
+        self.squarify = d_transforms.Squarify(image_size)
         # get the original camera pixel locations at the desired image resolution
         original_image_size = get_image_size_from_intrisics(self.camera_intrinsics)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
         self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
-        self.resized_pixel_locations.requires_grad(False)
+        self.resized_pixel_locations.requires_grad_(False)
         self.grey = torch.ones((image_size, image_size, 3)) * .5
         self.grey.requires_grad_(False)
         self.material = Materials(shininess=config.material_shininess)
         self.material.requires_grad_(False)
-        self.light = PointLights(location=((0, 0, 0),),
+        self.light = PointLights(location=(((0, 0, 0),),),
                                  diffuse_color=(config.diffusion_color,),
                                  specular_color=(config.specular_color,),
                                  ambient_color=(config.ambient_color,),
                                  attenuation_factor=config.attenuation)
         self.light.requires_grad_(False)
+        self.image_loss = torch.nn.MSELoss()
 
-    def forward(self, depth: torch.Tensor, normals: torch.Tensor):
-        rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
+    def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...], true_phong: torch.Tensor) -> torch.Tensor:
+        """
+
+        :param predicted_depth_normals:
+        :param true_phong:
+        :return:
+        """
+        depth, normals = predicted_depth_normals
+        rendered = render_rgbd(torch.permute(depth, (0, 2, 3, 1)),
                                self.grey,
-                               normals,
+                               normals.permute((0, 2, 3, 1)),
                                self.camera_intrinsics,
                                self.light,
                                self.material,
                                self.resized_pixel_locations)
-
+        return self.image_loss(rendered.permute(0, 3, 1, 2), true_phong)
 
 
 class AvgTensorNorm(nn.Module):

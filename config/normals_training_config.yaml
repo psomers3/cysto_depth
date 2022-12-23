@@ -5,6 +5,7 @@ adaptive_gating: true
 mode: synthetic
 training_stage: train
 split_save_dir: ./splits
+num_workers: 1
 synthetic_config:
   max_epochs: 300
   batch_size: 4

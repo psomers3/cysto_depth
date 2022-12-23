@@ -18,7 +18,7 @@ from models.gan_model import GAN
 
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
 def cysto_depth(cfg: CystoDepthConfig) -> None:
-    config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
+    config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg,)
     if config.print_config:
         print(OmegaConf.to_yaml(config))
 
@@ -50,10 +50,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               split=split,
                                               image_size=config.image_size,
                                               workers_per_loader=config.num_workers)
-        model = DepthEstimationModel(adaptive_gating=config.adaptive_gating,
-                                     include_normals=config.predict_normals,
-                                     use_phong_loss=config.use_phong_loss,
-                                     **config.synthetic_config)
+        model = DepthEstimationModel(config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
     else:

@@ -252,16 +252,18 @@ def phong_lighting(points, normals, lights, camera_positions, materials) \
     if ambient_color.ndim != diffuse_color.ndim:
         # Reshape from (N, 3) to have dimensions compatible with
         # diffuse_color which is of shape (N, H, W, K, 3)
-        ambient_color = ambient_color[:, None, None, None, :]
+        ambient_color = ambient_color[None]
     return ambient_color, diffuse_color, specular_color, light_attenuation
 
 
 def get_points_in_3d(pixel_locations: torch.Tensor,
                      depth_map: torch.Tensor,
                      cam_intrinsic_matrix: torch.Tensor) -> torch.Tensor:
+    if len(depth_map.shape) < 4:
+        depth_map = depth_map[None]
     pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1))], dim=-1)
-    rgbd_locations = pixel_locations * depth_map[None]
-    flattened = rgbd_locations.reshape(1, rgbd_locations.shape[-3] * rgbd_locations.shape[-2], rgbd_locations.shape[-1])
+    rgbd_locations = pixel_locations * depth_map
+    flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2], rgbd_locations.shape[-1])
     inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix))
     rotation = R.from_euler('XYZ', [0, 90, 180], degrees=True)
     # flip = torch.Tensor([[1, 0, 0], [0, -1, 0], [0, 0, -1]])  # so point cloud isn't upside down
@@ -314,24 +316,28 @@ def render_rgbd(depth_map: torch.Tensor,
     if len(normals_image.shape) < 4:
         normals_image = normals_image[None]
     batch_size = depth_map.shape[0]
-
-    color_reshaped = color_image.reshape((color_image.shape[0], color_image.shape[1] * color_image.shape[2], color_image.shape[3]))
+    color_reshaped = color_image.reshape((color_image.shape[0], color_image.shape[1] * color_image.shape[2], 3))
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=1), dim=-1)
     normals_reshaped = normals_image.reshape((normals_image.shape[0], normals_image.shape[1] * normals_image.shape[2], 3))
 
+    camera_positions = torch.Tensor((((0, 0, 0),),))
     if batch_size == 1:
         color_image = color_image.squeeze(0)
         normals_reshaped = normals_reshaped.squeeze(0)
         positions = positions.squeeze(0)
+        camera_positions = camera_positions.squeeze(0)
 
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
                                                                                normals_reshaped,
                                                                                spot_light,
-                                                                               torch.Tensor([0, 0, 0])[None],
+                                                                               camera_positions,
                                                                                uniform_material)
     pixels = attenuation * ((ambient_color + diffuse_color + specular_color) * color_reshaped)
-    if had_batch_dim and batch_size == 1:
-        return pixels.reshape(color_image.shape)[None]
+    if had_batch_dim:
+        if batch_size == 1:
+            return pixels.reshape(color_image.shape)[None]
+        else:
+            return pixels.reshape(normals_image.shape)
     else:
         return pixels.reshape(color_image.shape)
