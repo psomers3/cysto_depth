@@ -175,8 +175,10 @@ class PhongAffine:
             rotation_matrix = torch.Tensor([[np.cos(radians), np.sin(radians), 0],
                                             [-np.sin(radians), np.cos(radians), 0],
                                             [0, 0, 1]])
-            rotated = rotation_matrix[None] @ data.reshape((data.shape[0], data.shape[1]*data.shape[2])).mT.unsqueeze(-1)
-            data = rotated.mT.reshape(data.shape)
+            permuted = data.permute((1, 2, 0))
+            normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))
+            rotated = (rotation_matrix[None] @ normals_reshaped.unsqueeze(-1)).squeeze(-1)
+            data = rotated.permute((1, 0)).reshape(data.shape)
 
         transformed = torch_transforms_func.affine(data, degrees, translation, scale, shear, fill=fill)
         return transformed

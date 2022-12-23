@@ -3,20 +3,111 @@ from typing import *
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from pytorch3d.renderer.lighting import PointLights as _PointLights
+from pytorch3d.renderer.lighting import convert_to_tensors_and_broadcast, F
+import pytorch3d.renderer.lighting as pytorch3d_lighting
+
 # keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
 from pytorch3d.renderer.materials import Materials
+
+
+def specular(
+    points, normals, direction, color, camera_position, shininess
+) -> torch.Tensor:
+    """
+    Calculate the specular component of light reflection.
+
+    Args:
+        points: (N, ..., 3) xyz coordinates of the points.
+        normals: (N, ..., 3) xyz normal vectors for each point.
+        color: (N, 3) RGB color of the specular component of the light.
+        direction: (N, 3) vector direction of the light.
+        camera_position: (N, 3) The xyz position of the camera.
+        shininess: (N)  The specular exponent of the material.
+
+    Returns:
+        colors: (N, ..., 3), same shape as the input points.
+
+    The points, normals, camera_position, and direction should be in the same
+    coordinate frame i.e. if the points have been transformed from
+    world -> view space then the normals, camera_position, and light direction
+    should also be in view space.
+
+    To use with a batch of packed points reindex in the following way.
+    .. code-block:: python::
+
+        Args:
+            points: (P, 3)
+            normals: (P, 3)
+            color: (N, 3)[batch_idx] -> (P, 3)
+            direction: (N, 3)[batch_idx] -> (P, 3)
+            camera_position: (N, 3)[batch_idx] -> (P, 3)
+            shininess: (N)[batch_idx] -> (P)
+        Returns:
+            colors: (P, 3)
+
+        where batch_idx is of shape (P). For meshes batch_idx can be:
+        meshes.verts_packed_to_mesh_idx() or meshes.faces_packed_to_mesh_idx().
+    """
+    # TODO: handle multiple directional lights
+    # TODO: attenuate based on inverse squared distance to the light source
+
+    if points.shape != normals.shape:
+        msg = "Expected points and normals to have the same shape: got %r, %r"
+        raise ValueError(msg % (points.shape, normals.shape))
+
+    # Ensure all inputs have same batch dimension as points
+    matched_tensors = convert_to_tensors_and_broadcast(
+        points, color, direction, camera_position, shininess, device=points.device
+    )
+    _, color, direction, camera_position, shininess = matched_tensors
+
+    # Reshape direction and color so they have all the arbitrary intermediate
+    # dimensions as points. Assume first dim = batch dim and last dim = 3.
+    points_dims = points.shape[1:-1]
+    expand_dims = (-1,) + (1,) * len(points_dims)
+    if direction.shape != normals.shape:
+        direction = direction.view(expand_dims + (3,))
+    if color.shape != normals.shape:
+        color = color.view(expand_dims + (3,))
+    if camera_position.shape != normals.shape:
+        camera_position = camera_position.view(expand_dims + (3,))
+    if shininess.shape != normals.shape:
+        shininess = shininess.view(expand_dims)
+
+    # Renormalize the normals in case they have been interpolated.
+    # We tried a version that uses F.cosine_similarity instead of renormalizing,
+    # but it was slower.
+    normals = F.normalize(normals, p=2, dim=-1, eps=1e-6)
+    direction = F.normalize(direction, p=2, dim=-1, eps=1e-6)
+
+    # Calculate the specular reflection.
+    view_direction = camera_position - points
+    view_direction = F.normalize(view_direction, p=2, dim=-1, eps=1e-6)
+    halfway_direction = F.normalize(view_direction + direction, p=2, dim=1, eps=1e-6)
+    cos_angle = torch.sum(normals * halfway_direction, dim=-1)
+    # No specular highlights if angle is less than 0.
+    mask = (cos_angle > 0).to(torch.float32)
+
+    # reflect_direction = -direction + 2 * (cos_angle[..., None] * normals)
+
+    # Cosine of the angle between the reflected light ray and the viewer
+    alpha = cos_angle * mask
+    return color * torch.pow(alpha, shininess)[..., None]
+
+
+pytorch3d_lighting.specular = specular  # redefine to use the customized version above
 
 
 class PointLights(_PointLights):
     """ A subclass from PyTorch3D's point light to add attenuation """
     def __init__(self, *args, **kwargs):
-        self.attenuation_factor = kwargs.pop('attenuation_factor')
         super(PointLights, self).__init__(*args, **kwargs)
 
     def attenuation(self, points) -> torch.Tensor:
         location = self.reshape_location(points)
         distance = torch.norm(location - points, dim=-1)
-        return torch.unsqueeze(1 / (1 + (self.attenuation_factor*distance)), dim=-1)
+        attenuation = torch.clamp(torch.unsqueeze((1 / (1 + (self.attenuation_factor*distance))), dim=-1), 0, 1)
+        return attenuation
 
 
 def KRT_from_P(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -203,15 +294,44 @@ def render_rgbd(depth_map: torch.Tensor,
                 spot_light,
                 uniform_material,
                 pixel_locations: torch.Tensor) -> torch.Tensor:
-    color_reshaped = color_image.reshape((color_image.shape[-3] * color_image.shape[-2], color_image.shape[-1]))
+    """
+    expected channels last
+    :param depth_map:
+    :param color_image:
+    :param normals_image:
+    :param cam_intrinsic_matrix:
+    :param spot_light:
+    :param uniform_material:
+    :param pixel_locations:
+    :return:
+    """
+    had_batch_dim = True
+    if len(depth_map.shape) < 4:
+        had_batch_dim = False
+        depth_map = depth_map[None]
+    if len(color_image.shape) < 4:
+        color_image = color_image[None]
+    if len(normals_image.shape) < 4:
+        normals_image = normals_image[None]
+    batch_size = depth_map.shape[0]
+
+    color_reshaped = color_image.reshape((color_image.shape[0], color_image.shape[1] * color_image.shape[2], color_image.shape[3]))
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
-    positions = torch.squeeze(torch.squeeze(points_in_3d, dim=0), dim=-1)
-    normals_image = normals_image.permute((1, 2, 0))
-    normals_reshaped = normals_image.reshape((normals_image.shape[0] * normals_image.shape[1], 3))
+    positions = torch.squeeze(torch.squeeze(points_in_3d, dim=1), dim=-1)
+    normals_reshaped = normals_image.reshape((normals_image.shape[0], normals_image.shape[1] * normals_image.shape[2], 3))
+
+    if batch_size == 1:
+        color_image = color_image.squeeze(0)
+        normals_reshaped = normals_reshaped.squeeze(0)
+        positions = positions.squeeze(0)
+
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
                                                                                normals_reshaped,
                                                                                spot_light,
                                                                                torch.Tensor([0, 0, 0])[None],
                                                                                uniform_material)
-    pixels = attenuation * ((ambient_color + diffuse_color) * color_reshaped + specular_color)
-    return torch.reshape(pixels, color_image.shape)
+    pixels = attenuation * ((ambient_color + diffuse_color + specular_color) * color_reshaped)
+    if had_batch_dim and batch_size == 1:
+        return pixels.reshape(color_image.shape)[None]
+    else:
+        return pixels.reshape(color_image.shape)

@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
 from utils.metrics import SILog
+from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
+from config.training_config import PhongConfig
 
 
 class CosineSimilarity(nn.Module):
@@ -71,35 +73,42 @@ class GradientLoss(nn.Module):
         return G_x, G_y
 
 
+class PhongLoss(nn.Module):
+    def __init__(self, config: PhongConfig, image_size: int = 256) -> None:
+        super(PhongLoss, self).__init__()
+        self.config = config
+        self.camera_intrinsics = torch.Tensor(config.camera_intrinsics)
+        self.camera_intrinsics.requires_grad_(False)
+        # get the original camera pixel locations at the desired image resolution
+        original_image_size = get_image_size_from_intrisics(self.camera_intrinsics)
+        pixels = get_pixel_locations(*original_image_size)
+        self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
+        self.resized_pixel_locations.requires_grad(False)
+        self.grey = torch.ones((image_size, image_size, 3)) * .5
+        self.grey.requires_grad_(False)
+        self.material = Materials(shininess=config.material_shininess)
+        self.material.requires_grad_(False)
+        self.light = PointLights(location=((0, 0, 0),),
+                                 diffuse_color=(config.diffusion_color,),
+                                 specular_color=(config.specular_color,),
+                                 ambient_color=(config.ambient_color,),
+                                 attenuation_factor=config.attenuation)
+        self.light.requires_grad_(False)
+
+    def forward(self, depth: torch.Tensor, normals: torch.Tensor):
+        rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
+                               self.grey,
+                               normals,
+                               self.camera_intrinsics,
+                               self.light,
+                               self.material,
+                               self.resized_pixel_locations)
+
+
+
 class AvgTensorNorm(nn.Module):
     def forward(self, predicted):
         avg_norm = torch.norm(predicted, p='fro')
         return avg_norm
 
-# # https://github.com/ansj11/SANet
-# class GradLoss2(nn.Module):
-#     def __init__(self):
-#         super(GradLoss2, self).__init__()
-
-#     def forward(self, fake, real, mask=None):
-#         if not fake.shape == real.shape:
-#             _, _, H, W = real.shape
-#             fake = F.upsample(fake, size=(H, W), mode='bilinear')
-#         real = real + (mask == 0).float() * fake
-#         scales = [1, 2, 4, 8, 16]
-#         grad_loss = 0
-#         for scale in scales:
-#             pre_dx, pre_dy, pre_m_dx, pre_m_dy = gradient2(fake, mask, scale)
-#             gt_dx, gt_dy, gt_m_dx, gt_m_dy = gradient2(real, mask, scale)
-#             diff_x = pre_dx - gt_dx
-#             diff_y = pre_dy - gt_dy
-#             grad_loss += torch.sum(torch.abs(diff_x*pre_m_dx))/(torch.sum(pre_m_dx) + 1e-6) + torch.sum(torch.abs(diff_y*pre_m_dy))/(torch.sum(pre_m_dy) + 1e-6)
-
-#         return grad_loss
-
-# def gradient(depth, mask):
-#     D_dy = depth[:, :, 1:, :] - depth[:, :, :-1, :]
-#     D_dx = depth[:, :, :, 1:] - depth[:, :, :, :-1]
-#     mask_dy = mask[:, :, 1:, :] * mask[:, :, :-1, :]
-#     mask_dx = mask[:, :, :, 1:] * mask[:, :, :, :-1]
-#     return D_dx, D_dy, mask_dx, mask_dy

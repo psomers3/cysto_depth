@@ -125,15 +125,15 @@ class GANTrainingConfig:
 class PhongConfig:
     """ The configuration for the phong dataset/dataloader """
 
-    material_shininess: float = 5.0
+    material_shininess: float = 64.0
     """ how reflective is the material """
-    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 0.5, 0.5))
+    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 0.25, 0.25))
     """ incoming light color, intensity based on angle to incoming light """
     specular_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
     """ specular intensity color """
     ambient_color: Tuple[float, float, float] = field(default_factory=lambda: (0.0, 0.0, 0.0))
     """ color that is automatically emitted by the material """
-    attenuation: float = 0.075
+    attenuation: float = 30
     """ rate at which light falls off. intensity = 1/(1+attenuation*distance) """
     camera_intrinsics: List[List[float]] = field(default_factory=lambda: [[1038.1696, 0.0, 0.0],
                                                                           [0.0, 1039.8075, 0.0],

@@ -50,9 +50,9 @@ class PhongDataSet(ImageDataset):
     def __getitem__(self, idx) -> Tuple[torch.Tensor, ...]:
         imgs = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
         color, depth, normals = [self.squarify(img) for img in imgs]
-        rendered = render_rgbd(torch.permute(depth, (1, 2, 0)),
+        rendered = render_rgbd(depth.permute((1, 2, 0)),
                                self.grey,
-                               normals,
+                               normals.permute((1, 2, 0)),
                                self.camera_intrinsics,
                                self.light,
                                self.material,
@@ -163,9 +163,6 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
 
-    p_config = PhongConfig()
-    p_config.diffusion_color = (1.0, 0.25, 0.25)
-
     color_dir = '/Users/peter/Desktop/bladder_dataset_filtered/color'
     depth_dir = '/Users/peter/Desktop/bladder_dataset_filtered/depth'
     normals_dir = '/Users/peter/Desktop/bladder_dataset_filtered/normals'
@@ -173,7 +170,6 @@ if __name__ == '__main__':
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
-                         phong_config=p_config,
                          split={'train': .9, 'validate': 0.05, 'test': 0.05})
     dm.setup('fit')
     loader = dm.train_dataloader()
