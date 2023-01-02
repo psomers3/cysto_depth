@@ -43,6 +43,8 @@ class AdaptiveEncoder(VanillaEncoder):
             return input_tensor1 + input_tensor2
 
     def forward(self, encoder_input):
+        if not self.adaptive_gating:
+            return VanillaEncoder.forward(self, encoder_input)
         x_original = self.conv_original_size0(encoder_input)
         x_original = self.conv_original_size1(x_original)
 
