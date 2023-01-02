@@ -146,9 +146,9 @@ class DepthEstimationModel(BaseModel):
                                  prefix=f'{prefix}-synth-phong',
                                  labels=["Synth Image", "Predicted", "Ground Truth"])
         else:
-            y_hat_depth = self(synth_imgs.to(self.device)).cpu()
+            y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
-        self.gen_depth_plots(zip(synth_imgs, y_hat_depth[-1], synth_depths),
+        self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
                              f"{prefix}-synth-depth",
                              labels=["Synth Image", "Predicted", "Ground Truth"],
                              minmax=self.plot_minmax)
