@@ -103,7 +103,7 @@ class PointLights(TensorProperties):
         specular_color=((0.2, 0.2, 0.2),),
         location=((0, 1, 0),),
         attenuation_factor=((4),),
-        device: str = "cpu",
+        device: torch.device = "cpu",
     ) -> None:
         """
         Args:
@@ -321,16 +321,17 @@ def phong_lighting(points, normals, lights, camera_positions, materials) \
 
 def get_points_in_3d(pixel_locations: torch.Tensor,
                      depth_map: torch.Tensor,
-                     cam_intrinsic_matrix: torch.Tensor) -> torch.Tensor:
+                     cam_intrinsic_matrix: torch.Tensor,
+                     device: torch.device = None) -> torch.Tensor:
     if len(depth_map.shape) < 4:
         depth_map = depth_map[None]
-    pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1))], dim=-1)
+    pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1), device=device)], dim=-1)
     rgbd_locations = pixel_locations * depth_map
     flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2],
                                        rgbd_locations.shape[-1])
-    inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix))
+    inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix)).to(device)
     rotation = R.from_euler('XYZ', [0, 90, 180], degrees=True)  # obtained with guess and check... may not be correct
-    flip = torch.Tensor(rotation.as_matrix())  # so point cloud isn't upside down
+    flip = torch.Tensor(rotation.as_matrix()).to(device)  # so point cloud isn't upside down
     inv_intrinsic = flip @ inv_intrinsic
     points_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
     return points_3d
@@ -358,7 +359,8 @@ def render_rgbd(depth_map: torch.Tensor,
                 cam_intrinsic_matrix: torch.Tensor,
                 spot_light,
                 uniform_material,
-                pixel_locations: torch.Tensor) -> torch.Tensor:
+                pixel_locations: torch.Tensor,
+                device: torch.device = None) -> torch.Tensor:
     """
     expected channels last
     :param depth_map:
@@ -368,6 +370,7 @@ def render_rgbd(depth_map: torch.Tensor,
     :param spot_light:
     :param uniform_material:
     :param pixel_locations:
+    :param device:
     :return:
     """
     had_batch_dim = True
@@ -380,12 +383,12 @@ def render_rgbd(depth_map: torch.Tensor,
         normals_image = normals_image[None]
     batch_size = depth_map.shape[0]
     color_reshaped = color_image.reshape((color_image.shape[0], color_image.shape[1] * color_image.shape[2], 3))
-    points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
+    points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix, device=device)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=1), dim=-1)
     normals_reshaped = normals_image.reshape(
         (normals_image.shape[0], normals_image.shape[1] * normals_image.shape[2], 3))
 
-    camera_positions = torch.Tensor((((0, 0, 0),),))
+    camera_positions = torch.Tensor((((0, 0, 0),),)).to(device)
     if batch_size == 1:
         color_image = color_image.squeeze(0)
         normals_reshaped = normals_reshaped.squeeze(0)

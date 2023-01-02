@@ -100,6 +100,7 @@ class PhongLoss(nn.Module):
                                  device=device)
         self.light.requires_grad_(False)
         self.image_loss = torch.nn.MSELoss()
+        self.device = device
 
     def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...], true_phong: torch.Tensor) \
             -> Tuple[torch.Tensor, torch.Tensor]:
@@ -116,7 +117,8 @@ class PhongLoss(nn.Module):
                                self.camera_intrinsics,
                                self.light,
                                self.material,
-                               self.resized_pixel_locations)
+                               self.resized_pixel_locations,
+                               device=self.device)
         rendered = rendered.permute(0, 3, 1, 2)
         return self.image_loss(rendered, true_phong), rendered
 

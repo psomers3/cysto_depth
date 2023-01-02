@@ -146,7 +146,8 @@ class PhongAffine:
                  degrees: Tuple[float, float],
                  translate: Tuple[float, float],
                  use_corner_as_fill: bool = None,
-                 image_size: int = 256):
+                 image_size: int = 256,
+                 device: torch.device = None):
         """
         TODO: implement translation properly... for now DO NOT TRANSLATE
         :param degrees:
@@ -158,6 +159,7 @@ class PhongAffine:
         self.translate = translate
         self.use_corner_as_fill = use_corner_as_fill
         self.image_size = (image_size, image_size)
+        self.device = device
 
     def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False, is_normals: bool = False) -> torch.Tensor:
         border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
@@ -174,7 +176,7 @@ class PhongAffine:
             radians = np.deg2rad(degrees)
             rotation_matrix = torch.Tensor([[np.cos(radians), np.sin(radians), 0],
                                             [-np.sin(radians), np.cos(radians), 0],
-                                            [0, 0, 1]])
+                                            [0, 0, 1]]).to(self.device)
             permuted = data.permute((1, 2, 0))
             normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))
             rotated = (rotation_matrix[None] @ normals_reshaped.unsqueeze(-1)).squeeze(-1)
