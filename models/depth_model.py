@@ -20,7 +20,7 @@ class DepthEstimationModel(BaseModel):
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss = CosineSimilarity()
-        self.phong_loss = PhongLoss(image_size=config.image_size, config=config.phong_config, device=self.device)
+        self.phong_loss: PhongLoss = None
         self.regularized_normals_loss = torch.nn.MSELoss()
         self.validation_images = None
         self.config = config
@@ -55,6 +55,11 @@ class DepthEstimationModel(BaseModel):
                 # multiple of "trainer.check_val_every_n_epoch".
             },
         }
+    
+    def setup_phong_loss(self):
+        """ setup the custom loss here because the device isn't set yet by pytorch lightning when __init__ is run. """
+        if self.phong_loss is None:
+            self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config, device=self.device)
 
     def training_step(self, batch, batch_idx):
         if self.config.predict_normals:
@@ -63,6 +68,8 @@ class DepthEstimationModel(BaseModel):
         else:
             synth_img, synth_phong, synth_depth = batch
             y_hat_depth = self(synth_img)
+        
+        self.setup_phong_loss()
         depth_loss = 0
         normals_loss = 0
         regularized_normals_loss = 0
@@ -90,7 +97,6 @@ class DepthEstimationModel(BaseModel):
             self.log("normals_regularized_loss", regularized_normals_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[0]
             self.log("phong_loss", phong_loss)
-
         loss = depth_loss * self.config.synthetic_config.depth_loss_factor + \
                grad_loss * self.config.synthetic_config.depth_grad_loss_factor + \
                normals_loss * self.config.synthetic_config.normals_loss_factor + \
@@ -100,6 +106,7 @@ class DepthEstimationModel(BaseModel):
         return loss
 
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
+        self.setup_phong_loss()
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
