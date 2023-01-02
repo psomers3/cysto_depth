@@ -138,7 +138,7 @@ class DepthEstimationModel(BaseModel):
             y_hat_depth_cpu, y_hat_normals_cpu = self(synth_imgs.to(self.device))
             y_hat_depth, y_hat_normals = y_hat_depth_cpu.to(self.phong_loss.light.device), \
                                          y_hat_normals_cpu.to(self.phong_loss.light.device)
-            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[1].cpu()
+            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong.to(self.phong_loss.light.device))[1].cpu()
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals[-1], synth_normals),
                                   prefix=f'{prefix}-synth-normals',
                                   labels=["Synth Image", "Predicted", "Ground Truth"])
@@ -146,7 +146,7 @@ class DepthEstimationModel(BaseModel):
                                  prefix=f'{prefix}-synth-phong',
                                  labels=["Synth Image", "Predicted", "Ground Truth"])
         else:
-            y_hat_depth = self(synth_imgs).cpu()
+            y_hat_depth = self(synth_imgs.to(self.device)).cpu()
 
         self.gen_depth_plots(zip(synth_imgs, y_hat_depth[-1], synth_depths),
                              f"{prefix}-synth-depth",
