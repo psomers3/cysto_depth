@@ -135,19 +135,22 @@ class DepthEstimationModel(BaseModel):
         """
         synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
         if self.config.predict_normals:
-            y_hat_depth_cpu, y_hat_normals_cpu = self(synth_imgs.to(self.device))
-            y_hat_depth, y_hat_normals = y_hat_depth_cpu[-1].to(self.phong_loss.light.device), \
-                                         y_hat_normals_cpu[-1].to(self.phong_loss.light.device)
+            y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
+            y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
+                                         y_hat_normals[-1].to(self.phong_loss.light.device)
             y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[1].cpu()
+            print(synth_imgs.device, y_hat_normals.device, synth_normals.device)
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
                                   prefix=f'{prefix}-synth-normals',
                                   labels=["Synth Image", "Predicted", "Ground Truth"])
+            print(y_phong.device, synth_phong.device)
             self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
                                  prefix=f'{prefix}-synth-phong',
                                  labels=["Synth Image", "Predicted", "Ground Truth"])
         else:
             y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
+        print(synth_imgs.device, y_hat_depth.device, synth_depths.device)
         self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
                              f"{prefix}-synth-depth",
                              labels=["Synth Image", "Predicted", "Ground Truth"],
