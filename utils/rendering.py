@@ -2,7 +2,7 @@ import torch
 from typing import *
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from pytorch3d.renderer.lighting import PointLights as _PointLights
+from pytorch3d.renderer.lighting import diffuse, _validate_light_properties, TensorProperties
 from pytorch3d.renderer.lighting import convert_to_tensors_and_broadcast, F
 import pytorch3d.renderer.lighting as pytorch3d_lighting
 
@@ -95,14 +95,76 @@ def specular(
     return color * torch.pow(alpha, shininess)[..., None]
 
 
-pytorch3d_lighting.specular = specular  # redefine to use the customized version above
+class PointLights(TensorProperties):
+    def __init__(
+        self,
+        ambient_color=((0.5, 0.5, 0.5),),
+        diffuse_color=((0.3, 0.3, 0.3),),
+        specular_color=((0.2, 0.2, 0.2),),
+        location=((0, 1, 0),),
+        attenuation_factor=((4),),
+        device: str = "cpu",
+    ) -> None:
+        """
+        Args:
+            ambient_color: RGB color of the ambient component
+            diffuse_color: RGB color of the diffuse component
+            specular_color: RGB color of the specular component
+            location: xyz position of the light.
+            device: Device (as str or torch.device) on which the tensors should be located
 
+        The inputs can each be
+            - 3 element tuple/list or list of lists
+            - torch tensor of shape (1, 3)
+            - torch tensor of shape (N, 3)
+        The inputs are broadcast against each other so they all have batch
+        dimension N.
+        """
+        super().__init__(
+            device=device,
+            ambient_color=ambient_color,
+            diffuse_color=diffuse_color,
+            specular_color=specular_color,
+            location=location,
+            attenuation_factor=attenuation_factor,
+        )
+        _validate_light_properties(self)
+        if self.location.shape[-1] != 3:
+            msg = "Expected location to have shape (N, 3); got %r"
+            raise ValueError(msg % repr(self.location.shape))
 
-class PointLights(_PointLights):
-    """ A subclass from PyTorch3D's point light to add attenuation """
+    def clone(self):
+        other = self.__class__(device=self.device)
+        return super().clone(other)
 
-    def __init__(self, *args, **kwargs):
-        super(PointLights, self).__init__(*args, **kwargs)
+    def reshape_location(self, points) -> torch.Tensor:
+        """
+        Reshape the location tensor to have dimensions
+        compatible with the points which can either be of
+        shape (P, 3) or (N, H, W, K, 3).
+        """
+        if self.location.ndim == points.ndim:
+            # pyre-fixme[7]
+            return self.location
+        # pyre-fixme[29]
+        return self.location[:, None, None, None, :]
+
+    def diffuse(self, normals, points) -> torch.Tensor:
+        location = self.reshape_location(points)
+        direction = location - points
+        return diffuse(normals=normals, color=self.diffuse_color, direction=direction)
+
+    def specular(self, normals, points, camera_position, shininess) -> torch.Tensor:
+        location = self.reshape_location(points)
+        direction = location - points
+        return specular(
+            points=points,
+            normals=normals,
+            color=self.specular_color,
+            direction=direction,
+            camera_position=camera_position,
+            shininess=shininess,
+        )
 
     def attenuation(self, points) -> torch.Tensor:
         location = self.reshape_location(points)
