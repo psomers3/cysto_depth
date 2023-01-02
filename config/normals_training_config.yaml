@@ -1,7 +1,7 @@
 log_directory: ./logs
 predict_normals: true
 print_config: true
-adaptive_gating: true
+adaptive_gating: false
 mode: synthetic
 training_stage: train
 split_save_dir: ./splits
