@@ -57,6 +57,7 @@ class DepthEstimationModel(BaseModel):
         }
 
     def training_step(self, batch, batch_idx):
+        torch.set_anomaly_enabled(True)
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
