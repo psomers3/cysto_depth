@@ -111,11 +111,11 @@ class DepthEstimationModel(BaseModel):
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
                 self.plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
-                self.validation_images = (synth_img.clone()[:self.max_num_image_samples],
-                                          synth_depth.clone()[:self.max_num_image_samples],
-                                          synth_normals.clone()[:self.max_num_image_samples] if
+                self.validation_images = (synth_img.clone()[:self.max_num_image_samples].cpu(),
+                                          synth_depth.clone()[:self.max_num_image_samples].cpu(),
+                                          synth_normals.clone()[:self.max_num_image_samples].cpu() if
                                           self.config.predict_normals else None,
-                                          synth_phong.clone()[:self.max_num_image_samples] if
+                                          synth_phong.clone()[:self.max_num_image_samples].cpu() if
                                           self.config.predict_normals else None,
                                           )
             self.plot(prefix)
@@ -136,8 +136,8 @@ class DepthEstimationModel(BaseModel):
         synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
         if self.config.predict_normals:
             y_hat_depth, y_hat_normals = self(synth_imgs)
-            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong.to(y_hat_depth.device))[1].cpu()
             y_hat_depth, y_hat_normals = y_hat_depth.cpu(), y_hat_normals.cpu()
+            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[1].cpu()
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals[-1], synth_normals),
                                   prefix=f'{prefix}-synth-normals',
                                   labels=["Synth Image", "Predicted", "Ground Truth"])
