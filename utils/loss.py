@@ -100,12 +100,13 @@ class PhongLoss(nn.Module):
         self.light.requires_grad_(False)
         self.image_loss = torch.nn.MSELoss()
 
-    def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...], true_phong: torch.Tensor) -> torch.Tensor:
+    def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...], true_phong: torch.Tensor) \
+            -> Tuple[torch.Tensor, torch.Tensor]:
         """
 
         :param predicted_depth_normals:
         :param true_phong:
-        :return:
+        :return: the loss value and the rendered images
         """
         depth, normals = predicted_depth_normals
         rendered = render_rgbd(torch.permute(depth, (0, 2, 3, 1)),
@@ -115,7 +116,8 @@ class PhongLoss(nn.Module):
                                self.light,
                                self.material,
                                self.resized_pixel_locations)
-        return self.image_loss(rendered.permute(0, 3, 1, 2), true_phong)
+        rendered = rendered.permute(0, 3, 1, 2)
+        return self.image_loss(rendered, true_phong), rendered
 
 
 class AvgTensorNorm(nn.Module):

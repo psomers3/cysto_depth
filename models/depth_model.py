@@ -6,7 +6,7 @@ from config.training_config import CystoDepthConfig
 from typing import *
 from utils.loss import BerHu, GradientLoss, CosineSimilarity, PhongLoss
 from models.adaptive_encoder import AdaptiveEncoder
-from utils.image_utils import generate_heatmap_fig, generate_normals_fig
+from utils.image_utils import generate_heatmap_fig, generate_normals_fig, generate_img_fig
 from models.decoder import Decoder
 
 
@@ -86,7 +86,7 @@ class DepthEstimationModel(BaseModel):
                 regularized_normals_loss += self.regularized_normals_loss(norm, torch.ones_like(norm))
             self.log("normals_cosine_similarity_loss", normals_loss)
             self.log("normals_regularized_loss", regularized_normals_loss)
-            phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)
+            phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[0]
             self.log("phong_loss", phong_loss)
 
         loss = depth_loss * self.config.synthetic_config.depth_loss_factor + \
@@ -102,7 +102,7 @@ class DepthEstimationModel(BaseModel):
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
         else:
-            synth_img, synth_phong, synth_depth = batch
+            synth_img, synth_depth = batch
             y_hat_depth = self(synth_img)
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
@@ -114,7 +114,10 @@ class DepthEstimationModel(BaseModel):
                 self.validation_images = (synth_img.clone()[:self.max_num_image_samples],
                                           synth_depth.clone()[:self.max_num_image_samples],
                                           synth_normals.clone()[:self.max_num_image_samples] if
-                                          self.config.predict_normals else None)
+                                          self.config.predict_normals else None,
+                                          synth_phong.clone()[:self.max_num_image_samples] if
+                                          self.config.predict_normals else None,
+                                          )
             self.plot(prefix)
         return metric_dict
 
@@ -130,12 +133,16 @@ class DepthEstimationModel(BaseModel):
 
         :param prefix: a string to prepend to the image tags. Usually "test" or "train"
         """
-        synth_imgs, synth_depths, synth_normals = self.validation_images
+        synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
         if self.config.predict_normals:
             y_hat_depth, y_hat_normals = self(synth_imgs)
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals[-1], synth_normals),
                                   prefix=f'{prefix}-synth-normals',
                                   labels=["Synth Image", "Predicted", "Ground Truth"])
+            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[1]
+            self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
+                                 prefix=f'{prefix}-synth-phong',
+                                 labels=["Synth Image", "Predicted", "Ground Truth"])
         else:
             y_hat_depth = self(synth_imgs)
 
@@ -143,6 +150,12 @@ class DepthEstimationModel(BaseModel):
                              f"{prefix}-synth-depth",
                              labels=["Synth Image", "Predicted", "Ground Truth"],
                              minmax=self.plot_minmax)
+
+    def gen_phong_plots(self, images, prefix, labels):
+        for idx, img_set in enumerate(images):
+            fig = generate_img_fig(img_set, labels)
+            self.logger.experiment.add_figure(f'{prefix}-{idx}', fig, self.global_step)
+            plt.close(fig)
 
     def gen_normal_plots(self, images, prefix, labels):
         for idx, img_set in enumerate(images):
