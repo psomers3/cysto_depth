@@ -136,7 +136,7 @@ class DepthEstimationModel(BaseModel):
         synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
         if self.config.predict_normals:
             y_hat_depth, y_hat_normals = self(synth_imgs)
-            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[1].cpu()
+            y_phong = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong.to(y_hat_depth.device))[1].cpu()
             y_hat_depth, y_hat_normals = y_hat_depth.cpu(), y_hat_normals.cpu()
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals[-1], synth_normals),
                                   prefix=f'{prefix}-synth-normals',
