@@ -20,7 +20,7 @@ class DepthEstimationModel(BaseModel):
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss = CosineSimilarity()
-        self.phong_loss = PhongLoss(image_size=config.image_size, config=config.phong_config)
+        self.phong_loss = PhongLoss(image_size=config.image_size, config=config.phong_config, device=self.device)
         self.regularized_normals_loss = torch.nn.MSELoss()
         self.validation_images = None
         self.config = config

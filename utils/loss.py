@@ -76,10 +76,10 @@ class GradientLoss(nn.Module):
 
 
 class PhongLoss(nn.Module):
-    def __init__(self, config: PhongConfig, image_size: int = 256) -> None:
+    def __init__(self, config: PhongConfig, image_size: int = 256, device=None) -> None:
         super(PhongLoss, self).__init__()
         self.config = config
-        self.camera_intrinsics = torch.Tensor(config.camera_intrinsics).to(self.device)
+        self.camera_intrinsics = torch.Tensor(config.camera_intrinsics).to(device)
         self.camera_intrinsics.requires_grad_(False)
         self.squarify = d_transforms.Squarify(image_size)
         # get the original camera pixel locations at the desired image resolution
@@ -88,16 +88,16 @@ class PhongLoss(nn.Module):
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
         self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
         self.resized_pixel_locations.requires_grad_(False)
-        self.grey = torch.ones((image_size, image_size, 3), device=self.device) * .5
+        self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
         self.grey.requires_grad_(False)
-        self.material = Materials(shininess=config.material_shininess, device=self.device)
+        self.material = Materials(shininess=config.material_shininess, device=device)
         self.material.requires_grad_(False)
         self.light = PointLights(location=(((0, 0, 0),),),
                                  diffuse_color=(config.diffusion_color,),
                                  specular_color=(config.specular_color,),
                                  ambient_color=(config.ambient_color,),
                                  attenuation_factor=config.attenuation,
-                                 device=self.device)
+                                 device=device)
         self.light.requires_grad_(False)
         self.image_loss = torch.nn.MSELoss()
 
