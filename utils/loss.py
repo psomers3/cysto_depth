@@ -86,7 +86,7 @@ class PhongLoss(nn.Module):
         original_image_size = get_image_size_from_intrisics(self.camera_intrinsics)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
-        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)).to(device)
         self.resized_pixel_locations.requires_grad_(False)
         self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
         self.grey.requires_grad_(False)
