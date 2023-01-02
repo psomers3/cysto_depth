@@ -29,7 +29,7 @@ class DepthEstimationModel(BaseModel):
 
         if config.synthetic_config.resume_from_checkpoint:
             self.encoder = AdaptiveEncoder(self.config.adaptive_gating)
-            ckpt = self.load_from_checkpoint(config.synthetic_config.resume_from_checkpoint, strict=False)
+            ckpt = self.load_from_checkpoint(config.synthetic_config.resume_from_checkpoint, config=config, strict=False)
             self.load_state_dict(ckpt.state_dict())
         else:
             self.encoder = AdaptiveEncoder(self.config.adaptive_gating)
@@ -55,11 +55,12 @@ class DepthEstimationModel(BaseModel):
                 # multiple of "trainer.check_val_every_n_epoch".
             },
         }
-    
+
     def setup_phong_loss(self):
-        """ setup the custom loss here because the device isn't set yet by pytorch lightning when __init__ is run. """
+        """ set up the custom loss here because the device isn't set yet by pytorch lightning when __init__ is run. """
         if self.phong_loss is None:
-            self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config, device=self.device)
+            self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config,
+                                        device=self.device)
 
     def training_step(self, batch, batch_idx):
         if self.config.predict_normals:
@@ -68,7 +69,7 @@ class DepthEstimationModel(BaseModel):
         else:
             synth_img, synth_phong, synth_depth = batch
             y_hat_depth = self(synth_img)
-        
+
         self.setup_phong_loss()
         depth_loss = 0
         normals_loss = 0
@@ -91,7 +92,8 @@ class DepthEstimationModel(BaseModel):
             for idx, predicted in enumerate(y_hat_normals[::-1]):
                 normals_loss += self.normals_loss(predicted, synth_normals)
                 norm = torch.linalg.norm(predicted, dim=1)
-                regularized_normals_loss += self.regularized_normals_loss(norm, torch.ones_like(norm, device=self.device))
+                regularized_normals_loss += self.regularized_normals_loss(norm,
+                                                                          torch.ones_like(norm, device=self.device))
 
             self.log("normals_cosine_similarity_loss", normals_loss)
             self.log("normals_regularized_loss", regularized_normals_loss)
@@ -147,7 +149,8 @@ class DepthEstimationModel(BaseModel):
             y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
             y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
                                          y_hat_normals[-1].to(self.phong_loss.light.device)
-            y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[1].cpu()
+            y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
+                1].cpu()
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
                                   prefix=f'{prefix}-synth-normals',
                                   labels=["Synth Image", "Predicted", "Ground Truth"])
