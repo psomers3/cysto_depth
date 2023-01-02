@@ -57,7 +57,6 @@ class DepthEstimationModel(BaseModel):
         }
 
     def training_step(self, batch, batch_idx):
-        torch.set_anomaly_enabled(True)
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
@@ -73,21 +72,27 @@ class DepthEstimationModel(BaseModel):
         # iterate through outputs at each level of decoder from output to bottleneck
         for idx, predicted in enumerate(y_hat_depth[::-1]):
             depth_loss += self.berhu(predicted, synth_depth)
+            print(f'depth: {depth_loss}')
+
             # apply gradient loss after first epoch
             if self.current_epoch > 0:
                 # apply only to high resolution prediction
                 if idx == 0:
                     grad_loss = self.gradient_loss(predicted, synth_depth)
                     self.log("depth_gradient_loss", grad_loss)
-            self.log("depth_berhu_loss", grad_loss)
+            print(f'grad: {grad_loss}')
+            self.log("depth_berhu_loss", depth_loss)
         if self.config.predict_normals:
             for idx, predicted in enumerate(y_hat_normals[::-1]):
                 normals_loss += self.normals_loss(predicted, synth_normals)
                 norm = torch.linalg.norm(predicted, dim=1)
                 regularized_normals_loss += self.regularized_normals_loss(norm, torch.ones_like(norm, device=self.device))
+            print(f'normals: {normals_loss}   {regularized_normals_loss}')
+
             self.log("normals_cosine_similarity_loss", normals_loss)
             self.log("normals_regularized_loss", regularized_normals_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[0]
+            print(f'phong: {phong_loss}')
             self.log("phong_loss", phong_loss)
 
         loss = depth_loss * self.config.synthetic_config.depth_loss_factor + \
