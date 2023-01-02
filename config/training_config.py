@@ -69,9 +69,17 @@ class SyntheticTrainingConfig:
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 32
-    resume_from_checkpoint: Union[str, None] = None
+    resume_from_checkpoint: Union[str, None] = ""
     """ checkpoint to load weights from """
     callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15, early_stop_check_every=50, ckpt_save_top_k=5)
+    phong_loss_factor: float = 1.0
+    """ factor for loss phong shading for depth and normals """
+    depth_loss_factor: float = 1.0
+    """ factor for loss BerHu on the depth outputs """
+    normals_loss_factor: float = 1.0
+    """ factor for loss cosine similarity on the normals outputs """
+    depth_grad_loss_factor: float = 0.2
+    """ factor for loss gradient between depth output values """
 
 
 @dataclass
@@ -100,7 +108,7 @@ class GANTrainingConfig:
     batch_size: int = 16
     synthetic_base_model: str = MISSING
     """ The pretrained network to load weights from """
-    resume_from_checkpoint: Union[str, None] = None
+    resume_from_checkpoint: Union[str, None] = ""
     """ checkpoint to load weights from """
     generate_data: bool = False
     """ Whether to process the video data folder and generate training images in the image_output_folder """
@@ -175,5 +183,3 @@ class CystoDepthConfig:
     """ The config for the phong dataloader """
     predict_normals: bool = False
     """ Whether the network should predict normals """
-    use_phong_loss: bool = True
-    """ Whether to use the phong shading loss for depth and normals """

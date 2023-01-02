@@ -1,11 +1,13 @@
 import numpy as np
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torchvision.transforms import Compose, Normalize
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 from scipy.interpolate import LinearNDInterpolator
+from typing import *
 
 
 def create_circular_mask(h,
@@ -50,8 +52,36 @@ def invTrans():
                     Normalize(mean=[-0.485, -0.456, -0.406], std=[1., 1., 1.]), ])
 
 
+def generate_phong_fig(img_tensors, labels) -> plt.Figure:
+    fig, axes = plt.subplots(nrows=1, ncols=len(img_tensors))  # type: plt.Figure, List[plt.Axes]
+    for ax, img, label in zip(axes, img_tensors, labels):
+        ax.imshow(img.permute(1, 2, 0))
+        ax.set_axis_off()
+        ax.set_title(label)
+    fig.tight_layout(w_pad=0.5, h_pad=0)
+    return fig
+
+
+def generate_normals_fig(img_tensors, labels) -> plt.Figure:
+    """
+
+    :param img_tensors: should be iterable containing tensors w/ [input image, predicted normals, ground truth normals]
+    :param labels:
+    :return:
+    """
+    predicted = F.normalize(img_tensors[1], dim=1)
+    predicted = predicted*0.5 + 0.5  # scale for viewing
+    ready_to_plot_images = [img_tensors[0], predicted, img_tensors[2]]
+    fig, axes = plt.subplots(nrows=1, ncols=len(img_tensors))  # type: plt.Figure, List[plt.Axes]
+    for ax, img, label in zip(axes, ready_to_plot_images, labels):
+        ax.imshow(img.permute(1, 2, 0) if len(img.shape) == 3 else img)
+        ax.set_axis_off()
+        ax.set_title(label)
+    fig.tight_layout(w_pad=0.5, h_pad=0)
+    return fig
+    
+
 def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_scales=False, colorbars=None):
-    trans = invTrans()
     # width of images
     ratios = []
     imgs = []

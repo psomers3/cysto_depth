@@ -11,10 +11,10 @@ from pytorch3d.renderer.materials import Materials
 
 
 def specular(
-    points, normals, direction, color, camera_position, shininess
+        points, normals, direction, color, camera_position, shininess
 ) -> torch.Tensor:
     """
-    Calculate the specular component of light reflection.
+    Calculate the specular component of light reflection using Blinn-Phong Shading.
 
     Args:
         points: (N, ..., 3) xyz coordinates of the points.
@@ -100,13 +100,14 @@ pytorch3d_lighting.specular = specular  # redefine to use the customized version
 
 class PointLights(_PointLights):
     """ A subclass from PyTorch3D's point light to add attenuation """
+
     def __init__(self, *args, **kwargs):
         super(PointLights, self).__init__(*args, **kwargs)
 
     def attenuation(self, points) -> torch.Tensor:
         location = self.reshape_location(points)
         distance = torch.norm(location - points, dim=-1)
-        attenuation = torch.clamp(torch.unsqueeze((1 / (1 + (self.attenuation_factor*distance))), dim=-1), 0, 1)
+        attenuation = torch.clamp(torch.unsqueeze((1 / (1 + (self.attenuation_factor * distance))), dim=-1), 0, 1)
         return attenuation
 
 
@@ -263,19 +264,19 @@ def get_points_in_3d(pixel_locations: torch.Tensor,
         depth_map = depth_map[None]
     pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1))], dim=-1)
     rgbd_locations = pixel_locations * depth_map
-    flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2], rgbd_locations.shape[-1])
+    flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2],
+                                       rgbd_locations.shape[-1])
     inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix))
-    rotation = R.from_euler('XYZ', [0, 90, 180], degrees=True)
-    # flip = torch.Tensor([[1, 0, 0], [0, -1, 0], [0, 0, -1]])  # so point cloud isn't upside down
+    rotation = R.from_euler('XYZ', [0, 90, 180], degrees=True)  # obtained with guess and check... may not be correct
     flip = torch.Tensor(rotation.as_matrix())  # so point cloud isn't upside down
-    inv_intrinsic = flip@inv_intrinsic
+    inv_intrinsic = flip @ inv_intrinsic
     points_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
     return points_3d
 
 
 def get_normals_from_3d_points(points_3d: torch.Tensor):
     dx, dy, dz = [torch.gradient(points_3d[:, :, i], dim=[0, 1], spacing=2) for i in range(3)]
-    dx, dy, dz = [(d[0] + d[1])/2 for d in [dx, dy, dz]]
+    dx, dy, dz = [(d[0] + d[1]) / 2 for d in [dx, dy, dz]]
     gradients = torch.dstack([dx, dy, dz])
     normals = torch.nn.functional.normalize(gradients, dim=-1)
     return normals
@@ -319,7 +320,8 @@ def render_rgbd(depth_map: torch.Tensor,
     color_reshaped = color_image.reshape((color_image.shape[0], color_image.shape[1] * color_image.shape[2], 3))
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=1), dim=-1)
-    normals_reshaped = normals_image.reshape((normals_image.shape[0], normals_image.shape[1] * normals_image.shape[2], 3))
+    normals_reshaped = normals_image.reshape(
+        (normals_image.shape[0], normals_image.shape[1] * normals_image.shape[2], 3))
 
     camera_positions = torch.Tensor((((0, 0, 0),),))
     if batch_size == 1:
