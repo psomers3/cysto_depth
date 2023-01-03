@@ -19,6 +19,7 @@ class CosineSimilarity(nn.Module):
         if not predicted.shape == target.shape:
             _, _, h, w = target.shape
             predicted = F.interpolate(predicted, size=(h, w), mode='bilinear', align_corners=True)
+        predicted = F.normalize(predicted, dim=1)
         return (1 - self.loss(predicted, target)).mean()
 
 

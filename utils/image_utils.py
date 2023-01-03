@@ -64,6 +64,7 @@ def generate_img_fig(img_tensors, labels) -> plt.Figure:
         ax.imshow(img.permute(1, 2, 0) if len(img.shape) == 3 else img)
         ax.set_axis_off()
         ax.set_title(label)
+    fig.set_figheight(len(img_tensors))
     fig.tight_layout(w_pad=0.5, h_pad=0)
     return fig
 

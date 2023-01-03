@@ -8,13 +8,14 @@ from utils.loss import BerHu, GradientLoss, CosineSimilarity, PhongLoss
 from models.adaptive_encoder import AdaptiveEncoder
 from utils.image_utils import generate_heatmap_fig, generate_normals_fig, generate_img_fig
 from models.decoder import Decoder
+from argparse import Namespace
 
 
 class DepthEstimationModel(BaseModel):
     def __init__(self, config: SyntheticTrainingConfig):
         super().__init__()
         # automatic learning rate finder sets lr to self.lr, else default
-        self.save_hyperparameters(config)
+        self.save_hyperparameters(Namespace(**config))
         self.config = config
         self.depth_decoder = Decoder()
         self.normals_decoder = Decoder(3) if config.predict_normals else None
