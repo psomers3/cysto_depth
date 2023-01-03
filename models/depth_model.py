@@ -32,7 +32,9 @@ class DepthEstimationModel(BaseModel):
 
         if config.synthetic_config.resume_from_checkpoint:
             self.encoder = AdaptiveEncoder(config.adaptive_gating)
-            ckpt = self.load_from_checkpoint(config.synthetic_config.resume_from_checkpoint, strict=False, config=config)
+            ckpt = self.load_from_checkpoint(config.synthetic_config.resume_from_checkpoint,
+                                             strict=False,
+                                             config=config)
             self.load_state_dict(ckpt.state_dict())
         else:
             self.encoder = AdaptiveEncoder(config.adaptive_gating)
@@ -94,19 +96,19 @@ class DepthEstimationModel(BaseModel):
         if self.configuration.predict_normals:
             for idx, predicted in enumerate(y_hat_normals[::-1]):
                 normals_loss += self.normals_loss(predicted, synth_normals)
-                norm = torch.linalg.norm(predicted, dim=1)
-                regularized_normals_loss += self.regularized_normals_loss(norm,
-                                                                          torch.ones_like(norm, device=self.device))
+                # norm = torch.linalg.norm(predicted, dim=1)
+                # regularized_normals_loss += self.regularized_normals_loss(norm,
+                #                                                           torch.ones_like(norm, device=self.device))
 
             self.log("normals_cosine_similarity_loss", normals_loss)
             self.log("normals_regularized_loss", regularized_normals_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[0]
             self.log("phong_loss", phong_loss)
-        loss = depth_loss * self.configuration.synthetic_config.depth_loss_factor + \
-               grad_loss * self.configuration.synthetic_config.depth_grad_loss_factor + \
-               normals_loss * self.configuration.synthetic_config.normals_loss_factor + \
-               regularized_normals_loss + \
-               phong_loss * self.configuration.synthetic_config.phong_loss_factor
+
+        loss = depth_loss * self.config.synthetic_config.depth_loss_factor + \
+               grad_loss * self.config.synthetic_config.depth_grad_loss_factor + \
+               normals_loss * self.config.synthetic_config.normals_loss_factor + \
+               phong_loss * self.config.synthetic_config.phong_loss_factor
         self.log("training_loss", loss)
         return loss
 
