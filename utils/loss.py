@@ -16,10 +16,8 @@ class CosineSimilarity(nn.Module):
         self.loss = torch.nn.CosineSimilarity(dim=1)
 
     def forward(self, predicted, target):
-        if not predicted.shape == target.shape:
-            _, _, h, w = target.shape
-            predicted = F.interpolate(predicted, size=(h, w), mode='bilinear', align_corners=True)
         predicted = F.normalize(predicted, dim=1)
+
         return (1 - self.loss(predicted, target)).mean()
 
 
@@ -113,6 +111,8 @@ class PhongLoss(nn.Module):
         :return: the loss value and the rendered images
         """
         depth, normals = predicted_depth_normals
+        mask = depth < 0.1
+        normals = torch.where(mask, normals, 0)
         rendered = render_rgbd(torch.permute(depth, (0, 2, 3, 1)),
                                self.grey,
                                normals.permute((0, 2, 3, 1)),

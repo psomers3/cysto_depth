@@ -31,7 +31,7 @@ class UpsampleShuffle(nn.Sequential):
 
 
 class Decoder(torch.nn.Module):
-    def __init__(self, num_output_channels: int = 1) -> None:
+    def __init__(self, num_output_channels: int = 1, output_each_level: bool = False) -> None:
         super().__init__()
         # self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         self.upsample3 = UpsampleShuffle(512, 512)
@@ -44,16 +44,17 @@ class Decoder(torch.nn.Module):
         self.conv_up2 = convrelu(128 + 512, 256, 3, 1)
         self.conv_up1 = convrelu(64 + 256, 256, 3, 1)
         self.conv_up0 = convrelu(64 + 256, 128, 3, 1)
-        self.conv_up_2_out = convrelu(256, num_output_channels, 3, 1)
-        self.conv_up1_out = convrelu(256, num_output_channels, 3, 1)
-        self.conv_up0_out = convrelu(128, num_output_channels, 3, 1)
+        self.conv_up_2_out = convrelu(256, 1, 3, 1)
+        self.conv_up1_out = convrelu(256, 1, 3, 1)
+        self.conv_up0_out = convrelu(128, 1, 3, 1)
 
         self.conv_original_size2 = convrelu(128, 64, 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         self.conv_last = nn.Conv2d(64, num_output_channels, 1)
+        self.output_each_level = output_each_level
 
-    def forward(self, input):
-        x_original, layer0, layer1, layer2, layer3, layer4 = input
+    def forward(self, _input):
+        x_original, layer0, layer1, layer2, layer3, layer4 = _input
         x = self.upsample3(layer4)
         x = torch.cat([x, layer3], dim=1)
         x = self.conv_up3(x)
@@ -61,21 +62,27 @@ class Decoder(torch.nn.Module):
         x = self.upsample2(x)
         x = torch.cat([x, layer2], dim=1)
         x = self.conv_up2(x)
-        out1 = self.conv_up_2_out(x)
+        if self.output_each_level:
+            out1 = self.conv_up_2_out(x)
 
         x = self.upsample1(x)
         x = torch.cat([x, layer1], dim=1)
         x = self.conv_up1(x)
-        out2 = self.conv_up1_out(x)
+        if self.output_each_level:
+            out2 = self.conv_up1_out(x)
 
         x = self.upsample0(x)
         x = torch.cat([x, layer0], dim=1)
         x = self.conv_up0(x)
-        out3 = self.conv_up0_out(x)
+        if self.output_each_level:
+            out3 = self.conv_up0_out(x)
 
         x = self.upsample_final(x)
         # x = torch.cat([x, x_original], dim=1)
         x = self.conv_original_size2(x)
 
         out4 = self.conv_last(x)
-        return [out1, out2, out3, out4]
+        if self.output_each_level:
+            return [out1, out2, out3, out4]
+        else:
+            return out4

@@ -17,8 +17,8 @@ class DepthEstimationModel(BaseModel):
         # automatic learning rate finder sets lr to self.lr, else default
         self.save_hyperparameters(Namespace(**config))
         self.config = config
-        self.depth_decoder = Decoder()
-        self.normals_decoder = Decoder(3) if config.predict_normals else None
+        self.depth_decoder = Decoder(output_each_level=True)
+        self.normals_decoder = Decoder(3, output_each_level=False) if config.predict_normals else None
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss = CosineSimilarity()
@@ -91,14 +91,14 @@ class DepthEstimationModel(BaseModel):
                     self.log("depth_gradient_loss", grad_loss)
             self.log("depth_berhu_loss", depth_loss)
         if self.config.predict_normals:
-            normals_loss += self.normals_loss(y_hat_normals[-1], synth_normals)
+            normals_loss += self.normals_loss(y_hat_normals, synth_normals)
             # norm = torch.linalg.norm(predicted, dim=1)
             # regularized_normals_loss += self.regularized_normals_loss(norm,
             #                                                           torch.ones_like(norm, device=self.device))
 
             self.log("normals_cosine_similarity_loss", normals_loss)
             self.log("normals_regularized_loss", regularized_normals_loss)
-            phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals[-1]), synth_phong)[0]
+            phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
 
         loss = depth_loss * self.config.depth_loss_factor + \
@@ -149,7 +149,7 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
             y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
-                                         y_hat_normals[-1].to(self.phong_loss.light.device)
+                                         y_hat_normals.to(self.phong_loss.light.device)
             y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
                 1].cpu()
             self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
