@@ -176,7 +176,9 @@ if __name__ == '__main__':
     loader = dm.train_dataloader()
     loader_iter = iter(loader)
     while True:
-        matplotlib_show(*next(loader_iter))
+        sample = next(loader_iter)
+        sample[-1] = sample[-1]*0.5 + 0.5
+        matplotlib_show(*sample)
         plt.show(block=False)
         plt.pause(5)
         input("")
