@@ -40,6 +40,31 @@ class CallbackConfig:
 
 
 @dataclass
+class PhongConfig:
+    """ The configuration for the phong dataset/dataloader """
+
+    material_shininess: float = 64.0
+    """ how reflective is the material """
+    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 0.25, 0.25))
+    """ incoming light color, intensity based on angle to incoming light """
+    specular_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
+    """ specular intensity color """
+    ambient_color: Tuple[float, float, float] = field(default_factory=lambda: (0.0, 0.0, 0.0))
+    """ color that is automatically emitted by the material """
+    attenuation: float = 30
+    """ rate at which light falls off. intensity = 1/(1+attenuation*distance) """
+    camera_intrinsics: List[List[float]] = field(default_factory=lambda: [[1038.1696, 0.0, 0.0],
+                                                                          [0.0, 1039.8075, 0.0],
+                                                                          [878.9617, 572.9404, 1]])
+    """ 3x3 camera intrinsic matrix used for re-projection. Can be path to a numpy file or a numpy matrix. 
+        TODO: implement file loading """
+    return_normals: bool = True
+    """ Whether to return the normals used to render the image """
+    return_depth: bool = True
+    """ Whether to return the depth map used to render the image"""
+
+
+@dataclass
 class SyntheticTrainingConfig:
     """ Hyperparameter settings for the supervised synthetic depth training """
 
@@ -80,6 +105,14 @@ class SyntheticTrainingConfig:
     """ factor for loss cosine similarity on the normals outputs """
     depth_grad_loss_factor: float = 0.2
     """ factor for loss gradient between depth output values """
+    phong_config: PhongConfig = '${..phong_config}'
+    """ The config for the phong dataloader """
+    predict_normals: bool = '${..predict_normals}'
+    """ Whether the network should predict normals """
+    image_size: int = '${..image_size}'
+    """ Final square size to make all images """
+    adaptive_gating: bool = '${..adaptive_gating}'
+    """ Whether to turn on adaptive gating for domain adaptation """
 
 
 @dataclass
@@ -119,6 +152,14 @@ class GANTrainingConfig:
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=None)
+    phong_config: PhongConfig = '${..phong_config}'
+    """ The config for the phong dataloader """
+    predict_normals: bool = '${..predict_normals}'
+    """ Whether the network should predict normals """
+    image_size: int = '${..image_size}'
+    """ Final square size to make all images """
+    adaptive_gating: bool = '${..adaptive_gating}'
+    """ Whether to turn on adaptive gating for domain adaptation """
     beta_1: float = 0.5
     beta_2: float = 0.999
     residual_loss_factor: float = 5
@@ -128,30 +169,6 @@ class GANTrainingConfig:
     d_max_conf: float = 0.9
     warmup_steps: float = 0
 
-
-@dataclass
-class PhongConfig:
-    """ The configuration for the phong dataset/dataloader """
-
-    material_shininess: float = 64.0
-    """ how reflective is the material """
-    diffusion_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 0.25, 0.25))
-    """ incoming light color, intensity based on angle to incoming light """
-    specular_color: Tuple[float, float, float] = field(default_factory=lambda: (1.0, 1.0, 1.0))
-    """ specular intensity color """
-    ambient_color: Tuple[float, float, float] = field(default_factory=lambda: (0.0, 0.0, 0.0))
-    """ color that is automatically emitted by the material """
-    attenuation: float = 30
-    """ rate at which light falls off. intensity = 1/(1+attenuation*distance) """
-    camera_intrinsics: List[List[float]] = field(default_factory=lambda: [[1038.1696, 0.0, 0.0],
-                                                                          [0.0, 1039.8075, 0.0],
-                                                                          [878.9617, 572.9404, 1]])
-    """ 3x3 camera intrinsic matrix used for re-projection. Can be path to a numpy file or a numpy matrix. 
-        TODO: implement file loading """
-    return_normals: bool = True
-    """ Whether to return the normals used to render the image """
-    return_depth: bool = True
-    """ Whether to return the depth map used to render the image"""
 
 
 @dataclass

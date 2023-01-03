@@ -50,7 +50,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               split=split,
                                               image_size=config.image_size,
                                               workers_per_loader=config.num_workers)
-        model = DepthEstimationModel(config)
+        model = DepthEstimationModel(config.synthetic_config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
     else:
@@ -93,7 +93,9 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_arguments(CystoDepthConfig, dest='')
-    args, unknown_args = parser.parse_known_args()
+    # parser = ArgumentParser()
+    # cfg = CystoDepthConfig()
+    # parser.add_arguments(CystoDepthConfig, dest='')
+    # args, unknown_args = parser.parse_known_args()
+    # TODO: The above code fails with missing values. Need to figure out how to get it to ignore them.
     cysto_depth()
