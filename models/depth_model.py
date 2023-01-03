@@ -94,11 +94,10 @@ class DepthEstimationModel(BaseModel):
                     self.log("depth_gradient_loss", grad_loss)
             self.log("depth_berhu_loss", depth_loss)
         if self.configuration.predict_normals:
-            for idx, predicted in enumerate(y_hat_normals[::-1]):
-                normals_loss += self.normals_loss(predicted, synth_normals)
-                # norm = torch.linalg.norm(predicted, dim=1)
-                # regularized_normals_loss += self.regularized_normals_loss(norm,
-                #                                                           torch.ones_like(norm, device=self.device))
+            normals_loss += self.normals_loss(predicted[-1], synth_normals)
+            # norm = torch.linalg.norm(predicted, dim=1)
+            # regularized_normals_loss += self.regularized_normals_loss(norm,
+            #                                                           torch.ones_like(norm, device=self.device))
 
             self.log("normals_cosine_similarity_loss", normals_loss)
             self.log("normals_regularized_loss", regularized_normals_loss)
