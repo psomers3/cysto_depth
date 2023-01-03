@@ -41,7 +41,7 @@ class DepthEstimationModel(BaseModel):
         depth_out = self.depth_decoder(skip_outs)
         if self.config.predict_normals:
             normals_out = self.normals_decoder(skip_outs)
-            return depth_out, normals_out
+            return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out, 0)
         return depth_out
 
     def configure_optimizers(self):

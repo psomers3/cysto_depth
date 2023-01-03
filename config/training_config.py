@@ -113,6 +113,8 @@ class SyntheticTrainingConfig:
     """ Final square size to make all images """
     adaptive_gating: bool = '${..adaptive_gating}'
     """ Whether to turn on adaptive gating for domain adaptation """
+    min_depth: float = 0.1
+    """ depth value used to mask normals to zero """
 
 
 @dataclass

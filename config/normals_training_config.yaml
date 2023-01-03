@@ -18,7 +18,7 @@ synthetic_config:
     - /Users/peter/Desktop/bladder_dataset_filtered/depth
     - /Users/peter/Desktop/bladder_dataset_filtered/normals
   training_split: {'train': .8, 'validate': 0.2, 'test': ".*00015.*"}
-  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_1/epoch=13-step=378.ckpt
+#  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_1/epoch=13-step=378.ckpt
 gan_config:
   source_images: /Users/peter/isys/output/color
 #  synthetic_base_model: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
