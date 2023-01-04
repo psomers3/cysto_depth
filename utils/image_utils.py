@@ -80,9 +80,9 @@ def generate_normals_fig(img_tensors, labels) -> plt.Figure:
     :param labels: titles to put over each image
     :return:
     """
-    predicted = F.normalize(img_tensors[1], dim=1)
-    predicted = predicted*0.5 + 0.5  # scale for viewing
-    ready_to_plot_images = [img_tensors[0], predicted, img_tensors[2]*0.5 + 0.5]
+    predicted = img_tensors[1]*0.5 + 0.5  # scale for viewing
+    ground_truth = img_tensors[2]*0.5 + 0.5
+    ready_to_plot_images = [img_tensors[0], predicted, ground_truth]
     return generate_img_fig(ready_to_plot_images, labels)
     
 
