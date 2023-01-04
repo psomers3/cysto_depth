@@ -21,9 +21,8 @@ class DepthEstimationModel(BaseModel):
         self.normals_decoder = Decoder(3, output_each_level=False) if config.predict_normals else None
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
-        self.normals_loss = CosineSimilarity()
+        self.normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None
-        self.regularized_normals_loss = torch.nn.MSELoss()
         self.validation_images = None
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
@@ -40,8 +39,8 @@ class DepthEstimationModel(BaseModel):
         skip_outs, _ = self.encoder(_input)
         depth_out = self.depth_decoder(skip_outs)
         if self.config.predict_normals:
-            normals_out = self.normals_decoder(skip_outs)
-            return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out, 0)
+            normals_out = torch.nn.functional.normalize(self.normals_decoder(skip_outs), dim=1)
+            return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out, torch.zeros((1), device=self.device))
         return depth_out
 
     def configure_optimizers(self):
@@ -58,11 +57,12 @@ class DepthEstimationModel(BaseModel):
             },
         }
 
-    def setup_phong_loss(self):
-        """ set up the custom loss here because the device isn't set yet by pytorch lightning when __init__ is run. """
+    def setup_losses(self):
+        """ set up the custom losses here because the device isn't set yet by pytorch lightning when __init__ is run. """
         if self.phong_loss is None:
             self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config,
                                         device=self.device)
+            self.normals_loss = CosineSimilarity(device=self.device)
 
     def training_step(self, batch, batch_idx):
         if self.config.predict_normals:
@@ -72,10 +72,9 @@ class DepthEstimationModel(BaseModel):
             synth_img, synth_phong, synth_depth = batch
             y_hat_depth = self(synth_img)
 
-        self.setup_phong_loss()
+        self.setup_losses()
         depth_loss = 0
         normals_loss = 0
-        regularized_normals_loss = 0
         grad_loss = 0
         phong_loss = 0
 
@@ -91,13 +90,8 @@ class DepthEstimationModel(BaseModel):
                     self.log("depth_gradient_loss", grad_loss)
             self.log("depth_berhu_loss", depth_loss)
         if self.config.predict_normals:
-            normals_loss += self.normals_loss(y_hat_normals, synth_normals)
-            # norm = torch.linalg.norm(predicted, dim=1)
-            # regularized_normals_loss += self.regularized_normals_loss(norm,
-            #                                                           torch.ones_like(norm, device=self.device))
-
+            normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
-            self.log("normals_regularized_loss", regularized_normals_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
 
@@ -109,7 +103,7 @@ class DepthEstimationModel(BaseModel):
         return loss
 
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
-        self.setup_phong_loss()
+        self.setup_losses()
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
@@ -145,26 +139,27 @@ class DepthEstimationModel(BaseModel):
 
         :param prefix: a string to prepend to the image tags. Usually "test" or "train"
         """
-        synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
-        if self.config.predict_normals:
-            y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
-            y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
-                                         y_hat_normals.to(self.phong_loss.light.device)
-            y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
-                1].cpu()
-            self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
-                                  prefix=f'{prefix}-synth-normals',
-                                  labels=["Synth Image", "Predicted", "Ground Truth"])
-            self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
-                                 prefix=f'{prefix}-synth-phong',
-                                 labels=["Synth Image", "Predicted", "Ground Truth"])
-        else:
-            y_hat_depth = self(synth_imgs.to(self.device))[-1]
+        with torch.no_grad():
+            synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
+            if self.config.predict_normals:
+                y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
+                y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
+                                            y_hat_normals.to(self.phong_loss.light.device)
+                y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
+                    1].cpu()
+                self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
+                                    prefix=f'{prefix}-synth-normals',
+                                    labels=["Synth Image", "Predicted", "Ground Truth"])
+                self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
+                                    prefix=f'{prefix}-synth-phong',
+                                    labels=["Synth Image", "Predicted", "Ground Truth"])
+            else:
+                y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
-        self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
-                             f"{prefix}-synth-depth",
-                             labels=["Synth Image", "Predicted", "Ground Truth"],
-                             minmax=self.plot_minmax)
+            self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
+                                f"{prefix}-synth-depth",
+                                labels=["Synth Image", "Predicted", "Ground Truth"],
+                                minmax=self.plot_minmax)
 
     def gen_phong_plots(self, images, prefix, labels):
         for idx, img_set in enumerate(images):

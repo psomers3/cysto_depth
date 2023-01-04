@@ -11,14 +11,13 @@ from typing import *
 
 
 class CosineSimilarity(nn.Module):
-    def __init__(self):
+    def __init__(self, device: torch.device = None):
         super(CosineSimilarity, self).__init__()
         self.loss = torch.nn.CosineSimilarity(dim=1)
+        self.device = device
 
     def forward(self, predicted, target):
-        predicted = F.normalize(predicted, dim=1)
-
-        return (1 - self.loss(predicted, target)).mean()
+        return 1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target), torch.ones([1], device=self.device)).mean()
 
 
 class BerHu(nn.Module):
@@ -111,8 +110,6 @@ class PhongLoss(nn.Module):
         :return: the loss value and the rendered images
         """
         depth, normals = predicted_depth_normals
-        mask = depth < 0.1
-        normals = torch.where(mask, normals, 0)
         rendered = render_rgbd(torch.permute(depth, (0, 2, 3, 1)),
                                self.grey,
                                normals.permute((0, 2, 3, 1)),
