@@ -144,7 +144,7 @@ class PointLights(TensorProperties):
             return self.location
 
         if self.location.shape[0] != points.shape[0]:
-            return self.location.repeat_interleave(points.shape[0], dim=0)[:, None, :]
+            return self.location.repeat_interleave(points.shape[0], dim=0)[:, None, None, :]
         # pyre-fixme[29]
         return self.location[:, None, None, :]
 

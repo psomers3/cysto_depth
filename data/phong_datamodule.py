@@ -157,7 +157,7 @@ if __name__ == '__main__':
     depth_dir = '/Users/peter/Desktop/bladder_dataset_filtered/depth'
     normals_dir = '/Users/peter/Desktop/bladder_dataset_filtered/normals'
     phong = PhongConfig(attenuation=0.01, material_shininess=100)
-    dm = PhongDataModule(batch_size=1,
+    dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
