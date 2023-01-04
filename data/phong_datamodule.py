@@ -105,7 +105,7 @@ class PhongDataModule(FileLoadingDataModule):
                                                   num_synchros=self.num_synchros,
                                                   additional_args=[[None], [0], [0], [0]])
         squarify = d_transforms.Squarify(image_size=self.image_size)
-        color_transforms = [mask]
+        color_transforms = [mask, squarify]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         depth_transforms = [channel_slice, to_mm, mask, squarify]
         normals_transforms = [mask, squarify]
