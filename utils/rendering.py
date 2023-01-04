@@ -4,13 +4,14 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from pytorch3d.renderer.lighting import diffuse, _validate_light_properties, TensorProperties
 from pytorch3d.renderer.lighting import convert_to_tensors_and_broadcast, F
+from pytorch3d.renderer.lighting import specular as phong_specular
 import pytorch3d.renderer.lighting as pytorch3d_lighting
 
 # keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
 from pytorch3d.renderer.materials import Materials
 
 
-def specular(
+def blinn_specular(
         points, normals, direction, color, camera_position, shininess
 ) -> torch.Tensor:
     """
@@ -83,15 +84,10 @@ def specular(
     # Calculate the specular reflection.
     view_direction = camera_position - points
     view_direction = F.normalize(view_direction, p=2, dim=-1, eps=1e-6)
-    halfway_direction = F.normalize(view_direction + direction, p=2, dim=1, eps=1e-6)
+    halfway_direction = F.normalize(view_direction + direction, p=2, dim=-1, eps=1e-6)
     cos_angle = torch.sum(normals * halfway_direction, dim=-1)
-    # No specular highlights if angle is less than 0.
-    mask = (cos_angle > 0).to(torch.float32)
-
-    # reflect_direction = -direction + 2 * (cos_angle[..., None] * normals)
-
     # Cosine of the angle between the reflected light ray and the viewer
-    alpha = cos_angle * mask
+    alpha = F.relu(cos_angle)
     return color * torch.pow(alpha, shininess)[..., None]
 
 
@@ -101,7 +97,7 @@ class PointLights(TensorProperties):
         ambient_color=((0.5, 0.5, 0.5),),
         diffuse_color=((0.3, 0.3, 0.3),),
         specular_color=((0.2, 0.2, 0.2),),
-        location=((0, 1, 0),),
+        location=((0, 0, 0),),
         attenuation_factor=((4),),
         device: torch.device = "cpu",
     ) -> None:
@@ -146,8 +142,11 @@ class PointLights(TensorProperties):
         if self.location.ndim == points.ndim:
             # pyre-fixme[7]
             return self.location
+
+        if self.location.shape[0] != points.shape[0]:
+            return self.location.repeat_interleave(points.shape[0], dim=0)[:, None, :]
         # pyre-fixme[29]
-        return self.location[:, None, None, None, :]
+        return self.location[:, None, None, :]
 
     def diffuse(self, normals, points) -> torch.Tensor:
         location = self.reshape_location(points)
@@ -157,7 +156,7 @@ class PointLights(TensorProperties):
     def specular(self, normals, points, camera_position, shininess) -> torch.Tensor:
         location = self.reshape_location(points)
         direction = location - points
-        return specular(
+        return blinn_specular(
             points=points,
             normals=normals,
             color=self.specular_color,
@@ -326,7 +325,7 @@ def get_points_in_3d(pixel_locations: torch.Tensor,
     if len(depth_map.shape) < 4:
         depth_map = depth_map[None]
     pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1), device=device)], dim=-1)
-    rgbd_locations = pixel_locations * depth_map
+    rgbd_locations = pixel_locations[None] * depth_map
     flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2],
                                        rgbd_locations.shape[-1])
     inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix)).to(device)
@@ -334,7 +333,7 @@ def get_points_in_3d(pixel_locations: torch.Tensor,
     flip = torch.Tensor(rotation.as_matrix()).to(device)  # so point cloud isn't upside down
     inv_intrinsic = flip @ inv_intrinsic
     points_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
-    return points_3d
+    return points_3d.reshape(depth_map.shape[0], rgbd_locations.shape[-3], rgbd_locations.shape[-2], 3)
 
 
 def get_normals_from_3d_points(points_3d: torch.Tensor):
@@ -374,37 +373,25 @@ def render_rgbd(depth_map: torch.Tensor,
     :return:
     """
     had_batch_dim = True
-    if len(depth_map.shape) < 4:
+    if depth_map.ndim < 4:
         had_batch_dim = False
         depth_map = depth_map[None]
-    if len(color_image.shape) < 4:
+    if color_image.ndim < 4:
         color_image = color_image[None]
-    if len(normals_image.shape) < 4:
+    if normals_image.ndim < 4:
         normals_image = normals_image[None]
-    batch_size = depth_map.shape[0]
-    color_reshaped = color_image.reshape((color_image.shape[0], color_image.shape[1] * color_image.shape[2], 3))
+
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix, device=device)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=1), dim=-1)
-    normals_reshaped = normals_image.reshape(
-        (normals_image.shape[0], normals_image.shape[1] * normals_image.shape[2], 3))
 
     camera_positions = torch.Tensor((((0, 0, 0),),)).to(device)
-    if batch_size == 1:
-        color_image = color_image.squeeze(0)
-        normals_reshaped = normals_reshaped.squeeze(0)
-        positions = positions.squeeze(0)
-        camera_positions = camera_positions.squeeze(0)
-
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
-                                                                               normals_reshaped,
+                                                                               normals_image,
                                                                                spot_light,
                                                                                camera_positions,
                                                                                uniform_material)
-    pixels = attenuation * ((ambient_color + diffuse_color + specular_color) * color_reshaped)
+    pixels = attenuation * ((ambient_color + diffuse_color + specular_color) * color_image)
     if had_batch_dim:
-        if batch_size == 1:
-            return pixels.reshape(color_image.shape)[None]
-        else:
-            return pixels.reshape(normals_image.shape)
+        return pixels
     else:
-        return pixels.reshape(color_image.shape)
+        return pixels.squeeze(0)

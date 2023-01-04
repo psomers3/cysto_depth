@@ -91,7 +91,7 @@ class PhongLoss(nn.Module):
         self.grey.requires_grad_(False)
         self.material = Materials(shininess=config.material_shininess, device=device)
         self.material.requires_grad_(False)
-        self.light = PointLights(location=(((0, 0, 0),),),
+        self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=(config.diffusion_color,),
                                  specular_color=(config.specular_color,),
                                  ambient_color=(config.ambient_color,),

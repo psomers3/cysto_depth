@@ -58,10 +58,6 @@ class PhongConfig:
                                                                           [878.9617, 572.9404, 1]])
     """ 3x3 camera intrinsic matrix used for re-projection. Can be path to a numpy file or a numpy matrix. 
         TODO: implement file loading """
-    return_normals: bool = True
-    """ Whether to return the normals used to render the image """
-    return_depth: bool = True
-    """ Whether to return the depth map used to render the image"""
 
 
 @dataclass

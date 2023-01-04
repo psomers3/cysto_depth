@@ -69,7 +69,7 @@ def apply_lighting(points, normals, lights, camera_positions, materials) \
         attenuation: shape is similar to input points, except last dimension is 1
     """
     light_diffuse = lights.diffuse(normals=normals, points=points)
-    light_specular = lights.specular(
+    light_specular = lights.blinn_specular(
         normals=normals,
         points=points,
         camera_position=camera_positions,

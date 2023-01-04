@@ -40,7 +40,8 @@ class DepthEstimationModel(BaseModel):
         depth_out = self.depth_decoder(skip_outs)
         if self.config.predict_normals:
             normals_out = torch.nn.functional.normalize(self.normals_decoder(skip_outs), dim=1)
-            return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out, torch.zeros((1), device=self.device))
+            return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
+                                          torch.zeros((1), device=self.device))
         return depth_out
 
     def configure_optimizers(self):
@@ -144,22 +145,23 @@ class DepthEstimationModel(BaseModel):
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
-                                            y_hat_normals.to(self.phong_loss.light.device)
+                                             y_hat_normals.to(self.phong_loss.light.device)
                 y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
                     1].cpu()
+                print(f'y_hat_normals: {y_hat_normals.max()}, y_phong: {y_phong.max()}')
                 self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
-                                    prefix=f'{prefix}-synth-normals',
-                                    labels=["Synth Image", "Predicted", "Ground Truth"])
+                                      prefix=f'{prefix}-synth-normals',
+                                      labels=["Synth Image", "Predicted", "Ground Truth"])
                 self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
-                                    prefix=f'{prefix}-synth-phong',
-                                    labels=["Synth Image", "Predicted", "Ground Truth"])
+                                     prefix=f'{prefix}-synth-phong',
+                                     labels=["Synth Image", "Predicted", "Ground Truth"])
             else:
                 y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
             self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
-                                f"{prefix}-synth-depth",
-                                labels=["Synth Image", "Predicted", "Ground Truth"],
-                                minmax=self.plot_minmax)
+                                 f"{prefix}-synth-depth",
+                                 labels=["Synth Image", "Predicted", "Ground Truth"],
+                                 minmax=self.plot_minmax)
 
     def gen_phong_plots(self, images, prefix, labels):
         for idx, img_set in enumerate(images):

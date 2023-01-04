@@ -23,14 +23,7 @@ class PhongDataSet(ImageDataset):
         """
         # pop the transforms to apply afterwards because the default ImageDataset will only know of the loaded images
         # and not the created ones
-        self.post_transforms = kwargs.pop('transforms')
         super(PhongDataSet, self).__init__(*args, **kwargs)
-        self.return_normals = config.return_normals
-        self.return_depth = config.return_depth
-        num_synchros = 2
-        num_synchros += 1 if config.return_depth else 0
-        num_synchros += 1 if config.return_normals else 0
-
         self.camera_intrinsics = torch.Tensor(config.camera_intrinsics)
         self.squarify = d_transforms.Squarify(image_size)
         # get the original camera pixel locations at the desired image resolution
@@ -49,8 +42,13 @@ class PhongDataSet(ImageDataset):
                                  device=self.device)
 
     def __getitem__(self, idx) -> Tuple[torch.Tensor, ...]:
+        """
+        TODO: handle transformation orders better... mostly depth stuff for slicing and m -> mm
+        :param idx:
+        :return:
+        """
         imgs = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
-        color, depth, normals = [self.squarify(img) for img in imgs]
+        color, depth, normals = imgs
         rendered = render_rgbd(depth.permute((1, 2, 0)),
                                self.grey,
                                normals.permute((1, 2, 0)),
@@ -58,12 +56,7 @@ class PhongDataSet(ImageDataset):
                                self.light,
                                self.material,
                                self.resized_pixel_locations)
-        return_values = [color, rendered.permute((2, 0, 1))]
-        if self.return_depth:
-            return_values.append(depth)
-        if self.return_normals:
-            return_values.append(normals)
-        return tuple([t(return_values[i]) for i, t in enumerate(self.post_transforms)])
+        return color, rendered.permute((2, 0, 1)), depth, normals
 
 
 class PhongDataModule(FileLoadingDataModule):
@@ -100,9 +93,7 @@ class PhongDataModule(FileLoadingDataModule):
         self.phong_config = phong_config
         self.save_hyperparameters()
         self.image_size = image_size
-        self.num_outputs = 2
-        self.num_outputs += 1 if phong_config.return_depth else 0
-        self.num_outputs += 1 if phong_config.return_normals else 0
+        self.num_synchros = 3
 
     def get_transforms(self, split_stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
@@ -111,34 +102,31 @@ class PhongDataModule(FileLoadingDataModule):
         """
         to_mm = d_transforms.ElementWiseScale(1e3)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
-                                                  num_synchros=self.num_outputs,
+                                                  num_synchros=self.num_synchros,
                                                   additional_args=[[None], [0], [0], [0]])
+        squarify = d_transforms.Squarify(image_size=self.image_size)
         color_transforms = [mask]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
-        depth_transforms = [channel_slice, to_mm, mask]
-        normals_transforms = [mask]
-        phong_transforms = [mask]
+        depth_transforms = [channel_slice, to_mm, mask, squarify]
+        normals_transforms = [mask, squarify]
         if split_stage == "train":
-            # affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
-            #                                                                      translate=(0, 0),
-            #                                                                      image_size=self.image_size),
-            #                                             num_synchros=self.num_outputs,
-            #                                             additional_args=[[True],
-            #                                                              [False],
-            #                                                              [False, True],
-            #                                                              [False, True]])
+            affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+                                                                                 translate=(0, 0),
+                                                                                 image_size=self.image_size),
+                                                        num_synchros=self.num_synchros,
+                                                        additional_args=[[True],
+                                                                         [False, True],
+                                                                         [False, True]])
             color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
             color_transforms.insert(0, color_jitter)
-            # color_transforms.append(affine)
-            # depth_transforms.append(affine)
-            # normals_transforms.append(affine)
-            # phong_transforms.append(affine)
+            color_transforms.append(affine)
+            depth_transforms.append(affine)
+            normals_transforms.append(affine)
 
         color_transforms = torch_transforms.Compose(color_transforms)
         depth_transforms = torch_transforms.Compose(depth_transforms)
         normals_transforms = torch_transforms.Compose(normals_transforms)
-        phong_transforms = torch_transforms.Compose(phong_transforms)
-        transforms = [color_transforms, phong_transforms, depth_transforms, normals_transforms]
+        transforms = [color_transforms, depth_transforms, normals_transforms]
         return transforms
 
     def setup(self, stage: str = None):
@@ -163,22 +151,29 @@ class PhongDataModule(FileLoadingDataModule):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
+    from utils.loss import PhongLoss
 
     color_dir = '/Users/peter/Desktop/bladder_dataset_filtered/color'
     depth_dir = '/Users/peter/Desktop/bladder_dataset_filtered/depth'
     normals_dir = '/Users/peter/Desktop/bladder_dataset_filtered/normals'
-    dm = PhongDataModule(batch_size=4,
+    phong = PhongConfig(attenuation=0.01, material_shininess=100)
+    dm = PhongDataModule(batch_size=1,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
-                         split={'train': .9, 'validate': 0.05, 'test': 0.05})
+                         split={'train': .9, 'validate': 0.05, 'test': 0.05},
+                         phong_config=phong)
     dm.setup('fit')
     loader = dm.train_dataloader()
     loader_iter = iter(loader)
+    loss = PhongLoss(phong, device='cpu')
     while True:
         sample = next(loader_iter)
+        loss_value, prediction = loss((sample[2], sample[3]), sample[1])
+        print(loss_value)
         sample[-1] = sample[-1]*0.5 + 0.5
         matplotlib_show(*sample)
+        matplotlib_show(prediction)
         plt.show(block=False)
         plt.pause(5)
         input("")
