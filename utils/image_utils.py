@@ -59,12 +59,16 @@ def generate_img_fig(img_tensors, labels) -> plt.Figure:
     :param labels: titles to put over each image
     :return:
     """
-    fig, axes = plt.subplots(nrows=1, ncols=len(img_tensors))  # type: plt.Figure, List[plt.Axes]
+    n = len(img_tensors)
+    fig, axes = plt.subplots(nrows=1,
+                             ncols=n,
+                             figsize=(5*n, 6),
+                             gridspec_kw={'width_ratios': [1 for _ in range(n)]},
+                             num=1)  # type: plt.Figure, List[plt.Axes]
     for ax, img, label in zip(axes, img_tensors, labels):
         ax.imshow(img.permute(1, 2, 0) if len(img.shape) == 3 else img)
         ax.set_axis_off()
         ax.set_title(label)
-    fig.set_figheight(len(img_tensors))
     fig.tight_layout(w_pad=0.5, h_pad=0)
     return fig
 

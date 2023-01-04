@@ -33,6 +33,8 @@ class UpsampleShuffle(nn.Sequential):
 class Decoder(torch.nn.Module):
     def __init__(self, num_output_channels: int = 1, output_each_level: bool = False) -> None:
         super().__init__()
+        self.output_each_level = output_each_level
+
         # self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         self.upsample3 = UpsampleShuffle(512, 512)
         self.upsample2 = UpsampleShuffle(512, 512)
@@ -44,14 +46,14 @@ class Decoder(torch.nn.Module):
         self.conv_up2 = convrelu(128 + 512, 256, 3, 1)
         self.conv_up1 = convrelu(64 + 256, 256, 3, 1)
         self.conv_up0 = convrelu(64 + 256, 128, 3, 1)
-        self.conv_up_2_out = convrelu(256, 1, 3, 1)
-        self.conv_up1_out = convrelu(256, 1, 3, 1)
-        self.conv_up0_out = convrelu(128, 1, 3, 1)
+        if self.output_each_level:
+            self.conv_up_2_out = convrelu(256, 1, 3, 1)
+            self.conv_up1_out = convrelu(256, 1, 3, 1)
+            self.conv_up0_out = convrelu(128, 1, 3, 1)
 
         self.conv_original_size2 = convrelu(128, 64, 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         self.conv_last = nn.Conv2d(64, num_output_channels, 1)
-        self.output_each_level = output_each_level
 
     def forward(self, _input):
         x_original, layer0, layer1, layer2, layer3, layer4 = _input
