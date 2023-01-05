@@ -24,6 +24,9 @@ class DepthEstimationModel(BaseModel):
         self.normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None
         self.validation_images = None
+        self.test_images = None
+        self.plot_minmax_train = None
+        self.plot_minmax_val = None
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
         self.encoder = AdaptiveEncoder(config.adaptive_gating)
@@ -59,7 +62,9 @@ class DepthEstimationModel(BaseModel):
         }
 
     def setup_losses(self):
-        """ set up the custom losses here because the device isn't set yet by pytorch lightning when __init__ is run. """
+        """
+        set up the custom losses here because the device isn't set yet by pytorch lightning when __init__ is run.
+        """
         if self.phong_loss is None:
             self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config,
                                         device=self.device)
@@ -101,7 +106,37 @@ class DepthEstimationModel(BaseModel):
                normals_loss * self.config.normals_loss_factor + \
                phong_loss * self.config.phong_loss_factor
         self.log("training_loss", loss)
+
+        if batch_idx % 10 == 0:
+            if self.test_images is None:
+                self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
+                                                                               self.config.predict_normals)
+            self.plot(prefix="train")
         return loss
+
+    @staticmethod
+    def prepare_images(batch, max_num_image_samples: int = 7, predict_normals: bool = False) \
+            -> Tuple[List[Any], Tuple[torch.Tensor, ...]]:
+        """
+        Helper function to save a sample of images for plotting during training
+
+        :param batch:
+        :param max_num_image_samples:
+        :param predict_normals:
+        :return:
+        """
+        if predict_normals:
+            synth_img, synth_phong, synth_depth, synth_normals = batch
+        else:
+            synth_img, synth_phong, synth_depth = batch
+        plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
+        images = (synth_img.clone()[:max_num_image_samples].cpu(),
+                  synth_depth.clone()[:max_num_image_samples].cpu(),
+                  synth_normals.clone()[:max_num_image_samples].cpu() if
+                  predict_normals else None,
+                  synth_phong.clone()[:max_num_image_samples].cpu() if
+                  predict_normals else None)
+        return plot_minmax, images
 
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
         self.setup_losses()
@@ -114,17 +149,11 @@ class DepthEstimationModel(BaseModel):
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
-        if batch_idx == 0:
+        if batch_idx % 20 == 0:
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
-                self.plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
-                self.validation_images = (synth_img.clone()[:self.max_num_image_samples].cpu(),
-                                          synth_depth.clone()[:self.max_num_image_samples].cpu(),
-                                          synth_normals.clone()[:self.max_num_image_samples].cpu() if
-                                          self.config.predict_normals else None,
-                                          synth_phong.clone()[:self.max_num_image_samples].cpu() if
-                                          self.config.predict_normals else None,
-                                          )
+                self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
+                                                                                   self.config.predict_normals)
             self.plot(prefix)
         return metric_dict
 
@@ -141,7 +170,13 @@ class DepthEstimationModel(BaseModel):
         :param prefix: a string to prepend to the image tags. Usually "test" or "train"
         """
         with torch.no_grad():
-            synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
+            if prefix == 'val':
+                synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
+                minmax = self.plot_minmax_val
+            else:
+                synth_imgs, synth_depths, synth_normals, synth_phong = self.test_images
+                minmax = self.plot_minmax_train
+
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
@@ -160,7 +195,7 @@ class DepthEstimationModel(BaseModel):
             self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
                                  f"{prefix}-synth-depth",
                                  labels=["Synth Image", "Predicted", "Ground Truth"],
-                                 minmax=self.plot_minmax)
+                                 minmax=minmax)
 
     def gen_phong_plots(self, images, prefix, labels):
         for idx, img_set in enumerate(images):
