@@ -110,18 +110,18 @@ class PhongDataModule(FileLoadingDataModule):
         depth_transforms = [channel_slice, to_mm, mask, squarify]
         normals_transforms = [mask, squarify]
         if split_stage == "train":
-            affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
-                                                                                 translate=(0, 0),
-                                                                                 image_size=self.image_size),
-                                                        num_synchros=self.num_synchros,
-                                                        additional_args=[[True],
-                                                                         [False, True],
-                                                                         [False, True]])
+            # affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+            #                                                                      translate=(0, 0),
+            #                                                                      image_size=self.image_size),
+            #                                             num_synchros=self.num_synchros,
+            #                                             additional_args=[[True],
+            #                                                              [False, True],
+            #                                                              [False, True]])
             color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
             color_transforms.insert(0, color_jitter)
-            color_transforms.append(affine)
-            depth_transforms.append(affine)
-            normals_transforms.append(affine)
+            # color_transforms.append(affine)
+            # depth_transforms.append(affine)
+            # normals_transforms.append(affine)
 
         color_transforms = torch_transforms.Compose(color_transforms)
         depth_transforms = torch_transforms.Compose(depth_transforms)
