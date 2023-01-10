@@ -34,9 +34,9 @@ def blender_rendering():
     parser.add_argument('--gpu', type=int, default=-1, help='specify gpu to use. defaults to all available')
     args, unknown_args = parser.parse_known_args(arguments)
     cli_conf = OmegaConf.from_cli(unknown_args)  # assume any additional args are config overrides
-    butils.set_gpu_rendering_preferences(args.gpu)
     cfg = DictConfig(OmegaConf.load(args.config))
     config: MainConfig = OmegaConf.merge(OmegaConf.structured(MainConfig()), cfg, cli_conf)
+    butils.set_gpu_rendering_preferences(args.gpu, device_type=config.blender.cycles.device_type)
 
     if args.debug:
         start_debugger()

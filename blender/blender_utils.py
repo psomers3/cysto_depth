@@ -528,16 +528,18 @@ def add_shrinkwrap_constraint(obj: bpy.types.Object,
     return shrinkwrap_constr
 
 
-def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True) -> None:
+def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True, device_type: str = 'OPTIX') -> None:
     """
     Set GPU resources to use for rendering. This function only works for CUDA GPUs or Macs
 
     :param gpu: the GPU ID to use. if -1, uses all GPUs available.
     :param verbose: whether to print the devices found.
+    :param device_type: which device type for cycles rendering. METAL for apple silicon and either OPTIX, CUDA, OPENCL 
+                        for other systems.
     """
     gpu_types = ['OPTIX', 'CUDA', 'METAL', 'OPENCL']
     prefs = bpy.context.preferences.addons['cycles'].preferences
-    prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
+    prefs.compute_device_type = device_type
     for dev in prefs.devices:
         dev.use = True
     gpu_num = 0

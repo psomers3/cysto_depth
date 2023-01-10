@@ -25,6 +25,7 @@ class CyclesConfig:
     adaptive_max_samples: int = 128
     denoiser: str = DenoiseType.OPENIMAGEDENOISE
     device: str = 'GPU'
+    device_type: str = 'OPTIX'
 
 
 @dataclass
