@@ -17,6 +17,7 @@ class CosineSimilarity(nn.Module):
         self.device = device
 
     def forward(self, predicted, target):
+        predicted = F.normalize(predicted, dim=1)
         return 1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target), torch.ones([1], device=self.device)).mean()
 
 

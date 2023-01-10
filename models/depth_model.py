@@ -42,13 +42,14 @@ class DepthEstimationModel(BaseModel):
         skip_outs, _ = self.encoder(_input)
         depth_out = self.depth_decoder(skip_outs)
         if self.config.predict_normals:
-            normals_out = torch.nn.functional.normalize(self.normals_decoder(skip_outs), dim=1)
+            normals_out = self.normals_decoder(skip_outs)
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
                                           torch.zeros((1), device=self.device))
         return depth_out
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.config.lr)
+        optimizer_cls = optim.Adam if self.config.optimizer.lower() == 'adam' else optim.RAdam
+        optimizer = optimizer_cls(filter(lambda p: p.requires_grad, self.parameters()), lr=self.config.lr)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return {
             "optimizer": optimizer,
@@ -81,6 +82,7 @@ class DepthEstimationModel(BaseModel):
         self.setup_losses()
         depth_loss = 0
         normals_loss = 0
+        normals_regularization_loss = 0
         grad_loss = 0
         phong_loss = 0
 
@@ -98,13 +100,17 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
+            normals_regularization_loss = torch.nn.functional.mse_loss(torch.linalg.norm(y_hat_normals, dim=1, keepdim=True),
+                                                                       torch.ones_like(y_hat_depth[-1], device=self.device))
+            self.log("normals_regularization_loss", normals_regularization_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
 
         loss = depth_loss * self.config.depth_loss_factor + \
                grad_loss * self.config.depth_grad_loss_factor + \
                normals_loss * self.config.normals_loss_factor + \
-               phong_loss * self.config.phong_loss_factor
+               phong_loss * self.config.phong_loss_factor + \
+               normals_regularization_loss
         self.log("training_loss", loss)
 
         if batch_idx % 10 == 0:
@@ -181,6 +187,7 @@ class DepthEstimationModel(BaseModel):
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
                                              y_hat_normals.to(self.phong_loss.light.device)
+                y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1)
                 y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
                     1].cpu()
                 self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),

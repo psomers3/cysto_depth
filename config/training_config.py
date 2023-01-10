@@ -198,3 +198,5 @@ class CystoDepthConfig:
     """ The config for the phong dataloader """
     predict_normals: bool = False
     """ Whether the network should predict normals """
+    optimizer: str = 'adam'
+    """ What optimizer to use. one of ['adam', 'radam'] """
