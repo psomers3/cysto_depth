@@ -548,8 +548,11 @@ def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True, device_ty
             if gpu == -1:
                 dev.use = True
             else:
-                dev.use = gpu_num == gpu
-            gpu_num += 1
+                if dev.type == device_type:
+                    dev.use = gpu_num == gpu
+                    gpu_num += 1
+                else:
+                    dev.use = False
         if verbose:
             print(f'name: {dev.name}, type: {dev.type}, use: {dev.use}')
 
