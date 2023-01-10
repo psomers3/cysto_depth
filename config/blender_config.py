@@ -94,6 +94,7 @@ class EndoLightConfig:
     stl_file: str = MISSING
     emission_color: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
     emission_strength: int = 50
+    """ surface light strength in Watts for entire surface area """
     scaling_factor: float = 1
     euler_rotation: List[float] = field(default_factory=lambda: [0, 0, 0])
 
@@ -145,9 +146,10 @@ class ResectionLoopConfig:
 
 @dataclass
 class BladderMaterialConfig:
-    volume_scatter_density: float = 10.0
-    volume_scatter_anisotropy: float = 0.0
-    volume_absorbtion_density: float = 10.0
+    volume_scatter_density: float = 30.0
+    volume_scatter_anisotropy: float = 0.9
+    """ neg. values scatter back toward the light source, positive forward """
+    volume_absorbtion_density: float = 5.0
 
 
 @dataclass

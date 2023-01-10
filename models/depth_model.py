@@ -182,7 +182,6 @@ class DepthEstimationModel(BaseModel):
             else:
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.test_images
                 minmax = self.plot_minmax_train
-
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \

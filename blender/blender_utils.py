@@ -249,6 +249,7 @@ def add_surface_lighting(stl_file: str,
     stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_file))[0]]
     stl_object.scale = Vector([scaling_factor, scaling_factor, scaling_factor])
     stl_object.rotation_euler = Vector(np.radians(euler_rotation))
+    apply_transformations(stl_object)
     if collection is not None:
         bpy.context.scene.collection.objects.unlink(stl_object)
         collection.objects.link(stl_object)
