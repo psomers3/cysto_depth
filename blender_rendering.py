@@ -38,6 +38,7 @@ def blender_rendering():
     cfg = DictConfig(OmegaConf.load(args.config))
     config: MainConfig = OmegaConf.merge(OmegaConf.structured(MainConfig()), cfg, cli_conf)
     butils.set_gpu_rendering_preferences(args.gpu, device_type=config.blender.cycles.device_type)
+    frame_offset = args.id_offset
 
     if args.debug:
         start_debugger()

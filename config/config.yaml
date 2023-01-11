@@ -69,5 +69,6 @@ blender:
     adaptive_max_samples: 128
     denoiser: "OPENIMAGEDENOISE"
     device: 'GPU'
+    device_type: "METAL"
   use_nodes: true
 
