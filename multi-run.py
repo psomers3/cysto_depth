@@ -3,7 +3,7 @@ import subprocess
 import sys
 from typing import *
 from argparse import ArgumentParser
-from config import MainConfig
+from config.blender_config import MainConfig
 from omegaconf import OmegaConf, DictConfig
 
 
