@@ -46,27 +46,31 @@ if __name__ == '__main__':
     config_file = args.config
     gpu = args.gpu
 
-    def rendering_process(samples_per_model: int, threads_per_process: int):
-        worker = subprocess.Popen(['blender', '-b', '--python', 'blender_rendering.py', '--',
-                                   '--render',
-                                   '--config', config_file,
-                                   '--gpu', f"{gpu}",
-                                   f'samples_per_model={samples_per_model}',
-                                   f'blender.render.threads={threads_per_process}'
-                                   ],
-                                  shell=False,
-                                  stdout=subprocess.PIPE)
-        print(worker.args)
-        line = True
-        while line:
-            out_line = worker.stdout.readline()
-            # look for something in the output if you'd like
+    def rendering_process(samples_per_model: int, threads_per_process: int, thread_id: int):
+        try:
+            worker = subprocess.Popen(['blender', '-b', '--python', 'blender_rendering.py', '--',
+                                       '--render',
+                                       '--config', config_file,
+                                       '--gpu', f"{gpu}",
+                                       '--id_offset', f'{thread_id*samples_per_model}',
+                                       f'samples_per_model={samples_per_model}',
+                                       f'blender.render.threads={threads_per_process}'
+                                       ],
+                                      shell=False,
+                                      stdout=subprocess.PIPE)
+            print(worker.args)
+            line = True
+            while line:
+                out_line = worker.stdout.readline()
+                # look for something in the output if you'd like
+        except Exception:
+            worker.kill()
 
     tp = ThreadPool(num_processes)
     threads = config.blender.render.threads // num_processes
     samples = config.samples_per_model // num_processes
-    for _ in range(num_processes):
-        tp.apply_async(rendering_process, (samples, threads,))
+    for i in range(num_processes):
+        tp.apply_async(rendering_process, (samples, threads, i))
     tp.close()
     tp.join()
 

@@ -32,6 +32,7 @@ def blender_rendering():
     parser.add_argument('--sample', action='store_true', help='run the code using a single random model')
     parser.add_argument('--render', action='store_true', help='perform rendering')
     parser.add_argument('--gpu', type=int, default=-1, help='specify gpu to use. defaults to all available')
+    parser.add_argument('--id_offset', type=int, default=0, help='value to offset the frame id by.')
     args, unknown_args = parser.parse_known_args(arguments)
     cli_conf = OmegaConf.from_cli(unknown_args)  # assume any additional args are config overrides
     cfg = DictConfig(OmegaConf.load(args.config))
@@ -147,6 +148,7 @@ def blender_rendering():
              for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
             # set random scenes and render
             for i in range(1, config.samples_per_model + 1):
+                frame_number = i + frame_offset
                 random_position.rotation_euler = (np.random.uniform(0, np.radians(360), size=3))
                 endo_tip.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(
                     np.asarray(config.view_angle_max))
@@ -181,19 +183,19 @@ def blender_rendering():
                                                   config.resection_loop.scaling_factor) + insulation_retraction,
                                                  np.random.uniform(0, min(loop_ray_length), size=1))
 
-                insulation.keyframe_insert(frame=i, data_path='location')
-                loop_angle_offset.keyframe_insert(frame=i, data_path='location')
-                loop_angle_offset.keyframe_insert(frame=i, data_path='rotation_euler')
-                random_position.keyframe_insert(frame=i, data_path="rotation_euler")
-                random_position.keyframe_insert(frame=i, data_path="location")
-                endo_tip.keyframe_insert(frame=i, data_path="rotation_euler")
-                camera.keyframe_insert(frame=i, data_path='rotation_euler')
+                insulation.keyframe_insert(frame=frame_number, data_path='location')
+                loop_angle_offset.keyframe_insert(frame=frame_number, data_path='location')
+                loop_angle_offset.keyframe_insert(frame=frame_number, data_path='rotation_euler')
+                random_position.keyframe_insert(frame=frame_number, data_path="rotation_euler")
+                random_position.keyframe_insert(frame=frame_number, data_path="location")
+                endo_tip.keyframe_insert(frame=frame_number, data_path="rotation_euler")
+                camera.keyframe_insert(frame=frame_number, data_path='rotation_euler')
                 # shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
-                emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
+                emission_node.inputs[1].keyframe_insert(frame=frame_number, data_path="default_value")
 
                 if args.render:
                     # render per frame so any in-between processing (i.e. normals transformation) can be done.
-                    scene.frame_set(i)
+                    scene.frame_set(frame_number)
                     bpy.ops.render.render(write_still=True, scene=scene.name)
                 loop_angle_offset.location = (0, 0, 0)
 
