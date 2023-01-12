@@ -2,9 +2,9 @@ models_dir: /Users/peter/isys/stl_bladders
 bladder_model_regex: '^(?!.*\._|.*\.DS).*smooth'  # because ignore mac's ._ files...
 camera_intrinsics: spec_files/cam_params.json
 bladder_volume: .0004  # m^3
-output_folder: test/output
-samples_per_model: 2
-distance_range: [0.000, 0.04]
+output_folder: ../datasets/15122022_colors
+samples_per_model: 20
+distance_range: [0.005, 0.04]
 view_angle_max: [45, 45, 45]
 emission_range: [200, 200]
 render_normals: true
@@ -47,7 +47,6 @@ diverticulum:
   translation_range: [ -0.7, 0.7 ]
 
 shrinkwrap_wire:
-<<<<<<< HEAD
    wrap_mode: "INSIDE"
    distance: .005
    use_track_normal: false

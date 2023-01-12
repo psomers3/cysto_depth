@@ -704,6 +704,16 @@ def add_raw_depth_to_material(mat:bpy.types.Material) -> None:
     mat.node_tree.links.new(cam.outputs['View Z Depth'], aov.inputs['Color'])
 
 
+def add_depth_to_all_materials() -> None:
+    """
+    Add normals AOV to every registered material
+    """
+    for material in bpy.data.materials:
+        if material is not None:
+            material.use_nodes = True
+            add_raw_depth_to_material(material)
+
+
 def add_raw_normals_to_material(mat: bpy.types.Material) -> None:
     """
     Add an AOV output to the given material that will forward the raw normals in camera space to the rendering

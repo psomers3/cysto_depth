@@ -216,6 +216,7 @@ def blender_rendering():
                 # shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
                 emission_node.inputs[1].keyframe_insert(frame=frame_number, data_path="default_value")
 
+
                 if args.render:
                     scene.frame_set(frame_number)
                     stl_obj.material_slots[0].material = bpy.data.materials[material_name]
