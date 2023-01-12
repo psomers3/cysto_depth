@@ -178,8 +178,11 @@ class DepthEstimationModel(BaseModel):
         # only final depth map is of interest during validation
         y_hat = self(synth_img)[-1]
         metric_dict, _ = self.calculate_metrics(prefix, y_hat, synth_label)
+<<<<<<< HEAD
         print(metric_dict)
 >>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
+=======
+>>>>>>> various changes:
         self.log_dict(metric_dict)
         if batch_idx % 20 == 0:
             # do plot on the same images without differing augmentations
