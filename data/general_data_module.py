@@ -15,7 +15,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
 
     def __init__(self,
                  batch_size: int,
-                 directories: dict,
+                 directories: list[dict],
                  split: dict = None,
                  workers_per_loader: int = 6,
                  exclude_regex: str = None):
@@ -61,12 +61,12 @@ class FileLoadingDataModule(pl.LightningDataModule):
         self.data_test: ImageDataset = None
 
     @staticmethod
-    def create_file_split(directories: dict, split: dict = None, exclusion_regex: str = None) -> dict:
+    def create_file_split(directories: list[dict], split: dict = None, exclusion_regex: str = None):
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
         image_files = {
-            key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and [os.path.islink(f) or os.path.isfile(f)]]
-            for key, val in directories.items()
+            key: [str(f) for val in dir_list for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
+            for key, dir_list in directories.items()
         }
         if exclusion_regex is not None:
             exclude_regex = re.compile(exclusion_regex)

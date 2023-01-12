@@ -119,7 +119,8 @@ def blender_rendering():
     # set paths for rendering outputs
     output_nodes = butils.add_render_output_nodes(scene,
                                                   normals=config.render_normals,
-                                                  custom_normals_label='raw_normals')
+                                                  custom_normals_label='raw_normals',
+                                                  custom_depth_label='raw_depth')
 
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
@@ -193,20 +194,20 @@ def blender_rendering():
                     hit, hit_location, _, _ = stl_obj.ray_cast(np.reshape(point, -1), np.reshape(loop_direction, -1))
                     if hit:
                         loop_ray_length[idx] = Vector(Vector(point) - hit_location).length
-                loop_angle_offset.location = Vector(loop_direction_marker[:-1]).normalized() * \
-                                             min((config.resection_loop.max_extension *
-                                                  config.resection_loop.scaling_factor) + insulation_retraction,
-                                                 np.random.uniform(0, min(loop_ray_length), size=1))
+                loop_angle_offset.location = Vector(loop_direction_marker[:-1]).normalized() *\
+                                         min((config.resection_loop.max_extension *
+                                             config.resection_loop.scaling_factor) + insulation_retraction,
+                                             np.random.uniform(-min(loop_ray_length), min(loop_ray_length), size=1))
 
-                insulation.keyframe_insert(frame=frame_number, data_path='location')
-                loop_angle_offset.keyframe_insert(frame=frame_number, data_path='location')
-                loop_angle_offset.keyframe_insert(frame=frame_number, data_path='rotation_euler')
-                random_position.keyframe_insert(frame=frame_number, data_path="rotation_euler")
-                random_position.keyframe_insert(frame=frame_number, data_path="location")
-                endo_tip.keyframe_insert(frame=frame_number, data_path="rotation_euler")
-                camera.keyframe_insert(frame=frame_number, data_path='rotation_euler')
-                # shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
-                emission_node.inputs[1].keyframe_insert(frame=frame_number, data_path="default_value")
+                insulation.keyframe_insert(frame=i, data_path='location')
+                loop_angle_offset.keyframe_insert(frame=i, data_path='location')
+                loop_angle_offset.keyframe_insert(frame=i, data_path='rotation_euler')
+                random_position.keyframe_insert(frame=i, data_path="rotation_euler")
+                random_position.keyframe_insert(frame=i, data_path="location")
+                endo_tip.keyframe_insert(frame=i, data_path="rotation_euler")
+                camera.keyframe_insert(frame=i, data_path='rotation_euler')
+                #shrinkwrap_constraint.keyframe_insert(frame=i, data_path="distance")
+                emission_node.inputs[1].keyframe_insert(frame=i, data_path="default_value")
 
                 if args.render:
                     # render per frame so any in-between processing (i.e. normals transformation) can be done.
