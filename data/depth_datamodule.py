@@ -26,7 +26,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
     def __init__(self,
                  batch_size,
                  data_roles: List[str],
-                 data_directories: List[Union[str, List[str]]],
+                 data_directories: List[List[str]],
                  split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6,
@@ -49,7 +49,6 @@ class EndoDepthDataModule(FileLoadingDataModule):
         :param inverse_depth: whether to invert the depth values (inf depth = 0).
         :param memorize_check: when true, will keep returning the same batch over and over.
         """
-
         directories = dict(zip(data_roles, data_directories))
         super().__init__(batch_size, directories, split, workers_per_loader)
         self.save_hyperparameters("batch_size")

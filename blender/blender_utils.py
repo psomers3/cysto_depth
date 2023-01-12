@@ -548,7 +548,7 @@ def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True, device_ty
 
     :param gpu: the GPU ID to use. if -1, uses all GPUs available.
     :param verbose: whether to print the devices found.
-    :param device_type: which device type for cycles rendering. METAL for apple silicon and either OPTIX, CUDA, OPENCL 
+    :param device_type: which device type for cycles rendering. METAL for apple silicon and either OPTIX, CUDA, OPENCL
                         for other systems.
     """
     gpu_types = ['OPTIX', 'CUDA', 'METAL', 'OPENCL']
@@ -702,6 +702,16 @@ def add_raw_depth_to_material(mat:bpy.types.Material) -> None:
     aov = mat.node_tree.nodes.new("ShaderNodeOutputAOV")
     aov.name = "raw_depth"
     mat.node_tree.links.new(cam.outputs['View Z Depth'], aov.inputs['Color'])
+
+
+def add_depth_to_all_materials() -> None:
+    """
+    Add normals AOV to every registered material
+    """
+    for material in bpy.data.materials:
+        if material is not None:
+            material.use_nodes = True
+            add_raw_depth_to_material(material)
 
 
 def add_raw_normals_to_material(mat: bpy.types.Material) -> None:

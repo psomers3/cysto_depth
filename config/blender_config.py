@@ -110,14 +110,14 @@ class EndoLightConfig:
     emission_strength: int = 50
     """ surface light strength in Watts for entire surface area """
     scaling_factor: float = 1
-    euler_rotation: List[float] = field(default_factory=lambda: [0, 0, 0])
+    euler_rotation: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
 
 
 @dataclass
 class TumorParticleConfig:
     stl_file: str = MISSING
     volume_max: float = 0.1
-    scaling_range: List[float] = field(default_factory=lambda: [0.1, 1])
+    scaling_range: List[float] = field(default_factory=lambda: [0.1, 1.0])
     rotation_mode: str = 'random'
     """ Determines how the particle instances are rotated (default: 'random')
             - 'random': random rotation according to the given rotation_range 
@@ -140,13 +140,13 @@ class ResectionLoopConfig:
     """ path to the STL for the wire """
     insulation_stl: str = MISSING
     """ path to the STL for the insulation """
-    extension_direction: List[float] = field(default_factory=lambda: [1, 0, 0])
+    extension_direction: List[float] = field(default_factory=lambda: [1.0, 0.0, 0.0])
     """ direction in which the tool is extended in the coordinates of the stl-file"""
-    no_clip_points: List[List[float]] = field(default_factory=lambda: [[0, 0, 0]])
+    no_clip_points: List[List[float]] = field(default_factory=lambda: [[0.0, 0.0, 0.0]])
     """ points of the tool where clipping is prevented in the coordinates of the stl-file"""
     scaling_factor: float = 0.001
     """ initial scaling """
-    euler_rotation: List[float] = field(default_factory=lambda: [90, 0, 0])
+    euler_rotation: List[float] = field(default_factory=lambda: [90., 0., 0.])
     """ initial rotation on load (euler XYZ)"""
     max_extension: float = 10
     """ maximum distance the wire can be extended from the endoscope """
@@ -158,12 +158,18 @@ class ResectionLoopConfig:
     """ maximum distance the insulation can be retracted from the wire """
     wire_base_color: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
     """ material of wire: base color """
-    wire_metallic: float = 1
+    wire_metallic: float = 1.
     """ material of wire: value of the shader property 'Metallic' """
     wire_roughness: float = 0.2
     """ material of wire: roughness """
-    wire_anisotropic: float = 1
+    wire_anisotropic: float = 1.
     """ material of wire: value of the shader property 'Anisotropic' """
+
+@dataclass
+class BladderMaterialConfig:
+    volume_scatter_density: float = 10.0
+    volume_scatter_anisotropy: float = 0.0
+    volume_absorbtion_density: float = 10.0
 
 
 @dataclass

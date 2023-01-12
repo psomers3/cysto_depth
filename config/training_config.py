@@ -35,7 +35,7 @@ class CallbackConfig:
     """ metric for early stopping"""
     early_stop_check_every: int = 1
     """ check every n validation runs """
-    early_stop_verbose: bool = True
+    early_stop_verbose: bool = False
     ckpt_metric: str = '${..monitor_metric}'
     """ metric for model checkpoints """
     ckpt_save_top_k: int = 5
@@ -44,6 +44,10 @@ class CallbackConfig:
     """ Number of epochs between checkpoints """
     model_ckpt_save_k: Union[int, None] = None
     """ keep the top k saved checkpoints """
+    lr_monitoring: bool = False
+    """ log learning rate """
+    lr_monitor_interval: Union[str, None] = None
+    """ log interval for lr ('epoch', 'step' None) """
 
 
 @dataclass
@@ -73,8 +77,8 @@ class SyntheticTrainingConfig:
 
     data_roles: List[str] = field(default_factory=lambda: ['color', 'depth'])
     """ The names to use for each type of data to be loaded """
-    data_directories: List[str] = MISSING
-    """ The directories corresponding to the data for each data role in  data_roles """
+    data_directories: List[List[str]] = field(default_factory=lambda: [MISSING])
+    """ List of directories corresponding to the data for each data role in  data_roles """
     training_split: dict = field(default_factory=lambda: {'train': .6,
                                                           'validate': .3,
                                                           'test': .1})

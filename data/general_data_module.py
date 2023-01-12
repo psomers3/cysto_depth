@@ -17,7 +17,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
 
     def __init__(self,
                  batch_size: int,
-                 directories: Dict[str, Union[List[str], str]],
+                 directories: list[dict],
                  split: dict = None,
                  workers_per_loader: int = 6,
                  exclude_regex: str = None):
@@ -63,21 +63,13 @@ class FileLoadingDataModule(pl.LightningDataModule):
         self.data_test: ImageDataset = None
 
     @staticmethod
-    def create_file_split(directories: Dict[str, Union[List[str], str]],
-                          split: dict = None,
-                          exclusion_regex: str = None) -> Dict[str, List[str]]:
+    def create_file_split(directories: list[dict], split: dict = None, exclusion_regex: str = None):
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
-        image_files = {}
-        for key, val in directories.items():
-            files = []
-            if isinstance(val, (list, ListConfig)):
-                [files.extend([str(f) for f in Path(img_path).rglob('*') \
-                               if _mac_regex.search(str(f)) and os.path.isfile(f)]) for img_path in val]
-            else:
-                files = [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
-            image_files[key] = files
-
+        image_files = {
+            key: [str(f) for val in dir_list for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
+            for key, dir_list in directories.items()
+        }
         if exclusion_regex is not None:
             exclude_regex = re.compile(exclusion_regex)
             [image_files.update({key: [f for f in image_files[key] if exclude_regex.search(f)]}) for key in

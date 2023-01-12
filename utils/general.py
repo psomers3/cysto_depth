@@ -34,4 +34,6 @@ def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
     callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration.ckpt_metric,
                                                   save_top_k=configuration.ckpt_save_top_k,
                                                   every_n_epochs=configuration.ckpt_every_n_epochs))
+    if configuration.lr_monitoring:
+        callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval=configuration.lr_monitor_interval))
     return callbacks

@@ -118,7 +118,7 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from data.data_transforms import SynchronizedTransform
 
-    test_directory = r'/Users/peter/isys/test_img'
+    test_directory = r'../../datasets/test/output/color'
     image_files = [(str(p), str(p)) for p in Path(test_directory).rglob('*')]
 
     random_shift = SynchronizedTransform(torch_transforms.RandomAffine(degrees=(0, 0), translate=(.2, .2)),
