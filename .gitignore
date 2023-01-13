@@ -145,7 +145,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 env.yaml
-annotations.csv
+
+
 annotations.csv
 visual_models/bladder.blend1
 annotations/kitti_annotations.csv
