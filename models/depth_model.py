@@ -8,7 +8,11 @@ from utils.loss import BerHu, GradientLoss, CosineSimilarity, PhongLoss
 from models.adaptive_encoder import AdaptiveEncoder
 from utils.image_utils import generate_heatmap_fig, generate_normals_fig, generate_img_fig
 from models.decoder import Decoder
+<<<<<<< HEAD
 from argparse import Namespace
+=======
+from math import ceil
+>>>>>>> Introduced warmup to synthetic training
 
 
 class DepthEstimationModel(BaseModel):
@@ -65,21 +69,62 @@ class DepthEstimationModel(BaseModel):
             self.encoder = AdaptiveEncoder(adaptive_gating)
 >>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
 
+<<<<<<< HEAD
     def configure_optimizers(self):
         optimizer_cls = optim.Adam if self.config.optimizer.lower() == 'adam' else optim.RAdam
         optimizer = optimizer_cls(filter(lambda p: p.requires_grad, self.parameters()), lr=self.config.lr)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return {
             "optimizer": optimizer,
+=======
+    def create_optimizer(self):
+        if self.hparams.optimizer == 'adam':
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams.lr)
+        return optimizer
+
+    def configure_optimizers(self):
+        def warmup(step):
+            """
+            This method will be called for ceil(warmup_batches/accum_grad_batches) times,
+            warmup_steps has been adjusted accordingly
+            """
+            warmup_steps = ceil(self.hparams.warmup_batches/self.hparams.accumulate_grad_batches)
+            if warmup_steps <= 0:
+                factor = 1
+            else:
+                factor = min(step / warmup_steps, 1)
+            return factor
+
+        optimizer_warmup = self.create_optimizer()
+        optimizer_train = self.create_optimizer()
+        scheduler_warmup = torch.optim.lr_scheduler.LambdaLR(optimizer_warmup, warmup)
+        scheduler_train = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_train)
+        return ({
+            "frequency": self.hparams.warmup_batches,
+            "optimizer": optimizer_warmup,
             "lr_scheduler": {
-                "scheduler": scheduler,
+                "scheduler": scheduler_warmup,
+                "frequency": 1,
+                "interval": 'step',
+                "name": 'lr/warmup'
+            },
+        },
+            {
+            "frequency": self.hparams.train_batches - self.hparams.warmup_batches,
+            "optimizer": optimizer_train,
+>>>>>>> Introduced warmup to synthetic training
+            "lr_scheduler": {
+                "scheduler": scheduler_train,
                 "monitor": self.hparams.lr_scheduler_monitor,
-                "frequency": self.hparams.lr_scheduler_patience
+                "frequency": self.hparams.lr_scheduler_patience,
+                "name": 'lr/reduce_on_plateau'
                 # If "monitor" references validation metrics, then "frequency" should be set to a
                 # multiple of "trainer.check_val_every_n_epoch".
             },
-        }
+            }
+        )
 
+<<<<<<< HEAD
     def setup_losses(self):
         """
         set up the custom losses here because the device isn't set yet by pytorch lightning when __init__ is run.
@@ -98,6 +143,12 @@ class DepthEstimationModel(BaseModel):
             y_hat_depth = self(synth_img)
 
         self.setup_losses()
+=======
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        synth_img, synth_label = batch
+        y_hat = self(synth_img)
+        # iterate through scales
+>>>>>>> Introduced warmup to synthetic training
         depth_loss = 0
         normals_loss = 0
         normals_regularization_loss = 0
