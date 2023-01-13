@@ -540,6 +540,7 @@ def set_gpu_rendering_preferences(gpu: int = -1, verbose: bool = True, device_ty
     gpu_types = ['OPTIX', 'CUDA', 'METAL', 'OPENCL']
     prefs = bpy.context.preferences.addons['cycles'].preferences
     prefs.compute_device_type = device_type
+    prefs.get_devices()
     for dev in prefs.devices:
         dev.use = True
     gpu_num = 0
