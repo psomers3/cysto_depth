@@ -6,4 +6,6 @@ torch
 pytorch_lightning
 hydra
 matplotlib
-
+opencv-python
+pims
+tqdm

@@ -38,6 +38,14 @@ class ThreadMode:
     FIXED = "FIXED"
 
 
+def get_login():
+    try:
+        login = os.getlogin()
+    except OSError:
+        return None
+    return login
+
+
 @dataclass
 class RenderConfig:
     resolution_x: int = 256
@@ -48,7 +56,8 @@ class RenderConfig:
     threads_mode: str = ThreadMode.AUTO
     threads: int = 6
     use_persistent_data: bool = False
-    filepath: str = os.path.join(tempfile.gettempdir(), os.getlogin())
+    filepath: str = field(default_factory=lambda:
+                          tempfile.gettempdir() if get_login() else os.path.join(tempfile.gettempdir(), get_login()))
 
 
 class LengthUnits:
