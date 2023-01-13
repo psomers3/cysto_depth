@@ -7,12 +7,16 @@ import torch
 
 
 class AdaptiveEncoder(VanillaEncoder):
+<<<<<<< HEAD
     def __init__(self, adaptive_gating=False):
         """
 
         :param adaptive_gating: whether to add the resnet blocks for adaptive transfer learning. If false,
                                 behaves as a normal vanilla encoder.
         """
+=======
+    def __init__(self, adaptive_gating=False, scheduled_gating=False):
+>>>>>>> Introduced warmup to synthetic training
         super().__init__()
         init_zero = False
         activation = "leaky"

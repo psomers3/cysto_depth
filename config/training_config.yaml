@@ -6,28 +6,27 @@ training_stage: train
 split_save_dir: splits
 num_workers: 8
 synthetic_config:
-  max_epochs: 300
+  max_epochs: 6000
   data_roles:
     - color
     - depth
    # - normals
   data_directories:
     -
-      - ../datasets/Particles_diverticulum_no_tool_materials_221215/color/bland_bladder_wall
-      - ../datasets/Particles_diverticulum_no_tool_materials_221215/color/bladder_wall
+      - ../datasets/Particles_diverticulum_no_tool_materials_221215/color
     -
-      - ../datasets/Particles_diverticulum_no_tool_materials_221215/depth/bland_bladder_wall
-      - ../datasets/Particles_diverticulum_no_tool_materials_221215/depth/bladder_wall
+      - ../datasets/Particles_diverticulum_no_tool_materials_221215/depth
 
 #    - /Users/peter/isys/output/normal
-  batch_size: 44
-  training_split: {'train': .85, 'validate': 0.15, 'test': ".*12_bladder.*"}
+  batch_size: 60
+  accumulate_grad_batches: 4
+  training_split: {'train': .85, 'validate': 0.15, 'test': ".*102_bladder.*"}
   #resume_from_checkpoint: logs/synthetic/lightning_logs/version_0/checkpoints/epoch=11-step=312.ckpt
-  monitor_metric: val_rmse
+  monitor_metric: val_rel_err
   val_check_interval: 1.0
-  grad_loss_factor: 0
+  grad_loss_factor: 1.0
   callbacks:
-    early_stop_patience: 15
+    early_stop_patience: null
     lr_monitoring: true
     lr_monitor_interval: step
 
