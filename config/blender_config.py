@@ -57,7 +57,8 @@ class RenderConfig:
     threads: int = 6
     use_persistent_data: bool = False
     filepath: str = field(default_factory=lambda:
-                          tempfile.gettempdir() if get_login() else os.path.join(tempfile.gettempdir(), get_login()))
+                          tempfile.gettempdir() if not get_login() else
+                          os.path.join(tempfile.gettempdir(), get_login()))
 
 
 class LengthUnits:
