@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from omegaconf import MISSING
 from typing import *
+from math import ceil
 
 
 @dataclass
@@ -90,6 +91,11 @@ class SyntheticTrainingConfig:
     """ learning rate for optimizer """
     optimizer: str = 'radam'
     """ Which torch optimizer to use. ['adam', 'radam'] """
+    grad_loss_factor: float = 1.0
+    warmup_batches: int = 8000
+    """ Duration of warmup in batches"""
+    train_batches: int = 232000
+    """ Duration of training in batches"""
     lr_scheduler_patience: int = 10
     lr_scheduler_monitor: str = "val_rmse_log"
     reduce_lr_patience: int = 5

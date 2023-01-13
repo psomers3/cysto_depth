@@ -10,6 +10,7 @@ from utils.image_utils import generate_heatmap_fig, generate_normals_fig, genera
 from models.decoder import Decoder
 from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
+from math import ceil
 
 
 imagenet_denorm = ImageNetNormalization(inverse=True)
@@ -34,7 +35,6 @@ class DepthEstimationModel(BaseModel):
         self.normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None
         self.validation_images = None
-<<<<<<< HEAD
         self.test_images = None
         self.train_denorm_color_images = None
         self.val_denorm_color_images = None
@@ -62,31 +62,54 @@ class DepthEstimationModel(BaseModel):
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
                                           torch.zeros((1), device=self.device))
         return depth_out
-=======
-        if kwargs.get('resume_from_checkpoint', None):
-            self.encoder = AdaptiveEncoder(adaptive_gating)
-            ckpt = self.load_from_checkpoint(kwargs['resume_from_checkpoint'], strict=False)
-            self.load_state_dict(ckpt.state_dict())
-            for param in self.decoder.parameters():
-                param.requires_grad_ = False
-        else:
-            self.encoder = AdaptiveEncoder(adaptive_gating)
->>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
 
-    def configure_optimizers(self):
+
+    def create_optimizer(self):
         optimizer_cls = optim.Adam if self.config.optimizer.lower() == 'adam' else optim.RAdam
         optimizer = optimizer_cls(filter(lambda p: p.requires_grad, self.parameters()), lr=self.config.lr)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return {
-            "optimizer": optimizer,
+        return optimizer
+
+
+    def configure_optimizers(self):
+        def warmup(step):
+            """
+            This method will be called for ceil(warmup_batches/accum_grad_batches) times,
+            warmup_steps has been adjusted accordingly
+            """
+            warmup_steps = ceil(self.hparams.warmup_batches/self.hparams.accumulate_grad_batches)
+            if warmup_steps <= 0:
+                factor = 1
+            else:
+                factor = min(step / warmup_steps, 1)
+            return factor
+
+        optimizer_warmup = self.create_optimizer()
+        optimizer_train = self.create_optimizer()
+        scheduler_warmup = torch.optim.lr_scheduler.LambdaLR(optimizer_warmup, warmup)
+        scheduler_train = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_train)
+        return ({
+            "frequency": self.hparams.warmup_batches,
+            "optimizer": optimizer_warmup,
             "lr_scheduler": {
-                "scheduler": scheduler,
+                "scheduler": scheduler_warmup,
+                "frequency": 1,
+                "interval": 'step',
+                "name": 'lr/warmup'
+            },
+        },
+            {
+            "frequency": self.hparams.train_batches - self.hparams.warmup_batches,
+            "optimizer": optimizer_train,
+            "lr_scheduler": {
+                "scheduler": scheduler_train,
                 "monitor": self.hparams.lr_scheduler_monitor,
-                "frequency": self.hparams.lr_scheduler_patience
+                "frequency": self.hparams.lr_scheduler_patience,
+                "name": 'lr/reduce_on_plateau'
                 # If "monitor" references validation metrics, then "frequency" should be set to a
                 # multiple of "trainer.check_val_every_n_epoch".
             },
-        }
+            }
+        )
 
     def setup_losses(self):
         """
@@ -173,7 +196,6 @@ class DepthEstimationModel(BaseModel):
         return plot_minmax, images
 
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
-<<<<<<< HEAD
         self.setup_losses()
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
@@ -183,16 +205,6 @@ class DepthEstimationModel(BaseModel):
             y_hat_depth = self(synth_img)
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
-=======
-        synth_img, synth_label = batch
-        # only final depth map is of interest during validation
-        y_hat = self(synth_img)[-1]
-        metric_dict, _ = self.calculate_metrics(prefix, y_hat, synth_label)
-<<<<<<< HEAD
-        print(metric_dict)
->>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
-=======
->>>>>>> various changes:
         self.log_dict(metric_dict)
         if batch_idx % 20 == 0:
             # do plot on the same images without differing augmentations
