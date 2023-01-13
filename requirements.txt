@@ -1,7 +1,0 @@
-torch
-pytorch_lightning
-matplotlib
-simple_parsing
-omegaconf
-hydra
-blender-stubs

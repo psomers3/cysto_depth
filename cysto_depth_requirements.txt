@@ -1,0 +1,9 @@
+simple_parsing
+omegaconf
+blender-stubs
+debugpy
+torch
+pytorch_lightning
+hydra
+matplotlib
+
