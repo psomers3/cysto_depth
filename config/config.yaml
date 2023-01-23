@@ -1,4 +1,4 @@
-models_dir: /Users/peter/isys/bladder_models
+models_dir: /Users/peter/isys/stl_bladders
 bladder_model_regex: '^(?!.*\._|.*\.DS).*smooth'  # because ignore mac's ._ files...
 camera_intrinsics: spec_files/cam_params.json
 bladder_volume: .0004  # m^3
@@ -6,13 +6,18 @@ output_folder: test/output
 samples_per_model: 100
 distance_range: [0.000, 0.04]
 view_angle_max: [45, 45, 45]
-emission_range: [120, 120]
+emission_range: [200, 200]
 render_normals: true
 clear_output_folder: true
 materials_files:
   - ./blender/bladder_material.blend
 bladder_materials:
   - bladder_wall
+
+bladder_material_config:
+  volume_scatter_density:  1.0
+  volume_scatter_anisotropy: 0.6
+  volume_absorbtion_density: 1.0
 
 resection_loop:
   wire_stl: /Users/peter/isys/resection_loop/tueb_wire.STL
@@ -28,11 +33,12 @@ endo_light:
   euler_rotation: [90, 0, 90]
 
 tumor_particles:
-  stl_file:  /Users/peter/isys/bladder_models/labels-0_bladder_smooth.stl
+  stl_file:  /Users/peter/isys/low_poly_cauliflower.stl
   amount: 50
   volume_max: 0.0000001 #m^3
   scaling_range: [0.1, 1]
   rotation_range: [0, 360]
+  rotation_mode: align_to_surface
 
 diverticulum:
   amount: 1

@@ -115,6 +115,10 @@ class TumorParticleConfig:
     stl_file: str = MISSING
     volume_max: float = 0.1
     scaling_range: List[float] = field(default_factory=lambda: [0.1, 1])
+    rotation_mode: str = 'random'
+    """ Determines how the particle instances are rotated (default: 'random')
+            - 'random': random rotation according to the given rotation_range 
+            - 'align_to_surface': z-axis of particle model is aligned to the normal of the surface"""
     rotation_range: List[float] = field(default_factory=lambda: [0, 360])
     amount: int = 10
 

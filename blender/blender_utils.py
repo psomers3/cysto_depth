@@ -276,6 +276,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
                                  amount: float = 10,
                                  volume_max: float = 0.1,
                                  scaling_range: List[float] = None,
+                                 rotation_mode: str = 'random',
                                  rotation_range: List[float] = None,
                                  collection: bpy.types.Collection = None) \
         -> Tuple[bpy.types.NodeGroup, bpy.types.Object]:
@@ -285,7 +286,10 @@ def add_tumor_particle_nodegroup(stl_file: str,
     :param amount: controls amount of particles added
     :param volume_max: volume of object referenced for the instances
     :param scaling_range: range in which scaling of instances varies
-    :param rotation_range: range in which rotation of instances varies
+    :param rotation_mode: determines how the instances are rotated, default: 'random'
+                            -'random': random rotation, range given by rotation_range
+                            -'align_to_surface': the z-axis of the particle model is aligned to the normal of the surface
+    :param rotation_range: range in which rotation of instances varies, only has effect if
     :return: particle scattering node group
     """
     if scaling_range is None:
@@ -313,6 +317,7 @@ def add_tumor_particle_nodegroup(stl_file: str,
     div = nodes.new('ShaderNodeMath')
     obj_info = nodes.new('GeometryNodeObjectInfo')
     instance_on_points = nodes.new('GeometryNodeInstanceOnPoints')
+    mirror_z_axis = nodes.new('FunctionNodeRotateEuler')
     rotation_vector = nodes.new('FunctionNodeRandomValue')
     scaling_int = nodes.new('FunctionNodeRandomValue')
     join_geo = nodes.new('GeometryNodeJoinGeometry')
@@ -321,6 +326,9 @@ def add_tumor_particle_nodegroup(stl_file: str,
     rotation_vector.data_type = 'FLOAT_VECTOR'
     div.operation = 'DIVIDE'
     div.inputs[0].default_value = amount
+    mirror_z_axis.type = 'EULER'
+    mirror_z_axis.space = 'LOCAL'
+    mirror_z_axis.inputs.data.inputs[1].default_value = (3.141593, 0, 0)
     rotation_vector.inputs.data.inputs['Min'].default_value = [np.deg2rad(rotation_range[0])] * 3
     rotation_vector.inputs.data.inputs['Max'].default_value = [np.deg2rad(rotation_range[1])] * 3
     scaling_int.inputs.data.inputs[2].default_value = scaling_range[0]
@@ -337,7 +345,12 @@ def add_tumor_particle_nodegroup(stl_file: str,
     links.new(points_on_faces.outputs['Points'], instance_on_points.inputs['Points'])
     links.new(scaling_int.outputs[1], instance_on_points.inputs['Scale'])  # 1 ->'Value' single value random float
     # node has no output 0
-    links.new(rotation_vector.outputs['Value'], instance_on_points.inputs['Rotation'])
+    if rotation_mode == 'align_to_surface':
+        links.new(points_on_faces.outputs['Rotation'], mirror_z_axis.inputs['Rotation'])
+        links.new(mirror_z_axis.outputs['Rotation'], instance_on_points.inputs['Rotation'])
+    else:
+        links.new(rotation_vector.outputs['Value'], instance_on_points.inputs['Rotation'])
+
     links.new(instance_on_points.outputs['Instances'], join_geo.inputs['Geometry'])
     links.new(join_geo.outputs['Geometry'], group_out.inputs[0])
     return particle_nodegroup, particle_ref_object
