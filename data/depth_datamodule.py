@@ -28,8 +28,6 @@ class EndoDepthDataModule(FileLoadingDataModule):
         :param workers_per_loader: cpu threads to use for each data loader.
         :param depth_scale_factor: factor to scale the depth values by. Useful for switching between meters and mm.
         """
-        for idx, dir_list in enumerate(data_directories):
-            data_directories[idx] = list(dir_list)
         directories = dict(zip(data_roles, data_directories))
         super().__init__(batch_size, directories, split, workers_per_loader)
         self.save_hyperparameters("batch_size")

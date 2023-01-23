@@ -38,7 +38,7 @@ class ConcatDataset(Dataset):
 class GANDataModule(pl.LightningDataModule):
     def __init__(self,
                  batch_size,
-                 color_image_directory: str,
+                 color_image_directories: list[str],
                  video_directory: str,
                  generate_output_directory: str,
                  generate_data: bool = False,
@@ -51,7 +51,7 @@ class GANDataModule(pl.LightningDataModule):
         TODO: set up to use a configuration for control of all transforms and other hyperparams.
 
         :param batch_size: batch sized to use for training.
-        :param color_image_directory: path to the color images. Will be searched recursively.
+        :param color_image_directories: list of paths to the color images. Will be searched recursively.
         :param video_directory: path to the videos. Will be searched recursively. An optional "video_annotations.csv"
                                 file may exist identifying only scenes of interest within the videos. It should be of
                                 the format:
@@ -68,7 +68,7 @@ class GANDataModule(pl.LightningDataModule):
         :param workers_per_loader: cpu threads to use for each data loader.
         """
         super(GANDataModule, self).__init__()
-        directories = {'synth': color_image_directory, 'real': os.path.join(generate_output_directory)}
+        directories = {'synth': color_image_directories, 'real': [os.path.join(generate_output_directory)]}
         self.output_directories = {'train': os.path.join(generate_output_directory, 'train'),
                                    'val': os.path.join(generate_output_directory, 'validate'),
                                    'test': os.path.join(generate_output_directory, 'test'),
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     real_output = r'../../datasets/gan_data'
     video_dir = r'../../datasets/gan_data'
     dm = GANDataModule(batch_size=3,
-                       color_image_directory=color_dir,
+                       color_image_directories=color_dir,
                        generate_output_directory=real_output,
                        generate_data=False,
                        video_directory=video_dir,
