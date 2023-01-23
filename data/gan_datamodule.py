@@ -194,7 +194,7 @@ if __name__ == '__main__':
     real_output = r'../../datasets/gan_data'
     video_dir = r'../../datasets/gan_data'
     dm = GANDataModule(batch_size=3,
-                       color_image_directory=color_dir,
+                       color_image_directories=color_dir,
                        generate_output_directory=real_output,
                        generate_data=False,
                        video_directory=video_dir,

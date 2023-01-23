@@ -19,10 +19,12 @@ synthetic_config:
       - ../datasets/Particles_diverticulum_no_tool_materials_221215/depth
 
 #    - /Users/peter/isys/output/normal
-  batch_size: 60
-  accumulate_grad_batches: 4
+  batch_size: 64
+  accumulate_grad_batches: 2
+  training_split_file: ../splits/syntetic/training_split.json
   training_split: {'train': .85, 'validate': 0.15, 'test': ".*102_bladder.*"}
   #resume_from_checkpoint: logs/synthetic/lightning_logs/version_0/checkpoints/epoch=11-step=312.ckpt
+  lr: 0.008
   monitor_metric: val_rel_err
   val_check_interval: 1.0
   grad_loss_factor: 1.0
@@ -32,11 +34,16 @@ synthetic_config:
     lr_monitor_interval: step
 
 gan_config:
-  source_images: ../datasets/particles_diverticulum_tool_no_material/output/color
-  synthetic_base_model: logs/synthetic/lightning_logs/version_17/checkpoints/epoch=45-step=506.ckpt
+  max_epochs: 300
+  batch_size: 16
+  val_check_interval: 1.0
+  source_images:
+    - ../datasets/Particles_diverticulum_no_tool_materials_221215/color
+  synthetic_base_model: logs/synthetic/lightning_logs/version_44/checkpoints/epoch=3459-step=51900.ckpt
   generate_data: False
   videos_folder:  ../datasets/gan_data
   image_output_folder: ../datasets/gan_data
+  align_scales: false
 trainer_config:
   gpus: []
   strategy: null

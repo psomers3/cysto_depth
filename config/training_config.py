@@ -158,7 +158,7 @@ class GANTrainingConfig:
     max_epochs: int = 10
     monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
-    val_check_interval: int = 1
+    val_check_interval: Union[int, float] = 1
     """ how many batches before doing validation update """
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
@@ -192,6 +192,8 @@ class GANTrainingConfig:
     residual_transfer: bool = True
     d_max_conf: float = 0.9
     warmup_steps: float = 0
+    align_scales: bool = True
+    """ Use same color scale for all images when plotting """
 
 
 @dataclass

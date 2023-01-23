@@ -144,7 +144,7 @@ def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_sca
                 else:
                     vmin, vmax = minmax
                     vmin = np.clip(vmin, 0, None)
-                    vmax = vmax.cpu().detach().numpy()
+                    vmax = vmax # .cpu().detach().numpy() # is already numpy array
                     vmax = np.clip(vmax, 0, None)
                 cmap = "viridis"
             try:

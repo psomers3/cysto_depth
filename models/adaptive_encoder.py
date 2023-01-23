@@ -28,7 +28,7 @@ class AdaptiveEncoder(VanillaEncoder):
         for param in self.parameters():
             param.requires_grad = False
 
-        self.gate_coefficients = nn.Parameter(torch.zeros(5), requires_grad=self.adaptive_gating, )
+        self.gate_coefficients = nn.Parameter(torch.zeros(5), requires_grad=self.adaptive_gating)
 
         self.res_layer0 = nn.Sequential(convrelu(3, 64, 5, 2, 1, relu=activation, norm=norm, init_zero=init_zero),
                                         convrelu(64, 3, 5, 2, 1, relu=activation, init_zero=init_zero, norm=norm))
