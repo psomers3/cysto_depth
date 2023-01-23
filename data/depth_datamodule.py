@@ -26,8 +26,6 @@ class EndoDepthDataModule(FileLoadingDataModule):
         :param image_size: final `square` image size to return for training.
         :param workers_per_loader: cpu threads to use for each data loader.
         """
-        for idx, dir_list in enumerate(data_directories):
-            data_directories[idx] = list(dir_list)
         directories = dict(zip(data_roles, data_directories))
         super().__init__(batch_size, directories, split, workers_per_loader)
         self.save_hyperparameters("batch_size")

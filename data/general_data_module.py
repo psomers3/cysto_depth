@@ -61,7 +61,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
         self.data_test: ImageDataset = None
 
     @staticmethod
-    def create_file_split(directories: list[dict], split: dict = None, exclusion_regex: str = None):
+    def create_file_split(directories: dict, split: dict = None, exclusion_regex: str = None):
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
         image_files = {
