@@ -86,7 +86,7 @@ class SyntheticTrainingConfig:
     max_epochs: int = 10
     monitor_metric: str = 'val_rmse'
     """ main metric to track for performance """
-    val_check_interval: int = 1
+    val_check_interval: int = 10
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 32
@@ -111,6 +111,9 @@ class SyntheticTrainingConfig:
     """ Whether to turn on adaptive gating for domain adaptation """
     min_depth: float = .5
     """ depth value used to mask normals to zero """
+    merged_decoder: bool = True
+    """ Whether to use a single decoder when predicting normals """
+    inverse_depth: bool = "${../inverse_depth}"
 
 
 @dataclass
@@ -200,3 +203,5 @@ class CystoDepthConfig:
     """ Whether the network should predict normals """
     optimizer: str = 'adam'
     """ What optimizer to use. one of ['adam', 'radam'] """
+    inverse_depth: bool = True
+    """ Whether to predict the inverse of the depth """

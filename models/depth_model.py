@@ -17,8 +17,12 @@ class DepthEstimationModel(BaseModel):
         # automatic learning rate finder sets lr to self.lr, else default
         self.save_hyperparameters(Namespace(**config))
         self.config = config
-        self.depth_decoder = Decoder(output_each_level=True)
-        self.normals_decoder = Decoder(3, output_each_level=False) if config.predict_normals else None
+        num_output_layers = 4 if config.merged_decoder else 1
+        self.depth_decoder = Decoder(num_output_channels=num_output_layers, output_each_level=True)
+        if config.predict_normals and not config.merged_decoder:
+            self.normals_decoder = Decoder(3, output_each_level=False)
+        else:
+            self.normals_decoder = None
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss: CosineSimilarity = None
@@ -42,7 +46,10 @@ class DepthEstimationModel(BaseModel):
         skip_outs, _ = self.encoder(_input)
         depth_out = self.depth_decoder(skip_outs)
         if self.config.predict_normals:
-            normals_out = self.normals_decoder(skip_outs)
+            if self.config.merged_decoder:
+                depth_out, normals_out = [layer[:, 0].unsqueeze(1) for layer in depth_out], depth_out[-1][:, 1:, ...]
+            else:
+                normals_out = self.normals_decoder(skip_outs)
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
                                           torch.zeros((1), device=self.device))
         return depth_out
