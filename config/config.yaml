@@ -34,9 +34,9 @@ endo_light:
 
 tumor_particles:
   stl_file:  /Users/peter/isys/low_poly_cauliflower.stl
-  amount: 50
+  amount: 20
   volume_max: 0.0000001 #m^3
-  scaling_range: [0.1, 1]
+  scaling_range: [0.1, 2]
   rotation_range: [0, 360]
   rotation_mode: align_to_surface
 
