@@ -143,7 +143,7 @@ def blender_rendering():
 
         for material_name in config.bladder_materials:
             butils.update_bladder_material(config.bladder_material_config, material_name)
-            stl_obj.material_slots[0].material = bpy.data.materials[material_name]
+
             # set folder name to render to
             [setattr(output_nodes[i], 'base_path', os.path.join(config.output_folder, lbl, material_name))
              for i, lbl in enumerate(['color', 'depth', 'normals']) if output_nodes[i]]
@@ -197,7 +197,14 @@ def blender_rendering():
                 if args.render:
                     # render per frame so any in-between processing (i.e. normals transformation) can be done.
                     scene.frame_set(frame_number)
+                    stl_obj.material_slots[0].material = bpy.data.materials[material_name]
+                    bpy.context.view_layer.update()
                     bpy.ops.render.render(write_still=True, scene=scene.name)
+                    stl_obj.material_slots[0].material = bpy.data.materials['Material']
+                    bpy.context.view_layer.update()
+                    [setattr(n, 'mute', not n.mute) for n in output_nodes]
+                    bpy.ops.render.render(write_still=True, scene=scene.name)
+                    [setattr(n, 'mute', not n.mute) for n in output_nodes]
                 loop_angle_offset.location = (0, 0, 0)
 
         if not args.sample:

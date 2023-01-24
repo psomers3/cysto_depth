@@ -502,6 +502,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
             aov.name = 'raw_depth'
         links.new(rl.outputs[depth_label], depth_node.inputs['Image'])
         return_list[1] = depth_node
+        depth_node.mute = True
 
     if color:
         # create image output node
@@ -523,6 +524,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
 
         links.new(rl.outputs[normals_label], normal_node.inputs['Image'])
         return_list[2] = normal_node
+        normal_node.mute = True
 
     return return_list
 
