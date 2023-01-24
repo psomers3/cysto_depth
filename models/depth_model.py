@@ -17,7 +17,7 @@ class DepthEstimationModel(BaseModel):
         # automatic learning rate finder sets lr to self.lr, else default
         self.save_hyperparameters(Namespace(**config))
         self.config = config
-        num_output_layers = 4 if config.merged_decoder else 1
+        num_output_layers = 4 if config.merged_decoder and config.predict_normals else 1
         self.depth_decoder = Decoder(num_output_channels=num_output_layers, output_each_level=True)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(3, output_each_level=False)
@@ -83,7 +83,7 @@ class DepthEstimationModel(BaseModel):
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
         else:
-            synth_img, synth_phong, synth_depth = batch
+            synth_img, synth_depth = batch
             y_hat_depth = self(synth_img)
 
         self.setup_losses()
@@ -107,8 +107,9 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
-            normals_regularization_loss = torch.nn.functional.mse_loss(torch.linalg.norm(y_hat_normals, dim=1, keepdim=True),
-                                                                       torch.ones_like(y_hat_depth[-1], device=self.device))
+            normals_regularization_loss = torch.nn.functional.mse_loss(
+                torch.linalg.norm(y_hat_normals, dim=1, keepdim=True),
+                torch.ones_like(y_hat_depth[-1], device=self.device))
             self.log("normals_regularization_loss", normals_regularization_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
@@ -141,7 +142,7 @@ class DepthEstimationModel(BaseModel):
         if predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
         else:
-            synth_img, synth_phong, synth_depth = batch
+            synth_img, synth_depth = batch
         plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
         images = (synth_img.clone()[:max_num_image_samples].cpu(),
                   synth_depth.clone()[:max_num_image_samples].cpu(),

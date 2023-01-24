@@ -113,7 +113,8 @@ class SyntheticTrainingConfig:
     """ depth value used to mask normals to zero """
     merged_decoder: bool = True
     """ Whether to use a single decoder when predicting normals """
-    inverse_depth: bool = "${../inverse_depth}"
+    inverse_depth: bool = "${..inverse_depth}"
+    """ Whether to predict the inverse of the depth """
 
 
 @dataclass
