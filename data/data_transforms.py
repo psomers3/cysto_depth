@@ -1,3 +1,5 @@
+import torchvision.transforms
+
 from utils.image_utils import create_circular_mask
 import numpy as np
 import torch
@@ -98,18 +100,22 @@ class Squarify:
     square image is then resized to the provided dimension.
     """
 
-    def __init__(self, image_size: int = None):
+    def __init__(self, image_size: int = None, clamp_values: bool = False):
         self.image_size = image_size
         self.resize = None
+        self.clamp = clamp_values
         if self.image_size is not None:
-            self.resize = torch_transforms.Resize(self.image_size)
+            self.resize = torch_transforms.Resize(self.image_size,
+                                                  interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         data = torch_transforms.CenterCrop(min(data.shape[-2:]))(data)
         if self.image_size is not None:
             data = self.resize(data)
-        return data
-
+        if self.clamp:
+            return torch.clamp(data, 0.0, 1.0)
+        else:
+            return data
 
 class TensorSlice:
     def __init__(self, torch_slice: tuple):

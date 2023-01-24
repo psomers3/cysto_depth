@@ -18,7 +18,7 @@ class DepthEstimationModel(BaseModel):
         self.save_hyperparameters(Namespace(**config))
         self.config = config
         num_output_layers = 4 if config.merged_decoder and config.predict_normals else 1
-        self.depth_decoder = Decoder(num_output_channels=num_output_layers, output_each_level=True)
+        self.decoder = Decoder(num_output_channels=num_output_layers, output_each_level=True)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
@@ -44,7 +44,7 @@ class DepthEstimationModel(BaseModel):
 
     def forward(self, _input):
         skip_outs, _ = self.encoder(_input)
-        depth_out = self.depth_decoder(skip_outs)
+        depth_out = self.decoder(skip_outs)
         if self.config.predict_normals:
             if self.config.merged_decoder:
                 depth_out, normals_out = [layer[:, 0].unsqueeze(1) for layer in depth_out], depth_out[-1][:, 1:, ...]
