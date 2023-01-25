@@ -8,8 +8,8 @@ from data.general_data_module import FileLoadingDataModule
 class EndoDepthDataModule(FileLoadingDataModule):
     def __init__(self,
                  batch_size,
-                 color_image_directory: str,
-                 depth_image_directory: str,
+                 data_roles: List[str],
+                 data_directories: List[Union[str, List[str]]],
                  split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6,
@@ -21,15 +21,14 @@ class EndoDepthDataModule(FileLoadingDataModule):
         TODO: set up to use a configuration for control of all transforms and other hyperparams.
 
         :param batch_size: batch sized to use for training.
-        :param color_image_directory: path to the color images. Will be searched recursively.
-        :param depth_image_directory: path to the depth images. Will be searched recursively.
+        :param data_directories: paths to the corresponding data roles. Will be searched recursively.
         :param split: see parent class FileLoadingDataModule.
         :param image_size: final `square` image size to return for training.
         :param workers_per_loader: cpu threads to use for each data loader.
         :param depth_scale_factor: factor to scale the depth values by. Useful for switching between meters and mm.
         """
 
-        directories = {'color': color_image_directory, 'depth': depth_image_directory}
+        directories = dict(zip(data_roles, data_directories))
         super().__init__(batch_size, directories, split, workers_per_loader)
         self.save_hyperparameters("batch_size")
         self.image_size = image_size

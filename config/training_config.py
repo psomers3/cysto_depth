@@ -79,7 +79,6 @@ class SyntheticTrainingConfig:
     """ learning rate for optimizer """
     optimizer: str = 'adam'
     """ Which torch optimizer to use. """
-    grad_loss_factor: float = 1.0
     lr_scheduler_patience: int = 10
     lr_scheduler_monitor: str = "val_rmse_log"
     reduce_lr_patience: int = 5
@@ -170,7 +169,6 @@ class GANTrainingConfig:
     residual_transfer: bool = True
     d_max_conf: float = 0.9
     warmup_steps: float = 0
-
 
 
 @dataclass

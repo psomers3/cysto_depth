@@ -5,6 +5,8 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 import re
 import json
+from typing import *
+from omegaconf import ListConfig
 from data.image_dataset import ImageDataset
 
 _mac_regex = re.compile(r'^(?!.*\._|.*\.DS)')
@@ -15,7 +17,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
 
     def __init__(self,
                  batch_size: int,
-                 directories: dict,
+                 directories: Dict[str, Union[List[str], str]],
                  split: dict = None,
                  workers_per_loader: int = 6,
                  exclude_regex: str = None):
@@ -23,9 +25,9 @@ class FileLoadingDataModule(pl.LightningDataModule):
          A Data Module for loading paired files located in different directories. See the split parameter for
          thoughts on how best to set up your data structure for use with this module.
 
-        :param batch_size: batch sized to use for training
-        :param directories: a dictionary with each key-pair as the data role and directory, respectively.\
-                            i.e. {'img': /my/path, 'label': /my/other/path}
+        :param batch_size: batch sized to use for training.
+        :param directories: a dictionary with each key-pair as the data role and directories, respectively.\
+                            i.e. {'img': '/my/path', 'label': ['/my/other/path', '/other/path/2']}
 
         :param split: can be one of the following:
                      - dictionary of regex strings to filter the filenames with:
@@ -62,13 +64,21 @@ class FileLoadingDataModule(pl.LightningDataModule):
         self.data_test: ImageDataset = None
 
     @staticmethod
-    def create_file_split(directories: dict, split: dict = None, exclusion_regex: str = None) -> dict:
+    def create_file_split(directories: Dict[str, Union[List[str], str]],
+                          split: dict = None,
+                          exclusion_regex: str = None) -> Dict[str, List[str]]:
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
-        image_files = {
-            key: [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
-            for key, val in directories.items()
-        }
+        image_files = {}
+        for key, val in directories.items():
+            files = []
+            if isinstance(val, (list, ListConfig)):
+                [files.extend([str(f) for f in Path(img_path).rglob('*') \
+                               if _mac_regex.search(str(f)) and os.path.isfile(f)]) for img_path in val]
+            else:
+                files = [str(f) for f in Path(val).rglob('*') if _mac_regex.search(str(f)) and os.path.isfile(f)]
+            image_files[key] = files
+
         if exclusion_regex is not None:
             exclude_regex = re.compile(exclusion_regex)
             [image_files.update({key: [f for f in image_files[key] if exclude_regex.search(f)]}) for key in

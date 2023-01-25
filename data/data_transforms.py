@@ -117,6 +117,7 @@ class Squarify:
         else:
             return data
 
+
 class TensorSlice:
     def __init__(self, torch_slice: tuple):
         self.slice = torch_slice
