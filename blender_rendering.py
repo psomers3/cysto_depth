@@ -81,6 +81,7 @@ def blender_rendering():
         butils.add_resection_loop(config.resection_loop, collection=endo_collection, parent=loop_angle_offset)
     loop_angle_offset.parent = endo_tip
     loop_angle_offset.rotation_euler = Vector(np.radians([-config.endoscope_angle, 0, 0]))
+    loop_angle_offset.location = Vector([0.0, 0.0, -2.0 * config.resection_loop.scaling_factor])
     trafo = butils.apply_transformations(loop_angle_offset)
     wire_shrinkwrap_constraint = butils.add_shrinkwrap_constraint(wire, config.shrinkwrap_wire)
     # update no-clip-markers and loop_direction_marker
@@ -155,10 +156,14 @@ def blender_rendering():
                     np.asarray(config.view_angle_max))
                 emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
                 # retract resection loop insulation
-                insulation_retraction = np.random.uniform(0,
-                                                          config.resection_loop.max_retraction * \
-                                                          config.resection_loop.scaling_factor)
-                insulation.location = Vector((0, 0, 1)) * insulation_retraction
+                wire_retraction = np.random.uniform(-1 * config.resection_loop.scaling_factor,
+                                                    config.resection_loop.max_retraction * \
+                                                    config.resection_loop.scaling_factor)
+                wire.location = Vector((0, 0, -1)) * wire_retraction
+                insulation_retraction = np.random.uniform(-1 * config.resection_loop.scaling_factor,
+                                                          wire_retraction)
+                insulation.location = Vector((0, 0, -1)) * insulation_retraction
+
                 bpy.context.view_layer.update()
                 camera_euler = random_position.matrix_world.to_euler()
                 camera_direction = np.array([0, 0, 1]) @ camera_euler.to_matrix()
@@ -173,18 +178,19 @@ def blender_rendering():
                 loop_direction = np.reshape(loop_direction_marker[:-1], (1, -1)) @ loop_euler.to_matrix()
                 loop_no_clip_points = np.array(loop_angle_offset.matrix_world) @ loop_no_clip_markers
                 loop_no_clip_points = loop_no_clip_points[:-1]
-                loop_ray_length = []
-                for idx, point in enumerate(np.split(loop_no_clip_points, loop_no_clip_points.shape[1], axis=1)):
-                    loop_ray_length.append(0)
-                    hit, hit_location, _, _ = stl_obj.ray_cast(np.reshape(point, -1), np.reshape(loop_direction, -1))
-                    if hit:
-                        loop_ray_length[idx] = Vector(Vector(point) - hit_location).length
-                loop_angle_offset.location = Vector(loop_direction_marker[:-1]).normalized() * \
-                                             min((config.resection_loop.max_extension *
-                                                  config.resection_loop.scaling_factor) + insulation_retraction,
-                                                 np.random.uniform(0, min(loop_ray_length), size=1))
+                # loop_ray_length = []
+                # for idx, point in enumerate(np.split(loop_no_clip_points, loop_no_clip_points.shape[1], axis=1)):
+                #     loop_ray_length.append(0)
+                #     hit, hit_location, _, _ = stl_obj.ray_cast(np.reshape(point, -1), np.reshape(loop_direction, -1))
+                #     if hit:
+                #         loop_ray_length[idx] = Vector(Vector(point) - hit_location).length
+                # loop_angle_offset.location = Vector(loop_direction_marker[:-1]).normalized() * \
+                #                              min((config.resection_loop.max_extension *
+                #                                   config.resection_loop.scaling_factor) + insulation_retraction,
+                #                                  np.random.uniform(0, min(loop_ray_length), size=1))
 
                 insulation.keyframe_insert(frame=frame_number, data_path='location')
+                wire.keyframe_insert(frame=frame_number, data_path='location')
                 loop_angle_offset.keyframe_insert(frame=frame_number, data_path='location')
                 loop_angle_offset.keyframe_insert(frame=frame_number, data_path='rotation_euler')
                 random_position.keyframe_insert(frame=frame_number, data_path="rotation_euler")

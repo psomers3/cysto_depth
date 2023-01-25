@@ -23,9 +23,12 @@ class DenoiseType:
 class CyclesConfig:
     adaptive_min_samples: int = 64
     adaptive_max_samples: int = 128
+    samples: int = 64
     denoiser: str = DenoiseType.OPENIMAGEDENOISE
+    denoising_prefilter: str = 'FAST'
     device: str = 'GPU'
     device_type: str = 'OPTIX'
+    use_auto_tile: bool = False
 
 
 @dataclass
@@ -141,7 +144,7 @@ class ResectionLoopConfig:
     """ initial scaling """
     euler_rotation: List[float] = field(default_factory=lambda: [90, 0, 0])
     """ initial rotation on load (euler XYZ)"""
-    max_extension: float = 5
+    max_extension: float = 10
     """ maximum distance the wire can be extended from the endoscope """
     extension_direction: List[float] = field(default_factory=lambda: [1.0, 0.0, 0.0])
     """ direction in which the tool is extended in the coordinates of the stl-file"""
