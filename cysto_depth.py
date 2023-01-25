@@ -58,8 +58,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         split = config.gan_config.synth_split if not config.gan_config.training_split_file else \
             config.gan_config.synth_split
         data_module = GANDataModule(batch_size=config.gan_config.batch_size,
-                                    color_image_directory=config.gan_config.source_images,
-                                    video_directory=config.gan_config.videos_folder,
+                                    color_image_directories=config.gan_config.source_images,
+                                    video_directories=config.gan_config.videos_folder,
                                     generate_output_directory=config.gan_config.image_output_folder,
                                     generate_data=config.gan_config.generate_data,
                                     synth_split=split,
