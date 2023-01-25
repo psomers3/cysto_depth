@@ -13,6 +13,7 @@ import re
 import csv
 import json
 from typing import *
+from omegaconf import ListConfig
 
 _video_types = ['.mpg', '.mp4']
 _original_exclusion = re.compile(r'^(?!.*original)')
@@ -101,7 +102,7 @@ class GANDataModule(pl.LightningDataModule):
     def prepare_data(self) -> None:
         if self.generate_data:
             annotations = []
-            if isinstance(self.video_directories, list):
+            if isinstance(self.video_directories, (list, ListConfig)):
                 [annotations.extend([str(f) for f in Path(p).rglob('*') if _annotations_csv.search(str(f))][0]) \
                  for p in self.video_directories]
             else:
