@@ -152,10 +152,10 @@ class GANDataModule(pl.LightningDataModule):
         real, synth = [], []
         for key in keys:
             real.append(ImageDataset(files=real_split[key]['real'],
-                                     transforms=real_transforms if key == 'train' else None,
+                                     transforms=real_transforms if key == 'train' else imagenet_norm,
                                      randomize=True))
             synth.append(ImageDataset(files=synth_split[key]['synth'],
-                                      transforms=synth_transforms if key == 'train' else None,
+                                      transforms=synth_transforms if key == 'train' else imagenet_norm,
                                       randomize=True))
 
         self.data_train = ConcatDataset([synth[0], real[0]])
