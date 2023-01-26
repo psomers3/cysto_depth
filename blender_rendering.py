@@ -201,13 +201,10 @@ def blender_rendering():
                 emission_node.inputs[1].keyframe_insert(frame=frame_number, data_path="default_value")
 
                 if args.render:
-                    # render per frame so any in-between processing (i.e. normals transformation) can be done.
                     scene.frame_set(frame_number)
                     stl_obj.material_slots[0].material = bpy.data.materials[material_name]
-                    bpy.context.view_layer.update()
                     bpy.ops.render.render(write_still=True, scene=scene.name)
                     stl_obj.material_slots[0].material = bpy.data.materials['Material']
-                    bpy.context.view_layer.update()
                     [setattr(n, 'mute', not n.mute) for n in output_nodes]
                     bpy.ops.render.render(write_still=True, scene=scene.name)
                     [setattr(n, 'mute', not n.mute) for n in output_nodes]

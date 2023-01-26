@@ -87,8 +87,8 @@ class ShrinkwrapConfig:
 @dataclass
 class SubdivisionModConfig:
     uv_smooth: str = "PRESERVE_BOUNDARIES"
-    subdivision_type: str = "CATMULL_CLARK"
-    render_levels: int = 3
+    subdivision_type: str = "SIMPLE"
+    render_levels: int = 2
     levels: int = 2
 
 
