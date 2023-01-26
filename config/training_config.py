@@ -120,7 +120,7 @@ class SyntheticTrainingConfig:
 class GANTrainingConfig:
     """ Hyperparameter settings for the domain adaptation GAN training """
 
-    source_images: str = MISSING
+    source_images: List[str] = MISSING
     """ path to synthetically generated images """
     synth_split: dict = field(default_factory=lambda: {'train': .8,
                                                        'validate': .1,
@@ -146,7 +146,7 @@ class GANTrainingConfig:
     """ checkpoint to load weights from """
     generate_data: bool = False
     """ Whether to process the video data folder and generate training images in the image_output_folder """
-    videos_folder: str = MISSING
+    videos_folder: List[str] = MISSING
     """ folder with endoscopic videos """
     image_output_folder: str = MISSING
     """ folder containing (or will contain) the generated real image training data """
