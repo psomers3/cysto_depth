@@ -8,6 +8,20 @@ from torchvision.transforms import functional as torch_transforms_func
 from typing import *
 
 
+class ImageNetNormalization:
+    def __init__(self, inverse: bool = False):
+        if not inverse:
+            self.transform = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        else:
+            self.transform = torch_transforms.Compose([torch_transforms.Normalize(mean=[0., 0., 0.],
+                                                                                  std=[1/0.229, 1/0.224, 1/0.225]),
+                                                       torch_transforms.Normalize(mean=[-0.485, -0.456, -0.406],
+                                                                                  std=[1., 1., 1.]), ])
+
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        return self.transform(data)
+
+
 class SynchronizedTransform:
     """
     A helper class to synchronize pytorch transformations that are randomized to be used in separate transformation

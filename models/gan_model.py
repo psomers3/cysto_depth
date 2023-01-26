@@ -7,6 +7,7 @@ from models.discriminator_img import ImgDiscriminator
 from models.adaptive_encoder import AdaptiveEncoder
 from models.discriminator import Discriminator
 from models.depth_model import DepthEstimationModel
+from data.data_transforms import ImageNetNormalization
 import socket
 from utils.image_utils import generate_heatmap_fig, set_bn_eval, generate_final_imgs
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
@@ -18,26 +19,18 @@ class GAN(BaseModel):
             self,
             synth_config: SyntheticTrainingConfig,
             gan_config: GANTrainingConfig,
-            preadapted_model=None,
             image_gan: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(Namespace(**gan_config))
         synth_config.resume_from_checkpoint = ''
-        depth_model = DepthEstimationModel.load_from_checkpoint(gan_config.synthetic_base_model,
-                                                                strict=False,
-                                                                config=synth_config)
+        self.depth_model = DepthEstimationModel.load_from_checkpoint(gan_config.synthetic_base_model,
+                                                                     strict=False,
+                                                                     config=synth_config)
         self.config = gan_config
-        self.generator = AdaptiveEncoder(gan_config.adaptive_gating) if gan_config.residual_transfer else VanillaEncoder()
-        if preadapted_model:
-            self.generator.load_state_dict(preadapted_model.encoder.state_dict())
-        elif depth_model is not None:
-            self.generator.load_state_dict(depth_model.encoder.state_dict(), strict=False)
-
-        if depth_model is not None:
-            self.depth_model = depth_model
-        else:
-            self.depth_model = DepthEstimationModel(synth_config)
+        self.generator = AdaptiveEncoder(gan_config.adaptive_gating) if gan_config.residual_transfer else \
+            VanillaEncoder()
+        self.generator.load_state_dict(self.depth_model.encoder.state_dict(), strict=False)
         self.depth_model.requires_grad = False
 
         d_in_shapes = [512, 256, 128, 64, 64]
@@ -48,6 +41,7 @@ class GAN(BaseModel):
         self.d_img = ImgDiscriminator(in_shape=1)
         self.d_feat_modules = torch.nn.ModuleList(modules=d_feat_list)
         self.gan = True
+        self.imagenet_denorm = ImageNetNormalization(inverse=True)
 
     def forward(self, z, full_prediction=False):
         if full_prediction:
@@ -158,7 +152,7 @@ class GAN(BaseModel):
         y_hat = self.depth_model.decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
-        plot_tensors = [z]  # img_adapted, img_unapdated, diff]
+        plot_tensors = [self.imagenet_denorm(z)]  # img_adapted, img_unapdated, diff]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
         minmax = []

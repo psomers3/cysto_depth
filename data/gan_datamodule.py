@@ -138,9 +138,10 @@ class GANDataModule(pl.LightningDataModule):
         # EndoDepthDataModule
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0])
+        imagenet_norm = d_transforms.ImageNetNormalization()
         affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
-        synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
-        real_transforms = torch_transforms.Compose([squarify, affine_transform])
+        synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform, imagenet_norm])
+        real_transforms = torch_transforms.Compose([squarify, affine_transform, imagenet_norm])
 
         real_split = FileLoadingDataModule.create_file_split({'real': self.directories['real']},
                                                              exclusion_regex=_failed_exclusion)

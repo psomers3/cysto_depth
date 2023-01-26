@@ -8,7 +8,11 @@ from utils.loss import BerHu, GradientLoss, CosineSimilarity, PhongLoss
 from models.adaptive_encoder import AdaptiveEncoder
 from utils.image_utils import generate_heatmap_fig, generate_normals_fig, generate_img_fig
 from models.decoder import Decoder
+from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
+
+
+imagenet_denorm = ImageNetNormalization(inverse=True)
 
 
 class DepthEstimationModel(BaseModel):
@@ -144,7 +148,7 @@ class DepthEstimationModel(BaseModel):
         else:
             synth_img, synth_depth = batch
         plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
-        images = (synth_img.clone()[:max_num_image_samples].cpu(),
+        images = (imagenet_denorm(synth_img)[:max_num_image_samples].cpu(),
                   synth_depth.clone()[:max_num_image_samples].cpu(),
                   synth_normals.clone()[:max_num_image_samples].cpu() if
                   predict_normals else None,

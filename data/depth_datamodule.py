@@ -41,7 +41,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
             :param stage: one of 'train', 'val', 'test'
         """
         num_synchros = 2
-        # normalize = torch_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # imagenet
+
+        normalize = d_transforms.ImageNetNormalization()
         img_squarify = d_transforms.Squarify(image_size=self.image_size, clamp_values=True)
         depth_squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
@@ -53,7 +54,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         to_mm = d_transforms.ElementWiseScale(self.scale_factor)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
-        color_transforms = torch_transforms.Compose([color_jitter, mask, img_squarify, affine_transform])
+        color_transforms = torch_transforms.Compose([color_jitter,
+                                                     mask, img_squarify, affine_transform, normalize])
         depth_transforms = torch_transforms.Compose([channel_slice, to_mm, mask, depth_squarify, affine_transform])
         transforms = [color_transforms, depth_transforms]
         return transforms
