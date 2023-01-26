@@ -173,7 +173,7 @@ class GAN(BaseModel):
         y_hat = self.depth_model.decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
-        plot_tensors = [z]  # img_adapted, img_unapdated, diff]
+        plot_tensors = [self.imagenet_denorm(z)]  # img_adapted, img_unapdated, diff]
         # no labels for test step for the thesis
         labels = ["", "", "", ""]
         centers = [None, None, None, 0]
