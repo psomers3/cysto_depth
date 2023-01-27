@@ -31,4 +31,6 @@ if __name__ == '__main__':
     for sub_dir in sub_directories:
         for diff in differences:
             if diff in files[sub_dir]:
+                print(f'deleting: {sub_dir}/{diff}')
                 next(Path(str(Path(directory, sub_dir))).rglob(f'{diff}*')).unlink()
+
