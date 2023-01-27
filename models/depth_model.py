@@ -125,7 +125,7 @@ class DepthEstimationModel(BaseModel):
                normals_regularization_loss
         self.log("training_loss", loss)
 
-        if batch_idx % 10 == 0:
+        if batch_idx % 200 == 0:
             if self.test_images is None:
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
