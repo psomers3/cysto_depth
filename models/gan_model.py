@@ -9,7 +9,7 @@ from models.discriminator import Discriminator
 from models.depth_model import DepthEstimationModel
 from data.data_transforms import ImageNetNormalization
 import socket
-from utils.image_utils import generate_heatmap_fig, set_bn_eval, generate_final_imgs
+from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_final_imgs
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
 from argparse import Namespace
 
@@ -42,6 +42,8 @@ class GAN(BaseModel):
         self.d_feat_modules = torch.nn.ModuleList(modules=d_feat_list)
         self.gan = True
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
+        self.depth_model.apply(freeze_batchnorm)
+        self.generator.apply(freeze_batchnorm)
 
     def forward(self, z, full_prediction=False):
         if full_prediction:
@@ -55,14 +57,8 @@ class GAN(BaseModel):
         return F.binary_cross_entropy(y_hat, y)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        self.depth_model.apply(set_bn_eval)
-        self.generator.apply(set_bn_eval)
-
         # x = synthetic image, z = real image
         x, z = batch
-        # if self.global_step == 0:
-        #     self.logger.experiment.add_graph(self.generator, z)
-        # train generator
         if optimizer_idx == 0 and self.global_step >= self.config.warmup_steps:
             # output of encoder when evaluating a real image
             encoder_outs, encoder_mare_outs = self.generator(z)
@@ -72,11 +68,10 @@ class GAN(BaseModel):
 
             # compare output levels to make sure they produce roughly the same output
             if self.config.residual_transfer:
-                residual_loss = torch.mean(torch.stack(
-                    encoder_mare_outs))  # torch.mean(torch.stack([torch.mean(torch.abs(tensor)) for tensor in encoder_res_outs]))
+                residual_loss = torch.mean(torch.stack(encoder_mare_outs))
             else:
                 residual_loss = torch.tensor([0]).type_as(z)
-            scale_loss = 0  # torch.sum(torch.stack([F.l1_loss(out,scaled_target) for out,scaled_target in zip(l_x,decoder_outs_synth[0:4])]))
+            scale_loss = 0
             # actual output of the discriminator
             g_losses_feat = []
             feat_outs = encoder_outs[::-1][:len(self.d_feat_modules)]

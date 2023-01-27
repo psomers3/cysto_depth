@@ -42,7 +42,7 @@ def lin_interp(shape, xyd):
     return disparity
 
 
-def set_bn_eval(m):
+def freeze_batchnorm(m):
     if isinstance(m, nn.modules.batchnorm._BatchNorm):
         m.eval()
 
