@@ -52,7 +52,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               workers_per_loader=config.num_workers,
                                               depth_scale_factor=1e3,
                                               inverse_depth=config.inverse_depth,
-                                              memorize_check=True)
+                                              memorize_check=False)
         model = DepthEstimationModel(config.synthetic_config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
