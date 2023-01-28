@@ -3,6 +3,23 @@ from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
+from torch.utils.data import Dataset
+
+
+class MemorizeCheck(Dataset):
+    def __init__(self, batch, length):
+        self.batch = batch
+        self.length = length
+        self.i = 0
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        if self.i == len(self.batch):
+            self.i = 0
+        self.i += 1
+        return self.batch[0][self.i - 1], self.batch[1][self.i - 1]
 
 
 class EndoDepthDataModule(FileLoadingDataModule):
@@ -14,7 +31,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
                  image_size: int = 256,
                  workers_per_loader: int = 6,
                  depth_scale_factor: float = 1e3,
-                 inverse_depth: bool = False):
+                 inverse_depth: bool = False,
+                 memorize_check: bool = False):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -27,7 +45,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
         :param image_size: final `square` image size to return for training.
         :param workers_per_loader: cpu threads to use for each data loader.
         :param depth_scale_factor: factor to scale the depth values by. Useful for switching between meters and mm.
-        :param inverse_depth: whether to invert the depth values (inf depth = 0)  TODO: implement...
+        :param inverse_depth: whether to invert the depth values (inf depth = 0).
+        :param memorize_check: when true, will keep returning the same batch over and over.
         """
 
         directories = dict(zip(data_roles, data_directories))
@@ -36,6 +55,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.image_size = image_size
         self.scale_factor = depth_scale_factor
         self.invert_depth = inverse_depth
+        self.memorize_check = memorize_check
 
     def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
@@ -81,6 +101,10 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.data_test = ImageDataset(files=list(zip(*self.split_files['test'].values())),
                                       transforms=self.get_transforms('test'))
 
+        if self.memorize_check:
+            dl = self.train_dataloader()
+            self.data_train = MemorizeCheck(next(iter(dl)), len(self.data_train))
+
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
@@ -94,9 +118,13 @@ if __name__ == '__main__':
                              data_roles=['color', 'depth'],
                              data_directories=[color_dir, depth_dir],
                              split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"},
-                             inverse_depth=True)
+                             inverse_depth=True,
+                             memorize_check=True)
     dm.setup('fit')
     loader = dm.train_dataloader()
+    samples = next(iter(loader))
+    samples[0] = denorm(samples[0])
+    matplotlib_show(*samples)
     samples = next(iter(loader))
     samples[0] = denorm(samples[0])
     matplotlib_show(*samples)
