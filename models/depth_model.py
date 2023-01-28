@@ -22,12 +22,14 @@ class DepthEstimationModel(BaseModel):
         self.save_hyperparameters(Namespace(**config))
         self.config = config
         num_output_layers = 4 if config.merged_decoder and config.predict_normals else 1
-        self.decoder = Decoder(num_output_channels=num_output_layers, output_each_level=True)
+        self.decoder = Decoder(num_output_channels=num_output_layers,
+                               output_each_level=True,
+                               inverted_depth=config.inverse_depth)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
             self.normals_decoder = None
-        self.berhu = BerHu()
+        self.berhu = BerHu(threshold=1e-4 if config.inverse_depth else 0.2)
         self.gradient_loss = GradientLoss()
         self.normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None

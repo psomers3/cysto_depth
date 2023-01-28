@@ -88,8 +88,8 @@ if __name__ == '__main__':
     from data_transforms import ImageNetNormalization
 
     denorm = ImageNetNormalization(inverse=True)
-    color_dir = r'/Users/peter/isys/output/color'
-    depth_dir = r'/Users/peter/isys/output/depth'
+    color_dir = r'/Users/peter/isys/2023_01_25/color'
+    depth_dir = r'/Users/peter/isys/2023_01_25/depth'
     dm = EndoDepthDataModule(batch_size=3,
                              data_roles=['color', 'depth'],
                              data_directories=[color_dir, depth_dir],
