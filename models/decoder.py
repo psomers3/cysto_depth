@@ -58,7 +58,7 @@ class Decoder(torch.nn.Module):
         self.conv_original_size2 = convrelu(128, 64, 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         self.conv_last = nn.Conv2d(64, num_output_channels, 1)
-        self.depth_sigmoid = nn.Sigmoid() if inverted_depth else None
+        self.depth_sigmoid = None  # nn.Sigmoid() if inverted_depth else None
 
     def forward(self, _input):
         x_original, layer0, layer1, layer2, layer3, layer4 = _input
