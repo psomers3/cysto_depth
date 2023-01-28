@@ -13,7 +13,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
                  split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6,
-                 depth_scale_factor: float = 1e3):
+                 depth_scale_factor: float = 1e3,
+                 inverse_depth: bool = False):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -26,6 +27,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         :param image_size: final `square` image size to return for training.
         :param workers_per_loader: cpu threads to use for each data loader.
         :param depth_scale_factor: factor to scale the depth values by. Useful for switching between meters and mm.
+        :param inverse_depth: whether to invert the depth values (inf depth = 0)  TODO: implement...
         """
 
         directories = dict(zip(data_roles, data_directories))
@@ -33,10 +35,10 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.save_hyperparameters("batch_size")
         self.image_size = image_size
         self.scale_factor = depth_scale_factor
+        self.invert_depth = inverse_depth
 
     def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
-            TODO: don't apply random augmentations to validation and test transforms
 
             :param stage: one of 'train', 'val', 'test'
         """
@@ -54,10 +56,18 @@ class EndoDepthDataModule(FileLoadingDataModule):
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         to_mm = d_transforms.ElementWiseScale(self.scale_factor)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
-        color_transforms = torch_transforms.Compose([color_jitter,
-                                                     mask, img_squarify, affine_transform, normalize])
-        depth_transforms = torch_transforms.Compose([channel_slice, to_mm, mask, depth_squarify, affine_transform])
-        transforms = [color_transforms, depth_transforms]
+        depth_transforms = [channel_slice, to_mm, mask, depth_squarify]
+        color_transforms = [mask, img_squarify]
+
+        if stage.lower() == 'train':
+            depth_transforms.append(affine_transform)
+            color_transforms.insert(0, color_jitter)
+            color_transforms.append(affine_transform)
+        color_transforms.append(normalize)
+
+        composed_color_transforms = torch_transforms.Compose(color_transforms)
+        composed_depth_transforms = torch_transforms.Compose(depth_transforms)
+        transforms = [composed_color_transforms, composed_depth_transforms]
         return transforms
 
     def setup(self, stage: str = None):
@@ -76,8 +86,8 @@ if __name__ == '__main__':
     color_dir = r'/Users/peter/isys/output/color'
     depth_dir = r'/Users/peter/isys/output/depth'
     dm = EndoDepthDataModule(batch_size=3,
-                             color_image_directory=color_dir,
-                             depth_image_directory=color_dir,
+                             data_roles=['color', 'depth'],
+                             data_directories=[color_dir, depth_dir],
                              split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"})
     dm.setup('fit')
     loader = dm.train_dataloader()
