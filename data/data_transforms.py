@@ -13,7 +13,7 @@ class DepthInvert:
         pass
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        inverted = data.pow_(-1)  # element-wise
+        inverted = (data + 1e-5).pow_(-1)  # element-wise
         return inverted
 
 
