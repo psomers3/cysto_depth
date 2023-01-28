@@ -37,7 +37,7 @@ class DepthEstimationModel(BaseModel):
         self.plot_minmax_val = None
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
-        self.encoder = AdaptiveEncoder(config.adaptive_gating)
+        self.encoder = AdaptiveEncoder(config.adaptive_gating, config.load_imagenet_weights)
         if config.resume_from_checkpoint:
             path_to_ckpt = config.resume_from_checkpoint
             config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs

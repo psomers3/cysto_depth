@@ -7,13 +7,16 @@ import torch
 
 
 class AdaptiveEncoder(VanillaEncoder):
-    def __init__(self, adaptive_gating=False):
+    def __init__(self,
+                 adaptive_gating: bool = False,
+                 use_image_net_weights: bool = False):
         """
 
         :param adaptive_gating: whether to add the resnet blocks for adaptive transfer learning. If false,
                                 behaves as a normal vanilla encoder.
+        :param use_image_net_weights: whether to initialize with imagenet weights
         """
-        super().__init__()
+        super().__init__(imagenet_weights=use_image_net_weights)
         init_zero = False
         activation = "leaky"
         norm = 'batch'

@@ -113,7 +113,9 @@ class SyntheticTrainingConfig:
     merged_decoder: bool = True
     """ Whether to use a single decoder when predicting normals """
     inverse_depth: bool = "${..inverse_depth}"
-    """ Whether to predict the inverse of the depth """
+    """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
+    load_imagenet_weights: bool = False
+    """ Whether to initialize the encoder with weights from ImageNet """
 
 
 @dataclass
