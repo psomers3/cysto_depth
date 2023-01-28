@@ -57,6 +57,9 @@ class EndoDepthDataModule(FileLoadingDataModule):
         to_mm = d_transforms.ElementWiseScale(self.scale_factor)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         depth_transforms = [channel_slice, to_mm, mask, depth_squarify]
+        if self.invert_depth:
+            depth_transforms.insert(2, d_transforms.DepthInvert())
+
         color_transforms = [mask, img_squarify]
 
         if stage.lower() == 'train':
@@ -82,14 +85,19 @@ class EndoDepthDataModule(FileLoadingDataModule):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
+    from data_transforms import ImageNetNormalization
 
+    denorm = ImageNetNormalization(inverse=True)
     color_dir = r'/Users/peter/isys/output/color'
     depth_dir = r'/Users/peter/isys/output/depth'
     dm = EndoDepthDataModule(batch_size=3,
                              data_roles=['color', 'depth'],
                              data_directories=[color_dir, depth_dir],
-                             split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"})
+                             split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"},
+                             inverse_depth=True)
     dm.setup('fit')
     loader = dm.train_dataloader()
-    matplotlib_show(*next(iter(loader)))
+    samples = next(iter(loader))
+    samples[0] = denorm(samples[0])
+    matplotlib_show(*samples)
     plt.show(block=True)

@@ -8,6 +8,15 @@ from torchvision.transforms import functional as torch_transforms_func
 from typing import *
 
 
+class DepthInvert:
+    def __init__(self):
+        pass
+
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        inverted = data.pow_(-1)  # element-wise
+        return inverted
+
+
 class ImageNetNormalization:
     def __init__(self, inverse: bool = False):
         if not inverse:
