@@ -29,7 +29,7 @@ class DepthEstimationModel(BaseModel):
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
             self.normals_decoder = None
-        self.berhu = BerHu(threshold=1e-4 if config.inverse_depth else 0.2)
+        self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None

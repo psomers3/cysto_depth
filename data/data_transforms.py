@@ -9,12 +9,12 @@ from typing import *
 
 
 class DepthInvert:
-    def __init__(self):
-        pass
+    def __init__(self, min_depth: float = 0.5):
+        self.clamp_max = 1 / min_depth
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         inverted = (data + 1e-5).pow_(-1)  # element-wise
-        return inverted
+        return torch.clamp(inverted, 0, self.clamp_max)
 
 
 class ImageNetNormalization:
