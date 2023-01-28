@@ -41,7 +41,7 @@ class BerHu(nn.Module):
         part2 = part2 / (2. * delta)
 
         loss = part1 + part2
-        loss = torch.sum(loss)
+        loss = torch.mean(loss)
         return loss
 
 
