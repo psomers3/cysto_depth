@@ -137,17 +137,12 @@ class GAN(BaseModel):
                 self.log("d_loss", self.accum_dlosses)
             return d_loss
 
-    # def on_before_optimizer_step(self, optimizer, optimizer_idx):
-    #     # if self.global_step == 600 or self.global_step == 1200:
-    #     #     for g in optimizer.param_groups:
-    #     #         g['lr'] = g['lr']/10
-
     def validation_step(self, batch, batch_idx):
         x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
-        plot_tensors = [self.imagenet_denorm(z)]  # img_adapted, img_unapdated, diff]
+        plot_tensors = [self.imagenet_denorm(z)]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
         minmax = []
@@ -168,8 +163,8 @@ class GAN(BaseModel):
         y_hat = self.depth_model.decoder(self.generator(z)[0])
         img_unapdated = self.depth_model(z)[-1]
         img_adapted = y_hat[-1]
-        plot_tensors = [self.imagenet_denorm(z)]  # img_adapted, img_unapdated, diff]
-        # no labels for test step for the thesis
+        plot_tensors = [self.imagenet_denorm(z)]
+        # no labels for test step
         labels = ["", "", "", ""]
         centers = [None, None, None, 0]
         minmax = []

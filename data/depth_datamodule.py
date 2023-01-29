@@ -32,7 +32,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
                  workers_per_loader: int = 6,
                  depth_scale_factor: float = 1e3,
                  inverse_depth: bool = False,
-                 memorize_check: bool = False):
+                 memorize_check: bool = False,
+                 add_random_blur: bool = False):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -56,6 +57,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.scale_factor = depth_scale_factor
         self.invert_depth = inverse_depth
         self.memorize_check = memorize_check
+        self.add_random_blur = add_random_blur
 
     def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
@@ -68,7 +70,10 @@ class EndoDepthDataModule(FileLoadingDataModule):
         img_squarify = d_transforms.Squarify(image_size=self.image_size, clamp_values=True)
         depth_squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
-                                                  num_synchros=num_synchros, additional_args=[[None], [0], [0]])
+                                                  num_synchros=num_synchros,
+                                                  additional_args=[[None, self.add_random_blur],
+                                                                   [0],
+                                                                   [0]])
         affine_transform = d_transforms.SynchronizedTransform(transform=d_transforms.RandomAffine(degrees=(0, 360),
                                                                                                   translate=(.1, .1)),
                                                               num_synchros=num_synchros, additional_args=[[True],
@@ -119,7 +124,7 @@ if __name__ == '__main__':
                              data_directories=[color_dir, depth_dir],
                              split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"},
                              inverse_depth=True,
-                             memorize_check=True)
+                             memorize_check=False)
     dm.setup('fit')
     loader = dm.train_dataloader()
     samples = next(iter(loader))

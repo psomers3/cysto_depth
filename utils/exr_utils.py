@@ -125,7 +125,7 @@ def crop_img_opencv(img, size=256):
     return cv2.resize(img_square, (size, size))
 
 
-def create_circular_mask(h, w, center=None, radius=None):
+def create_circular_mask(h, w, center=None, radius=None) -> np.ndarray:
     """ https://stackoverflow.com/a/44874588 """
     if center is None:  # use the middle of the image
         center = (int(w / 2), int(h / 2))

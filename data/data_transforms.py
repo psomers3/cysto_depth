@@ -90,7 +90,10 @@ class EndoMask:
 
     def __init__(self,
                  mask_color: Union[float, List[float]] = None,
-                 radius_factor: Union[float, List[float]] = 1.0):
+                 radius_factor: Union[float, List[float]] = 1.0,
+                 blur_kernel_range: Tuple[int, int] = (51, 81),
+                 blur_sigma: float = 30
+                 ):
         """
         :param mask_color: color to use for mask. If left as none, a randomized dark color is used per image.
         :param radius_factor: the circle radius will be made to this factor of 1/2 the minimum image dimension. If  a
@@ -98,8 +101,13 @@ class EndoMask:
         """
         self.mask_color = mask_color
         self.radius_factor = radius_factor
+        self.blur_kernel_range = blur_kernel_range
+        self.blur_sigma = blur_sigma
 
-    def __call__(self, data: torch.Tensor, mask_color: Any = None) -> torch.Tensor:
+    def __call__(self,
+                 data: torch.Tensor,
+                 mask_color: Any = None,
+                 blur: bool = False) -> torch.Tensor:
         randomized_color = torch.rand((3, 1), dtype=torch.float) / 10
         randomized_radius = torch.rand(1, dtype=torch.float).numpy()
 
@@ -112,8 +120,19 @@ class EndoMask:
             radius = self.radius_factor
         else:
             radius = (self.radius_factor[1] - self.radius_factor[0]) * randomized_radius + self.radius_factor[0]
+        mask = create_circular_mask(*data.shape[-2:], invert=True, radius_scale=radius)
+        data[:, mask] = mask_color
 
-        data[:, create_circular_mask(*data.shape[-2:], invert=True, radius_scale=radius)] = mask_color
+        if blur and torch.rand(1) > 0.5:
+            invert_mask = torch.Tensor(1 - mask)
+            kernel_size = int((torch.randint(*self.blur_kernel_range, (1,)).numpy()[0] // 2) * 2 + 1)
+            pad_size = int((kernel_size // 2 + 1))
+            invert_mask = torch.nn.functional.pad(invert_mask[None], [pad_size] * 4, mode='constant', value=0)
+            blurred_mask = torch_transforms_func.gaussian_blur(invert_mask, kernel_size=kernel_size, sigma=self.blur_sigma)
+            blurred_mask = blurred_mask[:, pad_size:-pad_size, pad_size:-pad_size]
+            invert_mask = invert_mask[:, pad_size:-pad_size, pad_size:-pad_size]
+            data = data - 1 + blurred_mask * invert_mask
+
         return data
 
 

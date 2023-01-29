@@ -120,6 +120,8 @@ class SyntheticTrainingConfig:
     """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
     load_imagenet_weights: bool = False
     """ Whether to initialize the encoder with weights from ImageNet """
+    add_mask_blur: bool = "${..add_mask_blur}"
+    """ Whether to add random gaussian blur to the edge of the circular mask """
 
 
 @dataclass
@@ -210,3 +212,5 @@ class CystoDepthConfig:
     """ What optimizer to use. one of ['adam', 'radam'] """
     inverse_depth: bool = True
     """ Whether to predict the inverse of the depth """
+    add_mask_blur: bool = False
+    """ Whether to add random gaussian blur to the edge of the circular mask """
