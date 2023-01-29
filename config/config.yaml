@@ -63,7 +63,7 @@ blender:
   unit_settings:
     length_unit: "MILLIMETERS"
   render:
-    resolution_percentage: 60
+    resolution_percentage: 25
     image_settings:
       color_mode: 'RGB'
     engine: 'CYCLES'
