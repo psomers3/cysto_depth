@@ -35,6 +35,8 @@ class DepthEstimationModel(BaseModel):
         self.phong_loss: PhongLoss = None
         self.validation_images = None
         self.test_images = None
+        self.train_denorm_color_images = None
+        self.val_denorm_color_images = None
         self.plot_minmax_train = None
         self.plot_minmax_val = None
         self.max_num_image_samples = 7
@@ -131,6 +133,7 @@ class DepthEstimationModel(BaseModel):
             if self.test_images is None:
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
+                self.train_denorm_color_images = imagenet_denorm(self.test_images[0])
             self.plot(prefix="train")
         return loss
 
@@ -150,7 +153,7 @@ class DepthEstimationModel(BaseModel):
         else:
             synth_img, synth_depth = batch
         plot_minmax = [[None, (0, img.max().cpu()), (0, img.max().cpu())] for img in synth_depth]
-        images = (imagenet_denorm(synth_img)[:max_num_image_samples].cpu(),
+        images = (synth_img.clone()[:max_num_image_samples].cpu(),
                   synth_depth.clone()[:max_num_image_samples].cpu(),
                   synth_normals.clone()[:max_num_image_samples].cpu() if
                   predict_normals else None,
@@ -174,6 +177,7 @@ class DepthEstimationModel(BaseModel):
             if self.validation_images is None:
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
+                self.val_denorm_color_images = imagenet_denorm(self.validation_images[0])
             self.plot(prefix)
         return metric_dict
 
@@ -193,9 +197,11 @@ class DepthEstimationModel(BaseModel):
             if prefix == 'val':
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
                 minmax = self.plot_minmax_val
+                denormed_synth_imgs = self.val_denorm_color_images
             else:
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.test_images
                 minmax = self.plot_minmax_train
+                denormed_synth_imgs = self.train_denorm_color_images
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
@@ -203,16 +209,16 @@ class DepthEstimationModel(BaseModel):
                 y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1)
                 y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
                     1].cpu()
-                self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
+                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), synth_normals),
                                       prefix=f'{prefix}-synth-normals',
                                       labels=["Synth Image", "Predicted", "Ground Truth"])
-                self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
+                self.gen_phong_plots(zip(denormed_synth_imgs, y_phong, synth_phong),
                                      prefix=f'{prefix}-synth-phong',
                                      labels=["Synth Image", "Predicted", "Ground Truth"])
             else:
                 y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
-            self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
+            self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth.cpu(), synth_depths),
                                  f"{prefix}-synth-depth",
                                  labels=["Synth Image", "Predicted", "Ground Truth"],
                                  minmax=minmax)
