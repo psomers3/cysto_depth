@@ -17,6 +17,10 @@ class TrainerDictConfig:
     """ leave default even for 1 node because matplotlib is used during training """
     log_every_n_steps: int = 50
     """ how often to log during training """
+    gradient_clip_val: float = 0.0
+    """ value for gradient clipping during training. Defaults to no clipping. """
+    gradient_clip_algorithm: str = 'norm'
+    """ type of gradient clipping to do. Either 'value' or 'norm' """
 
 
 @dataclass
@@ -77,8 +81,8 @@ class SyntheticTrainingConfig:
     """ An existing training split json file. If not empty, will be used instead of training_split """
     lr: float = 1e-3
     """ learning rate for optimizer """
-    optimizer: str = 'adam'
-    """ Which torch optimizer to use. """
+    optimizer: str = 'radam'
+    """ Which torch optimizer to use. ['adam', 'radam'] """
     lr_scheduler_patience: int = 10
     lr_scheduler_monitor: str = "val_rmse_log"
     reduce_lr_patience: int = 5

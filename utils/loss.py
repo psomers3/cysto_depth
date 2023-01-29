@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
 import data.data_transforms as d_transforms
-from utils.metrics import SILog
+# from utils.metrics import SILog
 from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
 from typing import *
@@ -54,7 +54,7 @@ class GradientLoss(nn.Module):
         self.conv1.weight = nn.Parameter(torch.from_numpy(a).float().unsqueeze(0).unsqueeze(0))
         self.conv2 = nn.Conv2d(1, 1, kernel_size=3, stride=1, padding=1, bias=False)
         self.conv2.weight = nn.Parameter(torch.from_numpy(b).float().unsqueeze(0).unsqueeze(0))
-        self.silog = SILog()
+        # self.silog = SILog()
 
     def forward(self, predicted, target):
         if not predicted.shape == target.shape:
@@ -64,7 +64,7 @@ class GradientLoss(nn.Module):
         t_x, t_y = self.get_gradient(target)
         dy = p_y - t_y
         dx = p_x - t_x
-        si_loss = self.silog(predicted, target)
+        # si_loss = self.silog(predicted, target)
         grad_loss = torch.mean(torch.pow(dx, 2) + torch.pow(dy, 2))
         return grad_loss
 
