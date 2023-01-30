@@ -78,7 +78,7 @@ class DepthEstimationModel(BaseModel):
             This method will be called for ceil(warmup_batches/accum_grad_batches) times,
             warmup_steps has been adjusted accordingly
             """
-            warmup_steps = ceil(self.hparams.warmup_batches/self.hparams.accumulate_grad_batches)
+            warmup_steps = ceil(self.config.warmup_batches/self.config.accumulate_grad_batches)
             if warmup_steps <= 0:
                 factor = 1
             else:
@@ -88,9 +88,11 @@ class DepthEstimationModel(BaseModel):
         optimizer_warmup = self.create_optimizer()
         optimizer_train = self.create_optimizer()
         scheduler_warmup = torch.optim.lr_scheduler.LambdaLR(optimizer_warmup, warmup)
-        scheduler_train = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_train)
+        scheduler_train = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_train,
+                                                                     patience=self.config.reduce_lr_patience,
+                                                                     min_lr=self.config.reduce_lr_min)
         return ({
-            "frequency": self.hparams.warmup_batches,
+            "frequency": self.config.warmup_batches,
             "optimizer": optimizer_warmup,
             "lr_scheduler": {
                 "scheduler": scheduler_warmup,
@@ -100,12 +102,12 @@ class DepthEstimationModel(BaseModel):
             },
         },
             {
-            "frequency": self.hparams.train_batches - self.hparams.warmup_batches,
+            "frequency": self.config.train_batches - self.config.warmup_batches,
             "optimizer": optimizer_train,
             "lr_scheduler": {
                 "scheduler": scheduler_train,
-                "monitor": self.hparams.lr_scheduler_monitor,
-                "frequency": self.hparams.lr_scheduler_patience,
+                "monitor": self.config.lr_scheduler_monitor,
+                "frequency": self.config.lr_scheduler_patience,
                 "name": 'lr/reduce_on_plateau'
                 # If "monitor" references validation metrics, then "frequency" should be set to a
                 # multiple of "trainer.check_val_every_n_epoch".
@@ -122,7 +124,7 @@ class DepthEstimationModel(BaseModel):
                                         device=self.device)
             self.normals_loss = CosineSimilarity(device=self.device)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx):
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
             y_hat_depth, y_hat_normals = self(synth_img)
