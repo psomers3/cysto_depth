@@ -75,22 +75,23 @@ def blender_rendering():
     tumor.material_slots[0].link = 'OBJECT'
     diverticulum_nodes = butils.add_diverticulum_nodegroup(**config.diverticulum)
 
-    # add resection loop
-    loop_angle_offset = bpy.data.objects.new('endo_angle', None)
-    resection_loop, wire, insulation, loop_direction_marker, loop_no_clip_markers = \
-        butils.add_resection_loop(config.resection_loop, collection=endo_collection, parent=loop_angle_offset)
-    loop_angle_offset.parent = endo_tip
-    loop_angle_offset.rotation_euler = Vector(np.radians([-config.endoscope_angle, 0, 0]))
-    loop_angle_offset.location = Vector([0.0, 0.0, -2.0 * config.resection_loop.scaling_factor])
-    trafo = butils.apply_transformations(loop_angle_offset)
-    wire_shrinkwrap_constraint = butils.add_shrinkwrap_constraint(wire, config.shrinkwrap_wire)
-    # update no-clip-markers and loop_direction_marker
-    loop_direction_marker = np.array(trafo) @ loop_direction_marker
-    loop_no_clip_markers = np.array(trafo) @ loop_no_clip_markers
-    endo_collection.objects.link(loop_angle_offset)
-    insulation.data.materials.append(None)
-    insulation.material_slots[0].link = 'OBJECT'
-    insulation.material_slots[0].material = bpy.data.materials['insulation']
+    if config.with_tool:
+        # add resection loop
+        loop_angle_offset = bpy.data.objects.new('endo_angle', None)
+        resection_loop, wire, insulation, loop_direction_marker, loop_no_clip_markers = \
+            butils.add_resection_loop(config.resection_loop, collection=endo_collection, parent=loop_angle_offset)
+        loop_angle_offset.parent = endo_tip
+        loop_angle_offset.rotation_euler = Vector(np.radians([-config.endoscope_angle, 0, 0]))
+        loop_angle_offset.location = Vector([0.0, 0.0, -2.0 * config.resection_loop.scaling_factor])
+        trafo = butils.apply_transformations(loop_angle_offset)
+        wire_shrinkwrap_constraint = butils.add_shrinkwrap_constraint(wire, config.shrinkwrap_wire)
+        # update no-clip-markers and loop_direction_marker
+        loop_direction_marker = np.array(trafo) @ loop_direction_marker
+        loop_no_clip_markers = np.array(trafo) @ loop_no_clip_markers
+        endo_collection.objects.link(loop_angle_offset)
+        insulation.data.materials.append(None)
+        insulation.material_slots[0].link = 'OBJECT'
+        insulation.material_slots[0].material = bpy.data.materials['insulation']
 
     # add light surface
     light, emission_node = butils.add_surface_lighting(**config.endo_light,
@@ -123,7 +124,8 @@ def blender_rendering():
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection, flip_normals=False)
         butils.scale_mesh_volume(stl_obj, config.bladder_volume)
         rand_pos_shrinkwrap_constraint.target = stl_obj  # attach the constraint to the new shrink target
-        wire_shrinkwrap_constraint.target = stl_obj
+        if config.with_tool:
+            wire_shrinkwrap_constraint.target = stl_obj
         # add node modifier and introduce the tumor particles and the diverticulum
         diverticulum = stl_obj.modifiers.new('Diverticulum', 'NODES')
         diverticulum.node_group = diverticulum_nodes
@@ -155,14 +157,15 @@ def blender_rendering():
                 endo_tip.rotation_euler = np.random.uniform(0, 1, size=3) * np.radians(
                     np.asarray(config.view_angle_max))
                 emission_node.inputs[1].default_value = np.random.uniform(*config.emission_range, 1)
-                # retract resection loop insulation
-                wire_retraction = np.random.uniform(-1 * config.resection_loop.scaling_factor,
-                                                    config.resection_loop.max_retraction * \
-                                                    config.resection_loop.scaling_factor)
-                wire.location = Vector((0, 0, -1)) * wire_retraction
-                insulation_retraction = np.random.uniform(-1 * config.resection_loop.scaling_factor,
-                                                          wire_retraction)
-                insulation.location = Vector((0, 0, -1)) * insulation_retraction
+                if config.with_tool:
+                    # retract resection loop insulation
+                    wire_retraction = np.random.uniform(-1 * config.resection_loop.scaling_factor,
+                                                        config.resection_loop.max_retraction * \
+                                                        config.resection_loop.scaling_factor)
+                    wire.location = Vector((0, 0, -1)) * wire_retraction
+                    insulation_retraction = np.random.uniform(-1 * config.resection_loop.scaling_factor,
+                                                              wire_retraction)
+                    insulation.location = Vector((0, 0, -1)) * insulation_retraction
 
                 bpy.context.view_layer.update()
                 camera_euler = random_position.matrix_world.to_euler()
@@ -174,10 +177,10 @@ def blender_rendering():
                 camera_ray_length = Vector(random_position.matrix_world.to_translation() - camera_hit_location).length
                 random_position.location = random_position.matrix_world.to_translation() + Vector(
                     camera_direction * np.random.uniform(0, camera_ray_length * 0.9))
-                loop_euler = loop_angle_offset.matrix_world.to_euler()
-                loop_direction = np.reshape(loop_direction_marker[:-1], (1, -1)) @ loop_euler.to_matrix()
-                loop_no_clip_points = np.array(loop_angle_offset.matrix_world) @ loop_no_clip_markers
-                loop_no_clip_points = loop_no_clip_points[:-1]
+                # loop_euler = loop_angle_offset.matrix_world.to_euler()
+                # loop_direction = np.reshape(loop_direction_marker[:-1], (1, -1)) @ loop_euler.to_matrix()
+                # loop_no_clip_points = np.array(loop_angle_offset.matrix_world) @ loop_no_clip_markers
+                # loop_no_clip_points = loop_no_clip_points[:-1]
                 # loop_ray_length = []
                 # for idx, point in enumerate(np.split(loop_no_clip_points, loop_no_clip_points.shape[1], axis=1)):
                 #     loop_ray_length.append(0)
@@ -188,11 +191,11 @@ def blender_rendering():
                 #                              min((config.resection_loop.max_extension *
                 #                                   config.resection_loop.scaling_factor) + insulation_retraction,
                 #                                  np.random.uniform(0, min(loop_ray_length), size=1))
-
-                insulation.keyframe_insert(frame=frame_number, data_path='location')
-                wire.keyframe_insert(frame=frame_number, data_path='location')
-                loop_angle_offset.keyframe_insert(frame=frame_number, data_path='location')
-                loop_angle_offset.keyframe_insert(frame=frame_number, data_path='rotation_euler')
+                if config.with_tool:
+                    insulation.keyframe_insert(frame=frame_number, data_path='location')
+                    wire.keyframe_insert(frame=frame_number, data_path='location')
+                    loop_angle_offset.keyframe_insert(frame=frame_number, data_path='location')
+                    loop_angle_offset.keyframe_insert(frame=frame_number, data_path='rotation_euler')
                 random_position.keyframe_insert(frame=frame_number, data_path="rotation_euler")
                 random_position.keyframe_insert(frame=frame_number, data_path="location")
                 endo_tip.keyframe_insert(frame=frame_number, data_path="rotation_euler")
@@ -208,7 +211,9 @@ def blender_rendering():
                     [setattr(n, 'mute', not n.mute) for n in output_nodes]
                     bpy.ops.render.render(write_still=True, scene=scene.name)
                     [setattr(n, 'mute', not n.mute) for n in output_nodes]
-                loop_angle_offset.location = (0, 0, 0)
+
+                if config.with_tool:
+                    loop_angle_offset.location = (0, 0, 0)
 
         if not args.sample:
             bpy.data.objects.remove(stl_obj, do_unlink=True)
