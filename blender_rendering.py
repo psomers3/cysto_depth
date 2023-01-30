@@ -123,7 +123,6 @@ def blender_rendering():
                                                   custom_normals_label='raw_normals',
                                                   custom_depth_label='raw_depth')
 
-
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
     endo_collection.objects.link(random_position)

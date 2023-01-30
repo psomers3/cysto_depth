@@ -4,6 +4,7 @@ from pathlib import Path
 from utils.exr_utils import exr_2_numpy
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 import cv2
 import numpy as np
 =======
@@ -12,6 +13,10 @@ import numpy as np
 import cv2
 import numpy as np
 >>>>>>> various changes:
+=======
+import cv2
+import numpy as np
+>>>>>>> e59494ca88f41def125ec679eee88acba6f7b805
 
 
 def delete_clipping(depth_path: str, associated_paths: Union[List[str], str]):
@@ -55,8 +60,11 @@ def reorganize(origin, destination):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> various changes:
+=======
+>>>>>>> e59494ca88f41def125ec679eee88acba6f7b805
 def remove_salt_noise(path):
     for image_path in Path(path).glob('*'):
         print(str(image_path))
@@ -64,6 +72,7 @@ def remove_salt_noise(path):
         median_image = cv2.medianBlur(image, ksize=3)
         cv2.imwrite(str(image_path), median_image)
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 if __name__ == '__main__':
   #  reorganize('/scratch/datasets/cysto_depth/depth_data_BlankMaterial_BlankMaterial_par_dis', '../../datasets/Johannes/BlankMaterials_par_dis')
@@ -80,3 +89,9 @@ if __name__ == '__main__':
   #  delete_clipping('../../datasets/Johannes/BlankMaterials_par_dis/depth',    '../../datasets/Johannes/BlankMaterials_par_dis/color')
     remove_salt_noise('../../datasets/Particles_diverticulum_tool_materials_151222/depth/bladder_wall')
 >>>>>>> various changes:
+=======
+if __name__ == '__main__':
+  #  reorganize('/scratch/datasets/cysto_depth/depth_data_BlankMaterial_BlankMaterial_par_dis', '../../datasets/Johannes/BlankMaterials_par_dis')
+  #  delete_clipping('../../datasets/Johannes/BlankMaterials_par_dis/depth',    '../../datasets/Johannes/BlankMaterials_par_dis/color')
+    remove_salt_noise('../../datasets/Particles_diverticulum_tool_materials_151222/depth/bladder_wall')
+>>>>>>> e59494ca88f41def125ec679eee88acba6f7b805
