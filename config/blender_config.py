@@ -210,3 +210,6 @@ class MainConfig:
     """ list of different bladder wall materials to use during rendering """
     bladder_material_config: BladderMaterialConfig = BladderMaterialConfig()
     """ Control over parameters inside the bladder material (i.e. volume scattering) """
+    with_tool: bool = True
+    """ add tool to renders """
+
