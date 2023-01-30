@@ -18,10 +18,6 @@ class TrainerDictConfig:
     """ leave default even for 1 node because matplotlib is used during training """
     log_every_n_steps: int = 50
     """ how often to log during training """
-    gradient_clip_val: float = 0.0
-    """ value for gradient clipping during training. Defaults to no clipping. """
-    gradient_clip_algorithm: str = 'norm'
-    """ type of gradient clipping to do. Either 'value' or 'norm' """
     fast_dev_run: bool = False
     """ fast run through all the code (5 batches) to check for errors """
 
@@ -89,8 +85,8 @@ class SyntheticTrainingConfig:
     """ An existing training split json file. If not empty, will be used instead of training_split """
     lr: float = 1e-3
     """ learning rate for optimizer """
-    optimizer: str = 'radam'
-    """ Which torch optimizer to use. ['adam', 'radam'] """
+    optimizer: str = 'adam'
+    """ Which torch optimizer to use. """
     grad_loss_factor: float = 1.0
     warmup_batches: int = 0
     """ Duration of warmup in batches"""
@@ -133,11 +129,7 @@ class SyntheticTrainingConfig:
     merged_decoder: bool = True
     """ Whether to use a single decoder when predicting normals """
     inverse_depth: bool = "${..inverse_depth}"
-    """ Whether to predict the inverse of the depth NOT IMPLEMENTED YET"""
-    load_imagenet_weights: bool = False
-    """ Whether to initialize the encoder with weights from ImageNet """
-    add_mask_blur: bool = "${..add_mask_blur}"
-    """ Whether to add random gaussian blur to the edge of the circular mask """
+    """ Whether to predict the inverse of the depth """
     fast_dev_run: bool = False
     """ fast run through all the code (5 batches) to check for errors """
 
@@ -146,7 +138,7 @@ class SyntheticTrainingConfig:
 class GANTrainingConfig:
     """ Hyperparameter settings for the domain adaptation GAN training """
 
-    source_images: List[str] = MISSING
+    source_images: List[str] = field(default_factory=lambda: MISSING)
     """ path to synthetically generated images """
     synth_split: dict = field(default_factory=lambda: {'train': .8,
                                                        'validate': .1,
@@ -172,7 +164,7 @@ class GANTrainingConfig:
     """ checkpoint to load weights from """
     generate_data: bool = False
     """ Whether to process the video data folder and generate training images in the image_output_folder """
-    videos_folder: List[str] = MISSING
+    videos_folder: str = MISSING
     """ folder with endoscopic videos """
     image_output_folder: str = MISSING
     """ folder containing (or will contain) the generated real image training data """
@@ -197,6 +189,7 @@ class GANTrainingConfig:
     warmup_steps: float = 0
     align_scales: bool = True
     """ Use same color scale for all images when plotting """
+
 
 
 @dataclass
@@ -232,5 +225,3 @@ class CystoDepthConfig:
     """ What optimizer to use. one of ['adam', 'radam'] """
     inverse_depth: bool = True
     """ Whether to predict the inverse of the depth """
-    add_mask_blur: bool = False
-    """ Whether to add random gaussian blur to the edge of the circular mask """

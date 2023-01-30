@@ -1,5 +1,4 @@
 import torch
-import torchvision.models
 from torchvision import models
 from utils.torch_utils import convrelu
 from torch import nn
@@ -7,12 +6,9 @@ from typing import *
 
 
 class VanillaEncoder(torch.nn.Module):
-    def __init__(self, imagenet_weights: bool = True):
+    def __init__(self):
         super().__init__()
-        if imagenet_weights:
-            self.base_model = models.resnet18(weights=torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
-        else:
-            self.base_model = models.resnet18()
+        self.base_model = models.resnet18(pretrained=True)
         base_layers = list(self.base_model.children())
 
         self.conv_original_size0 = convrelu(3, 64, 3, 1)

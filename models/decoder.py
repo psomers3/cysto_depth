@@ -31,13 +31,9 @@ class UpsampleShuffle(nn.Sequential):
 
 
 class Decoder(torch.nn.Module):
-    def __init__(self,
-                 num_output_channels: int = 1,
-                 output_each_level: bool = False,
-                 inverted_depth: bool = False) -> None:
+    def __init__(self, num_output_channels: int = 1, output_each_level: bool = False) -> None:
         super().__init__()
         self.output_each_level = output_each_level
-        self.num_output_channels = num_output_channels
 
         # self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         self.upsample3 = UpsampleShuffle(512, 512)
@@ -58,7 +54,6 @@ class Decoder(torch.nn.Module):
         self.conv_original_size2 = convrelu(128, 64, 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         self.conv_last = nn.Conv2d(64, num_output_channels, 1)
-        self.depth_sigmoid = None  # nn.Sigmoid() if inverted_depth else None
 
     def forward(self, _input):
         x_original, layer0, layer1, layer2, layer3, layer4 = _input
@@ -89,15 +84,6 @@ class Decoder(torch.nn.Module):
         x = self.conv_original_size2(x)
 
         out4 = self.conv_last(x)
-        if self.depth_sigmoid is not None:
-            if self.output_each_level:
-                out1, out2, out3 = [self.depth_sigmoid(out) for out in [out1, out2, out3]]
-
-            if self.num_output_channels > 1:
-                out4 = torch.cat([self.depth_sigmoid(out4[:, 0, ...]), out4[:, :2, ...]], dim=1)
-            else:
-                out4 = self.depth_sigmoid(out4)
-
         if self.output_each_level:
             return [out1, out2, out3, out4]
         else:

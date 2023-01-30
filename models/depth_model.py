@@ -8,12 +8,9 @@ from utils.loss import BerHu, GradientLoss, CosineSimilarity, PhongLoss
 from models.adaptive_encoder import AdaptiveEncoder
 from utils.image_utils import generate_heatmap_fig, generate_normals_fig, generate_img_fig
 from models.decoder import Decoder
-from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
 from math import ceil
 
-
-imagenet_denorm = ImageNetNormalization(inverse=True)
 
 
 class DepthEstimationModel(BaseModel):
@@ -23,9 +20,7 @@ class DepthEstimationModel(BaseModel):
         self.save_hyperparameters(Namespace(**config))
         self.config = config
         num_output_layers = 4 if config.merged_decoder and config.predict_normals else 1
-        self.decoder = Decoder(num_output_channels=num_output_layers,
-                               output_each_level=True,
-                               inverted_depth=config.inverse_depth)
+        self.decoder = Decoder(num_output_channels=num_output_layers, output_each_level=True)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
@@ -36,13 +31,11 @@ class DepthEstimationModel(BaseModel):
         self.phong_loss: PhongLoss = None
         self.validation_images = None
         self.test_images = None
-        self.train_denorm_color_images = None
-        self.val_denorm_color_images = None
         self.plot_minmax_train = None
         self.plot_minmax_val = None
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
-        self.encoder = AdaptiveEncoder(config.adaptive_gating, config.load_imagenet_weights)
+        self.encoder = AdaptiveEncoder(config.adaptive_gating)
         if config.resume_from_checkpoint:
             path_to_ckpt = config.resume_from_checkpoint
             config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
@@ -62,8 +55,6 @@ class DepthEstimationModel(BaseModel):
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
                                           torch.zeros((1), device=self.device))
         return depth_out
-
-
 
 
     def create_optimizer(self):
@@ -167,11 +158,10 @@ class DepthEstimationModel(BaseModel):
                normals_regularization_loss
         self.log("training_loss", loss)
 
-        if batch_idx % 200 == 0:
+        if batch_idx % 10 == 0:
             if self.test_images is None:
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
-                self.train_denorm_color_images = imagenet_denorm(self.test_images[0])
             self.plot(prefix="train")
         return loss
 
@@ -215,7 +205,6 @@ class DepthEstimationModel(BaseModel):
             if self.validation_images is None:
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
-                self.val_denorm_color_images = imagenet_denorm(self.validation_images[0])
             self.plot(prefix)
         return metric_dict
 
@@ -235,11 +224,9 @@ class DepthEstimationModel(BaseModel):
             if prefix == 'val':
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
                 minmax = self.plot_minmax_val
-                denormed_synth_imgs = self.val_denorm_color_images
             else:
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.test_images
                 minmax = self.plot_minmax_train
-                denormed_synth_imgs = self.train_denorm_color_images
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].to(self.phong_loss.light.device), \
@@ -247,16 +234,16 @@ class DepthEstimationModel(BaseModel):
                 y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1)
                 y_phong = self.phong_loss((y_hat_depth, y_hat_normals), synth_phong.to(self.phong_loss.light.device))[
                     1].cpu()
-                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), synth_normals),
+                self.gen_normal_plots(zip(synth_imgs, y_hat_normals.cpu(), synth_normals),
                                       prefix=f'{prefix}-synth-normals',
                                       labels=["Synth Image", "Predicted", "Ground Truth"])
-                self.gen_phong_plots(zip(denormed_synth_imgs, y_phong, synth_phong),
+                self.gen_phong_plots(zip(synth_imgs, y_phong, synth_phong),
                                      prefix=f'{prefix}-synth-phong',
                                      labels=["Synth Image", "Predicted", "Ground Truth"])
             else:
                 y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
-            self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth.cpu(), synth_depths),
+            self.gen_depth_plots(zip(synth_imgs, y_hat_depth.cpu(), synth_depths),
                                  f"{prefix}-synth-depth",
                                  labels=["Synth Image", "Predicted", "Ground Truth"],
                                  minmax=minmax)

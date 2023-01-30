@@ -118,8 +118,8 @@ def get_blender_camera_from_3x3_P(P,
     # s_v = resolution_y_in_px / sensor_height_in_mm
     # TODO include aspect ratio
     f_in_mm = K[0, 0] / s_u
-    scene.render.resolution_x = int(resolution_x_in_px)
-    scene.render.resolution_y = int(resolution_y_in_px)
+    scene.render.resolution_x = int(resolution_x_in_px * scale)
+    scene.render.resolution_y = int(resolution_y_in_px * scale)
     scene.render.resolution_percentage = int(scale * 100)
 
     # Use this if the projection matrix follows the convention listed in my answer to

@@ -50,10 +50,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               split=split,
                                               image_size=config.image_size,
                                               workers_per_loader=config.num_workers,
-                                              depth_scale_factor=1e3,
-                                              inverse_depth=config.inverse_depth,
-                                              memorize_check=False,
-                                              add_random_blur=config.add_mask_blur)
+                                              depth_scale_factor=1e3)
         model = DepthEstimationModel(config.synthetic_config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
@@ -62,13 +59,13 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
             config.gan_config.synth_split
         data_module = GANDataModule(batch_size=config.gan_config.batch_size,
                                     color_image_directories=config.gan_config.source_images,
-                                    video_directories=config.gan_config.videos_folder,
+                                    video_directory=config.gan_config.videos_folder,
                                     generate_output_directory=config.gan_config.image_output_folder,
                                     generate_data=config.gan_config.generate_data,
                                     synth_split=split,
                                     image_size=config.image_size,
                                     workers_per_loader=config.num_workers)
-        model = GAN(image_gan=config.image_gan, synth_config=config.synthetic_config, gan_config=config.gan_config)
+        model = GAN(adaptive_gating=config.adaptive_gating, image_gan=config.image_gan, **config.gan_config)
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})
 

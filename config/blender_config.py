@@ -23,12 +23,9 @@ class DenoiseType:
 class CyclesConfig:
     adaptive_min_samples: int = 64
     adaptive_max_samples: int = 128
-    samples: int = 64
     denoiser: str = DenoiseType.OPENIMAGEDENOISE
-    denoising_prefilter: str = 'FAST'
     device: str = 'GPU'
     device_type: str = 'OPTIX'
-    use_auto_tile: bool = False
 
 
 @dataclass
@@ -53,7 +50,7 @@ def get_login():
 class RenderConfig:
     resolution_x: int = 256
     resolution_y: int = 256
-    resolution_percentage: int = 100
+    resolution_percentage: int = 1
     image_settings: ImageSettingsConfig = ImageSettingsConfig()
     engine: str = RenderEngine.BLENDER_EEVEE
     threads_mode: str = ThreadMode.AUTO
@@ -87,8 +84,8 @@ class ShrinkwrapConfig:
 @dataclass
 class SubdivisionModConfig:
     uv_smooth: str = "PRESERVE_BOUNDARIES"
-    subdivision_type: str = "SIMPLE"
-    render_levels: int = 2
+    subdivision_type: str = "CATMULL_CLARK"
+    render_levels: int = 3
     levels: int = 2
 
 
@@ -148,7 +145,7 @@ class ResectionLoopConfig:
     """ initial scaling """
     euler_rotation: List[float] = field(default_factory=lambda: [90, 0, 0])
     """ initial rotation on load (euler XYZ)"""
-    max_extension: float = 10
+    max_extension: float = 5
     """ maximum distance the wire can be extended from the endoscope """
     extension_direction: List[float] = field(default_factory=lambda: [1.0, 0.0, 0.0])
     """ direction in which the tool is extended in the coordinates of the stl-file"""

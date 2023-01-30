@@ -144,19 +144,9 @@ def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_sca
                 else:
                     vmin, vmax = minmax
                     vmin = np.clip(vmin, 0, None)
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
+
                     vmax = vmax # .cpu().detach().numpy() # is already numpy array
-=======
-                    vmax = vmax.cpu().detach().numpy()
->>>>>>> fixed camera clipping and fooling around with the Neural Network stuff
-=======
-                    vmax = vmax # .cpu().detach().numpy() # is already numpy array
->>>>>>> -
-=======
-                    vmax = vmax # .cpu().detach().numpy() # is already numpy array
->>>>>>> e59494ca88f41def125ec679eee88acba6f7b805
+
                     vmax = np.clip(vmax, 0, None)
                 cmap = "viridis"
             try:

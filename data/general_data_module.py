@@ -5,8 +5,6 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 import re
 import json
-from typing import *
-from omegaconf import ListConfig
 from data.image_dataset import ImageDataset
 
 _mac_regex = re.compile(r'^(?!.*\._|.*\.DS)')
@@ -25,9 +23,9 @@ class FileLoadingDataModule(pl.LightningDataModule):
          A Data Module for loading paired files located in different directories. See the split parameter for
          thoughts on how best to set up your data structure for use with this module.
 
-        :param batch_size: batch sized to use for training.
-        :param directories: a dictionary with each key-pair as the data role and directories, respectively.\
-                            i.e. {'img': '/my/path', 'label': ['/my/other/path', '/other/path/2']}
+        :param batch_size: batch sized to use for training
+        :param directories: a dictionary with each key-pair as the data role and directory, respectively.\
+                            i.e. {'img': /my/path, 'label': /my/other/path}
 
         :param split: can be one of the following:
                      - dictionary of regex strings to filter the filenames with:

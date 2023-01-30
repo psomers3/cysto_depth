@@ -13,7 +13,6 @@ import re
 import csv
 import json
 from typing import *
-from omegaconf import ListConfig
 
 _video_types = ['.mpg', '.mp4']
 _original_exclusion = re.compile(r'^(?!.*original)')
@@ -39,8 +38,8 @@ class ConcatDataset(Dataset):
 class GANDataModule(pl.LightningDataModule):
     def __init__(self,
                  batch_size,
-                 color_image_directories: Union[str, List[str]],
-                 video_directories: Union[str, List[str]],
+                 color_image_directories: list[str],
+                 video_directory: str,
                  generate_output_directory: str,
                  generate_data: bool = False,
                  synth_split: dict = None,
@@ -52,10 +51,10 @@ class GANDataModule(pl.LightningDataModule):
         TODO: set up to use a configuration for control of all transforms and other hyperparams.
 
         :param batch_size: batch sized to use for training.
-        :param color_image_directories: path/s to the color images. All will be searched recursively.
-        :param video_directories: path/s to the videos. All will be searched recursively. An optional
-                                "video_annotations.csv" file may exist identifying only scenes of interest
-                                within the videos. It should be of the format:
+        :param color_image_directories: list of paths to the color images. Will be searched recursively.
+        :param video_directory: path to the videos. Will be searched recursively. An optional "video_annotations.csv"
+                                file may exist identifying only scenes of interest within the videos. It should be of
+                                the format:
                                 Title          Type                Scenes
                                 ________________________________________________
                                 GRK08.mpg      train       [(4150, 5000), 7000]
@@ -69,7 +68,7 @@ class GANDataModule(pl.LightningDataModule):
         :param workers_per_loader: cpu threads to use for each data loader.
         """
         super(GANDataModule, self).__init__()
-        directories = {'synth': color_image_directories, 'real': os.path.join(generate_output_directory)}
+        directories = {'synth': color_image_directories, 'real': [os.path.join(generate_output_directory)]}
         self.output_directories = {'train': os.path.join(generate_output_directory, 'train'),
                                    'val': os.path.join(generate_output_directory, 'validate'),
                                    'test': os.path.join(generate_output_directory, 'test'),
@@ -81,7 +80,7 @@ class GANDataModule(pl.LightningDataModule):
         self.synth_split = synth_split
         self.save_hyperparameters("batch_size")
         self.image_size = image_size
-        self.video_directories = video_directories
+        self.video_directory = video_directory
         self.generate_data = generate_data
         self.data_train: Dataset = None
         self.data_val: Dataset = None
@@ -103,12 +102,7 @@ class GANDataModule(pl.LightningDataModule):
 
     def prepare_data(self) -> None:
         if self.generate_data:
-            annotations = []
-            if isinstance(self.video_directories, (list, ListConfig)):
-                [annotations.extend([str(f) for f in Path(p).rglob('*') if _annotations_csv.search(str(f))][0]) \
-                 for p in self.video_directories]
-            else:
-                annotations = [str(f) for f in Path(self.video_directories).rglob('*') if _annotations_csv.search(str(f))][0]
+            annotations = [str(f) for f in Path(self.video_directory).rglob('*') if _annotations_csv.search(str(f))][0]
             scenes = {}
             with open(annotations, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
@@ -116,7 +110,7 @@ class GANDataModule(pl.LightningDataModule):
                     if row['Title'].lower() not in scenes:
                         scenes[row['Title'].lower()] = {'train': None, 'val': None, 'test': None}
                     scenes[row['Title'].lower()][row['Type'].lower()] = ast.literal_eval(row["Scenes"])
-            videos = [str(f) for f in Path(self.video_directories).rglob('*') if
+            videos = [str(f) for f in Path(self.video_directory).rglob('*') if
                       _mac_regex.search(str(f)) and
                       _original_exclusion.search(str(f)) and
                       (os.path.splitext(f)[-1].lower() in _video_types)]
@@ -140,10 +134,9 @@ class GANDataModule(pl.LightningDataModule):
         # EndoDepthDataModule
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0])
-        imagenet_norm = d_transforms.ImageNetNormalization()
         affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
-        synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform, imagenet_norm])
-        real_transforms = torch_transforms.Compose([squarify, affine_transform, imagenet_norm])
+        synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform])
+        real_transforms = torch_transforms.Compose([squarify, affine_transform])
 
         real_split = FileLoadingDataModule.create_file_split({'real': self.directories['real']},
                                                              exclusion_regex=_failed_exclusion)
@@ -154,10 +147,10 @@ class GANDataModule(pl.LightningDataModule):
         real, synth = [], []
         for key in keys:
             real.append(ImageDataset(files=real_split[key]['real'],
-                                     transforms=real_transforms if key == 'train' else imagenet_norm,
+                                     transforms=real_transforms if key == 'train' else None,
                                      randomize=True))
             synth.append(ImageDataset(files=synth_split[key]['synth'],
-                                      transforms=synth_transforms if key == 'train' else imagenet_norm,
+                                      transforms=synth_transforms if key == 'train' else None,
                                       randomize=True))
 
         self.data_train = ConcatDataset([synth[0], real[0]])
