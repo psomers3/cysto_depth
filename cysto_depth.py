@@ -45,8 +45,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           phong_config=config.phong_config)
         else:
             data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
-                                              color_image_directory=config.synthetic_config.data_directories[0],
-                                              depth_image_directory=config.synthetic_config.data_directories[1],
+                                              data_roles=config.synthetic_config.data_roles,
+                                              data_directories=config.synthetic_config.data_directories,
                                               split=split,
                                               image_size=config.image_size,
                                               workers_per_loader=config.num_workers,

@@ -1,4 +1,4 @@
-glog_directory: ./logs
+log_directory: ./logs
 print_config: true
 adaptive_gating: true
 mode: gan
@@ -6,6 +6,7 @@ training_stage: train
 split_save_dir: splits
 num_workers: 8
 synthetic_config:
+  predict_normals: false
   max_epochs: 6000
   data_roles:
     - color
@@ -14,38 +15,46 @@ synthetic_config:
   data_directories:
     -
       - ../datasets/Particles_diverticulum_no_tool_materials_221215/color
+      - ../datasets/ps_renderings/color
+      - ../datasets/23_01_26/color
     -
       - ../datasets/Particles_diverticulum_no_tool_materials_221215/depth
+      - ../datasets/ps_renderings/depth
+      - ../datasets/23_01_26/depth
 
 #    - /Users/peter/isys/output/normal
   batch_size: 64
   accumulate_grad_batches: 2
-  training_split_file: ../splits/syntetic/training_split.json
+  training_split_file: ../splits/syntetic/23_01_28_training_split.json
   training_split: {'train': .85, 'validate': 0.15, 'test': ".*102_bladder.*"}
   #resume_from_checkpoint: logs/synthetic/lightning_logs/version_0/checkpoints/epoch=11-step=312.ckpt
   lr: 0.008
+  lr_scheduler_patience: 20
+  reduce_lr_patience: 10
   monitor_metric: val_rel_err
   val_check_interval: 1.0
   grad_loss_factor: 1.0
   callbacks:
     early_stop_patience: null
     lr_monitoring: true
-    lr_monitor_interval: step
+    lr_monitor_interval: epoch
 
 gan_config:
   max_epochs: 300
-  batch_size: 16
+  batch_size: 32
   val_check_interval: 1.0
   source_images:
     - ../datasets/Particles_diverticulum_no_tool_materials_221215/color
-  synthetic_base_model: logs/synthetic/lightning_logs/version_44/checkpoints/epoch=3459-step=51900.ckpt
+    - ../datasets/ps_renderings/color
+    - ../datasets/23_01_26/color
+  synthetic_base_model: logs/synthetic/lightning_logs/version_47/checkpoints/epoch=800-step=68687.ckpt
   generate_data: False
   videos_folder:  ../datasets/gan_data
   image_output_folder: ../datasets/gan_data
   align_scales: false
 trainer_config:
-  gpus: []
+  gpus: [0]
   strategy: null
-  accelerator: cpu
+  accelerator: gpu
   log_every_n_steps: 2
   fast_dev_run: false

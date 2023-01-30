@@ -88,13 +88,16 @@ class SyntheticTrainingConfig:
     optimizer: str = 'adam'
     """ Which torch optimizer to use. """
     grad_loss_factor: float = 1.0
-    warmup_batches: int = 8000
+    warmup_batches: int = 0
     """ Duration of warmup in batches"""
-    train_batches: int = 232000
+    train_batches: int = 1000000
     """ Duration of training in batches"""
     lr_scheduler_patience: int = 10
-    lr_scheduler_monitor: str = "val_rmse_log"
+    lr_scheduler_monitor: str = "val_rmse"
     reduce_lr_patience: int = 5
+    """ number of batches without improvement before lr is reduced """
+    reduce_lr_min: float = 1e-5
+    """ minimal value lr can be reduced to """
     max_epochs: int = 10
     monitor_metric: str = 'val_rmse'
     """ main metric to track for performance """
