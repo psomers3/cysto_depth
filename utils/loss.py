@@ -37,7 +37,7 @@ class BerHu(nn.Module):
         delta = self.threshold * torch.max(diff).item()
 
         part1 = -F.threshold(-diff, -delta, 0.)
-        part2 = F.threshold(diff ** 2 - delta ** 2, 0., -delta ** 2.) + delta ** 2
+        part2 = F.threshold(diff ** 2. - delta ** 2, 0., -delta ** 2.) + delta ** 2.
         part2 = part2 / (2. * delta)
 
         loss = part1 + part2
