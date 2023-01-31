@@ -3,6 +3,7 @@ omegaconf
 blender-stubs
 debugpy
 torch
+torchvision
 pytorch_lightning
 hydra-core
 matplotlib
@@ -11,3 +12,4 @@ pims
 tqdm
 seaborn
 tensorboard
+scipy

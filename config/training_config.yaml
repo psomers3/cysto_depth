@@ -4,8 +4,9 @@ adaptive_gating: false
 mode: synthetic
 training_stage: train
 split_save_dir: ./splits
-inverse_depth: true
+inverse_depth: false
 synthetic_config:
+  backbone: resnet34
   max_epochs: 300
   val_check_interval: 1
   batch_size: 2
@@ -13,14 +14,13 @@ synthetic_config:
     - color
     - depth
   data_directories:
-    - /Users/peter/isys/2023_01_25/color
-    - /Users/peter/isys/2023_01_25/depth
+    - /Users/peter/isys/2023_01_29/color
+    - /Users/peter/isys/2023_01_29/depth
   training_split: {'train': .33, 'validate': 0.33, 'test': .33}
 #  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
 gan_config:
   source_images:
-    - /Users/peter/Desktop/2023_01_25/color
-    - /Users/peter/Desktop/2023_01_25/color
+    - /Users/peter/isys/2023_01_29/color
   synthetic_base_model: ./retrain_logs/synthetic/lightning_logs/version_15/checkpoints/epoch=0-step=1.ckpt
   synth_split: {'train': .6, 'validate': .2, 'test': .2}
   generate_data: False
