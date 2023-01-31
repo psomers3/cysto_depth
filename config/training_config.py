@@ -90,11 +90,11 @@ class SyntheticTrainingConfig:
     monitor_metric: str = 'val_rmse'
     """ main metric to track for performance """
     val_check_interval: int = 10
-    """ how many training batches before checking validation """
-    val_plot_interval: int = 5
-    """ how many validation intervals before plotting validation images """
+    """ how many steps before checking validation """
+    val_plot_interval: int = 30
+    """ how many steps before plotting validation images """
     train_plot_interval: int = 500
-    """ how many train batches before plotting train images """
+    """ how many steps before plotting train images """
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 32
