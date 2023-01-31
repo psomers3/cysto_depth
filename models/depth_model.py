@@ -176,7 +176,7 @@ class DepthEstimationModel(BaseModel):
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
-        if batch_idx % 20 == 0:
+        if batch_idx == 0:
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
