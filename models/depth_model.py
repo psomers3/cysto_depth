@@ -21,10 +21,14 @@ class DepthEstimationModel(BaseModel):
         # automatic learning rate finder sets lr to self.lr, else default
         self.save_hyperparameters(Namespace(**config))
         self.config = config
+        self.encoder = AdaptiveEncoder(adaptive_gating=config.adaptive_gating,
+                                       use_image_net_weights=config.load_imagenet_weights,
+                                       backbone=config.backbone)
+
         num_output_layers = 4 if config.merged_decoder and config.predict_normals else 1
-        self.decoder = Decoder(num_output_channels=num_output_layers,
-                               output_each_level=True,
-                               inverted_depth=config.inverse_depth)
+        self.decoder = Decoder(feature_levels=self.encoder.feature_levels[::-1],
+                               num_output_channels=num_output_layers,
+                               output_each_level=True)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
@@ -41,7 +45,7 @@ class DepthEstimationModel(BaseModel):
         self.plot_minmax_val = None
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
-        self.encoder = AdaptiveEncoder(config.adaptive_gating, config.load_imagenet_weights)
+
         if config.resume_from_checkpoint:
             path_to_ckpt = config.resume_from_checkpoint
             config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs

@@ -28,8 +28,9 @@ class GAN(BaseModel):
                                                                      strict=False,
                                                                      config=synth_config)
         self.config = gan_config
-        self.generator = AdaptiveEncoder(gan_config.adaptive_gating) if gan_config.residual_transfer else \
-            VanillaEncoder()
+        self.generator = AdaptiveEncoder(gan_config.adaptive_gating, backbone=synth_config.backbone) \
+            if gan_config.residual_transfer else VanillaEncoder(backbone=synth_config.backbone)
+
         self.generator.load_state_dict(self.depth_model.encoder.state_dict(), strict=False)
         self.depth_model.requires_grad = False
 
