@@ -24,32 +24,23 @@ def _get_output_features(module: torch.nn.Sequential):
 class VanillaEncoder(torch.nn.Module):
     def __init__(self, backbone: str = 'resnet18', imagenet_weights: bool = True):
         super().__init__()
-        self.base_model = _base_model[backbone](weights=_image_net_weights[backbone] if imagenet_weights else None)
+        self.base_model = _base_model['resnet18'](weights=_image_net_weights['resnet18'] if imagenet_weights else None)
         base_layers = list(self.base_model.children())
-        self.feature_levels = []
+        self.feature_levels = [64, 64, 128, 256, 512]
 
         self.conv_original_size0 = convrelu(3, 64, 3, 1)
         self.conv_original_size1 = convrelu(64, 64, 3, 1)
 
-        self.layer0 = torch.nn.Sequential(*base_layers[:3])  # shape=(N, num_feat, x.H/2, x.W/2)
-        self.feature_levels.append(self.layer0._modules['1'].num_features)
-        self.layer0_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
-
-        self.layer1 = torch.nn.Sequential(*base_layers[3:5])  # shape=(N, num_feat, x.H/4, x.W/4)
-        self.feature_levels.append(_get_output_features(self.layer1))
-        self.layer1_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
-
-        self.layer2 = base_layers[5]  # shape=(N, num_feat, x.H/8, x.W/8)
-        self.feature_levels.append(_get_output_features(self.layer2))
-        self.layer2_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
-
-        self.layer3 = base_layers[6]  # shape=(N, num_feat, x.H/16, x.W/16)
-        self.feature_levels.append(_get_output_features(self.layer3))
-        self.layer3_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
-
-        self.layer4 = base_layers[7]  # shape=(N, num_feat, x.H/32, x.W/32)
-        self.feature_levels.append(_get_output_features(self.layer4))
-        self.layer4_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
+        self.layer0 = torch.nn.Sequential(*base_layers[:3])  # shape=(N, 64, x.H/2, x.W/2)
+        self.layer0_skip = CoordConv2dELU(64, 64, 3, padding=1)
+        self.layer1 = torch.nn.Sequential(*base_layers[3:5])  # shape=(N, 64, x.H/4, x.W/4)
+        self.layer1_skip = CoordConv2dELU(64, 64, 3, padding=1)
+        self.layer2 = base_layers[5]  # shape=(N, 128, x.H/8, x.W/8)
+        self.layer2_skip = CoordConv2dELU(128, 128, 3, padding=1)
+        self.layer3 = base_layers[6]  # shape=(N, 256, x.H/16, x.W/16)
+        self.layer3_skip = CoordConv2dELU(256, 256, 3, padding=1)
+        self.layer4 = base_layers[7]  # shape=(N, 512, x.H/32, x.W/32)
+        self.layer4_skip = CoordConv2dELU(512, 512, 3, padding=1)
 
     def forward(self, encoder_input) -> Tuple[List[torch.Tensor], List]:
         x_original = self.conv_original_size0(encoder_input)
