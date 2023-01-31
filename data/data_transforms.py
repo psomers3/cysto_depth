@@ -147,7 +147,8 @@ class Squarify:
         self.resize = None
         self.clamp = clamp_values
         if self.image_size is not None:
-            self.resize = torch_transforms.Resize(self.image_size)
+            self.resize = torch_transforms.Resize(self.image_size,
+                                                  interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         data = torch_transforms.CenterCrop(min(data.shape[-2:]))(data)
