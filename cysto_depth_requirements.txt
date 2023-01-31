@@ -4,8 +4,10 @@ blender-stubs
 debugpy
 torch
 pytorch_lightning
-hydra
+hydra-core
 matplotlib
 opencv-python
 pims
 tqdm
+seaborn
+tensorboard

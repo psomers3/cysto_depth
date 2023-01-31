@@ -23,8 +23,8 @@ class BaseModel(pl.LightningModule):
         # sq_rel_err = self.rel_error(pred_depth,target_depth, squared = True)
         # accs = self.acc(pred_depth, target_depth)
         silog = self.silog(pred_depth, target_depth)
-        abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3 = compute_errors(target_depth.cpu().numpy(),
-                                                                     pred_depth.cpu().numpy())
+        abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3 = compute_errors(target_depth.detach().cpu().numpy(),
+                                                                     pred_depth.detach().cpu().numpy())
         metric_dict = {}
         metric_dict.update({
             f"{prefix}_acc0": a3,

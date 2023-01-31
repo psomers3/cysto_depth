@@ -1,4 +1,3 @@
-from numpy import True_
 from utils.loss import AvgTensorNorm
 from models.vanillaencoder import VanillaEncoder
 from utils.torch_utils import convrelu
@@ -9,14 +8,16 @@ import torch
 class AdaptiveEncoder(VanillaEncoder):
     def __init__(self,
                  adaptive_gating: bool = False,
+                 backbone: str = 'resnet18',
                  use_image_net_weights: bool = False):
         """
 
         :param adaptive_gating: whether to add the resnet blocks for adaptive transfer learning. If false,
                                 behaves as a normal vanilla encoder.
+        :param backbone: base encoder structure to use.
         :param use_image_net_weights: whether to initialize with imagenet weights
         """
-        super().__init__(imagenet_weights=use_image_net_weights)
+        super().__init__(backbone=backbone, imagenet_weights=use_image_net_weights)
         init_zero = False
         activation = "leaky"
         norm = 'batch'
@@ -91,7 +92,7 @@ class AdaptiveEncoder(VanillaEncoder):
 class ConditionalMeanRelativeLoss(nn.Module):
     def __init__(self):
         super(ConditionalMeanRelativeLoss, self).__init__()
-    
+
     def forward(self, output, target):
         # calculate absolute errors
         absolute_output = torch.abs(output)

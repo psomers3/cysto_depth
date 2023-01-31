@@ -132,7 +132,7 @@ class GAN(BaseModel):
             self.log("d_loss_{}".format(name), d_loss)
             if optimizer_idx == 1:
                 self.accum_dlosses = 0
-            self.accum_dlosses += d_loss.item()
+            self.accum_dlosses += d_loss.detach()
             if optimizer_idx == 4:
                 self.log("d_loss", self.accum_dlosses)
             return d_loss

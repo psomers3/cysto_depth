@@ -5,14 +5,18 @@ from utils.torch_utils import convrelu
 from torch import nn
 from typing import *
 
+_base_model = {'resnet18': models.resnet18,
+               'resnet34': models.resnet34,
+               'resnet50': models.resnet50}
+_image_net_weights = {'resnet18': models.ResNet18_Weights.IMAGENET1K_V1,
+                      'resnet34': models.ResNet34_Weights.IMAGENET1K_V1,
+                      'resnet50': models.ResNet50_Weights.IMAGENET1K_V1}
+
 
 class VanillaEncoder(torch.nn.Module):
-    def __init__(self, imagenet_weights: bool = True):
+    def __init__(self, backbone: str = 'resnet18', imagenet_weights: bool = True):
         super().__init__()
-        if imagenet_weights:
-            self.base_model = models.resnet18(weights=torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
-        else:
-            self.base_model = models.resnet18()
+        self.base_model = _base_model[backbone](weights=_image_net_weights[backbone] if imagenet_weights else None)
         base_layers = list(self.base_model.children())
 
         self.conv_original_size0 = convrelu(3, 64, 3, 1)

@@ -2,4 +2,3 @@ simple_parsing
 omegaconf
 blender-stubs
 debugpy
-opencv-python

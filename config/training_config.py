@@ -120,6 +120,8 @@ class SyntheticTrainingConfig:
     """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
     load_imagenet_weights: bool = False
     """ Whether to initialize the encoder with weights from ImageNet """
+    backbone: str = 'resnet18'
+    """ Base model to use for the encoder [resnet18, resnet34, resnet50] """
     add_mask_blur: bool = "${..add_mask_blur}"
     """ Whether to add random gaussian blur to the edge of the circular mask """
 
