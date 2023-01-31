@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+
 from data.depth_datamodule import EndoDepthDataModule
 from argparse import ArgumentParser
 from pathlib import Path
@@ -19,8 +20,9 @@ if __name__ == '__main__':
                              split={'train': .6, 'validate': 0.3, 'test': .1},
                              inverse_depth=True,
                              memorize_check=False)
+
     dm.setup('fit')
-    loader = iter(dm.train_dataloader())
-    for sample in loader:
-        pass
+    for loader in [iter(dm.train_dataloader()), iter(dm.test_dataloader()), iter(dm.val_dataloader())]:
+        for sample in loader:
+            pass
 
