@@ -43,6 +43,7 @@ class DepthEstimationModel(BaseModel):
         self.val_denorm_color_images = None
         self.plot_minmax_train = None
         self.plot_minmax_val = None
+        self.val_plot_counter: int = 0
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
 
@@ -133,7 +134,7 @@ class DepthEstimationModel(BaseModel):
                normals_regularization_loss
         self.log("training_loss", loss)
 
-        if batch_idx % 200 == 0:
+        if batch_idx % self.config.train_plot_interval == 0:
             if self.test_images is None:
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
@@ -176,13 +177,15 @@ class DepthEstimationModel(BaseModel):
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
-        if batch_idx == 0:
+        
+        if batch_idx == 0 and self.val_plot_counter % self.config.val_plot_interval == 0:
             # do plot on the same images without differing augmentations
             if self.validation_images is None:
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
                 self.val_denorm_color_images = imagenet_denorm(self.validation_images[0])
             self.plot(prefix)
+        self.val_plot_counter += 1
         return metric_dict
 
     def test_step(self, batch, batch_idx):
