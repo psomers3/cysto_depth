@@ -42,7 +42,6 @@ class DepthEstimationModel(BaseModel):
         self.val_denorm_color_images = None
         self.plot_minmax_train = None
         self.plot_minmax_val = None
-        self.val_plot_counter: int = 0
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
 
@@ -184,7 +183,6 @@ class DepthEstimationModel(BaseModel):
                                                                                    self.config.predict_normals)
                 self.val_denorm_color_images = imagenet_denorm(self.validation_images[0])
             self.plot(prefix)
-        self.val_plot_counter += 1
         return metric_dict
 
     def test_step(self, batch, batch_idx):
