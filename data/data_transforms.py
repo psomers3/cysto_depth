@@ -92,7 +92,8 @@ class EndoMask:
                  mask_color: Union[float, List[float]] = None,
                  radius_factor: Union[float, List[float]] = 1.0,
                  blur_kernel_range: Tuple[int, int] = (51, 81),
-                 blur_sigma: float = 30
+                 blur_sigma: float = 30,
+                 add_random_blur: bool = False
                  ):
         """
         :param mask_color: color to use for mask. If left as none, a randomized dark color is used per image.
@@ -103,6 +104,7 @@ class EndoMask:
         self.radius_factor = radius_factor
         self.blur_kernel_range = blur_kernel_range
         self.blur_sigma = blur_sigma
+        self.add_random_blur = add_random_blur
 
     def __call__(self,
                  data: torch.Tensor,
@@ -123,6 +125,7 @@ class EndoMask:
         mask = create_circular_mask(*data.shape[-2:], invert=True, radius_scale=radius)
         data[:, mask] = mask_color
 
+        blur = True if self.add_random_blur else blur
         if blur and torch.rand(1) > 0.5:
             invert_mask = torch.Tensor(1 - mask)
             kernel_size = int((torch.randint(*self.blur_kernel_range, (1,)).numpy()[0] // 2) * 2 + 1)

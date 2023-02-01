@@ -42,7 +42,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           split=split,
                                           image_size=config.image_size,
                                           workers_per_loader=config.num_workers,
-                                          phong_config=config.phong_config)
+                                          phong_config=config.phong_config,
+                                          add_random_blur=config.add_mask_blur)
         else:
             data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
                                               data_roles=config.synthetic_config.data_roles,
@@ -67,7 +68,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     generate_data=config.gan_config.generate_data,
                                     synth_split=split,
                                     image_size=config.image_size,
-                                    workers_per_loader=config.num_workers)
+                                    workers_per_loader=config.num_workers,
+                                    add_random_blur=config.add_mask_blur)
         model = GAN(image_gan=config.image_gan, synth_config=config.synthetic_config, gan_config=config.gan_config)
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})

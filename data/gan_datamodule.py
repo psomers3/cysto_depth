@@ -45,7 +45,9 @@ class GANDataModule(pl.LightningDataModule):
                  generate_data: bool = False,
                  synth_split: dict = None,
                  image_size: int = 256,
-                 workers_per_loader: int = 6):
+                 workers_per_loader: int = 6,
+                 add_random_blur: bool = False
+                 ):
         """ A Data Module for loading rendered endoscopic images and real images. The rendered images will be made
          square and a circular mask applied to simulate actual endoscopic images. The real images are generated
          from endoscopic videos.
@@ -83,6 +85,7 @@ class GANDataModule(pl.LightningDataModule):
         self.image_size = image_size
         self.video_directories = video_directories
         self.generate_data = generate_data
+        self.add_random_blur = add_random_blur
         self.data_train: Dataset = None
         self.data_val: Dataset = None
         self.data_test: Dataset = None
@@ -137,7 +140,7 @@ class GANDataModule(pl.LightningDataModule):
         # NOTE!! if any SynchronizeTransforms are used, then each dataset needs its own set of transforms. See the
         # EndoDepthDataModule
         squarify = d_transforms.Squarify(image_size=self.image_size)
-        mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0])
+        mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0], add_random_blur=self.add_random_blur)
         imagenet_norm = d_transforms.ImageNetNormalization()
         affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
         synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform, imagenet_norm])

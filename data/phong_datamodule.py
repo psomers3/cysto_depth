@@ -69,7 +69,8 @@ class PhongDataModule(FileLoadingDataModule):
                  split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6,
-                 phong_config: PhongConfig = PhongConfig()):
+                 phong_config: PhongConfig = PhongConfig(),
+                 add_random_blur: bool = False):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -95,6 +96,7 @@ class PhongDataModule(FileLoadingDataModule):
         self.save_hyperparameters()
         self.image_size = image_size
         self.num_synchros = 3
+        self.add_random_blur = add_random_blur
 
     def get_transforms(self, split_stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
@@ -105,7 +107,7 @@ class PhongDataModule(FileLoadingDataModule):
         to_mm = d_transforms.ElementWiseScale(1e3)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
                                                   num_synchros=self.num_synchros,
-                                                  additional_args=[[None], [0], [0], [0]])
+                                                  additional_args=[[None, self.add_random_blur], [0], [0], [0]])
         squarify = d_transforms.Squarify(image_size=self.image_size)
         color_transforms = [mask, squarify]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
