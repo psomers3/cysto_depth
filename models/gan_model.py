@@ -57,7 +57,8 @@ class GAN(BaseModel):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         self.depth_model.apply(freeze_batchnorm)
-        self.generator.apply(freeze_batchnorm)
+        if self.config.freeze_batch_norm:
+            self.generator.apply(freeze_batchnorm)
 
         # x = synthetic image, z = real image
         x, z = batch

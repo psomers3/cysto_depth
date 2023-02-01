@@ -176,6 +176,8 @@ class GANTrainingConfig:
     """ Final square size to make all images """
     adaptive_gating: bool = '${..adaptive_gating}'
     """ Whether to turn on adaptive gating for domain adaptation """
+    freeze_batch_norm: bool = True
+    """ Whether to freeze the batch norm statistics for the generator """
     beta_1: float = 0.5
     beta_2: float = 0.999
     residual_loss_factor: float = 5
