@@ -43,8 +43,6 @@ class GAN(BaseModel):
         self.d_feat_modules = torch.nn.ModuleList(modules=d_feat_list)
         self.gan = True
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
-        self.depth_model.apply(freeze_batchnorm)
-        self.generator.apply(freeze_batchnorm)
 
     def forward(self, z, full_prediction=False):
         if full_prediction:
@@ -58,6 +56,9 @@ class GAN(BaseModel):
         return F.binary_cross_entropy(y_hat, y)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
+        self.depth_model.apply(freeze_batchnorm)
+        self.generator.apply(freeze_batchnorm)
+
         # x = synthetic image, z = real image
         x, z = batch
         if optimizer_idx == 0 and self.global_step >= self.config.warmup_steps:
