@@ -15,17 +15,19 @@ synthetic_config:
     - depth
     - normals
   data_directories:
-    - /Users/peter/Desktop/bladder_dataset_filtered/color
-    - /Users/peter/Desktop/bladder_dataset_filtered/depth
-    - /Users/peter/Desktop/bladder_dataset_filtered/normals
-  training_split: {'train': .8, 'validate': 0.2, 'test': ".*00015.*"}
+    - /Users/peter/isys/2023_01_29/color
+    - /Users/peter/isys/2023_01_29/depth
+    - /Users/peter/isys/2023_01_29/normals
+  training_split: {'train': .8, 'validate': 0.18, 'test': .02}
 #  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_1/epoch=13-step=378.ckpt
 gan_config:
-  source_images: /Users/peter/isys/output/color
+  source_images:
+    - /Users/peter/isys/2023_01_29/color
 #  synthetic_base_model: ./logs/synthetic/lightning_logs/version_47/checkpoints/epoch=7-step=8.ckpt
   synth_split: {'train': .8, 'validate': .1, 'test': .1}
   generate_data: False
-  videos_folder:  /Users/peter/isys/videos
+  videos_folder:
+    - /Users/peter/isys/videos
   image_output_folder: ./gan_data
 trainer_config:
   gpus: []

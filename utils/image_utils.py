@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
 from torchvision.transforms import Compose, Normalize
 import matplotlib.pyplot as plt
 import seaborn as sns

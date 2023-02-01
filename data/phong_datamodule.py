@@ -49,6 +49,7 @@ class PhongDataSet(ImageDataset):
         """
         imgs = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
         color, depth, normals = imgs
+        normals = torch.nn.functional.normalize(normals, dim=0)
         rendered = render_rgbd(depth.permute((1, 2, 0)),
                                self.grey,
                                normals.permute((1, 2, 0)),
@@ -100,6 +101,7 @@ class PhongDataModule(FileLoadingDataModule):
 
             :param split_stage: one of 'train', 'validate', 'test'
         """
+        imagenet_norm = d_transforms.ImageNetNormalization()
         to_mm = d_transforms.ElementWiseScale(1e3)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
                                                   num_synchros=self.num_synchros,
@@ -122,7 +124,7 @@ class PhongDataModule(FileLoadingDataModule):
             # color_transforms.append(affine)
             # depth_transforms.append(affine)
             # normals_transforms.append(affine)
-
+        color_transforms.append(imagenet_norm)
         color_transforms = torch_transforms.Compose(color_transforms)
         depth_transforms = torch_transforms.Compose(depth_transforms)
         normals_transforms = torch_transforms.Compose(normals_transforms)

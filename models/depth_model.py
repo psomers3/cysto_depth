@@ -42,7 +42,7 @@ class DepthEstimationModel(BaseModel):
         self.val_denorm_color_images = None
         self.plot_minmax_train = None
         self.plot_minmax_val = None
-        self.val_plot_counter: int = 0
+        self.val_plottable_norms = None
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
 
@@ -119,25 +119,25 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
-            normals_regularization_loss = torch.nn.functional.mse_loss(
-                torch.linalg.norm(y_hat_normals, dim=1, keepdim=True),
-                torch.ones_like(y_hat_depth[-1], device=self.device))
-            self.log("normals_regularization_loss", normals_regularization_loss)
+            # normals_regularization_loss = torch.nn.functional.mse_loss(
+            #     torch.linalg.norm(y_hat_normals, dim=1, keepdim=True),
+            #     torch.ones_like(y_hat_depth[-1], device=self.device))
+            # self.log("normals_regularization_loss", normals_regularization_loss)
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
 
         loss = depth_loss * self.config.depth_loss_factor + \
                grad_loss * self.config.depth_grad_loss_factor + \
                normals_loss * self.config.normals_loss_factor + \
-               phong_loss * self.config.phong_loss_factor + \
-               normals_regularization_loss
+               phong_loss * self.config.phong_loss_factor
+        # normals_regularization_loss
         self.log("training_loss", loss)
 
         if batch_idx % self.config.train_plot_interval == 0:
             if self.test_images is None:
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
-                self.train_denorm_color_images = imagenet_denorm(self.test_images[0])
+                self.train_denorm_color_images = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
             self.plot(prefix="train")
         return loss
 
@@ -182,7 +182,9 @@ class DepthEstimationModel(BaseModel):
             if self.validation_images is None:
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
-                self.val_denorm_color_images = imagenet_denorm(self.validation_images[0])
+                self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
+                self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
+                    2].abs().max() + 1) / 2 if self.config.predict_normals else None
             self.plot(prefix)
         self.val_plot_counter += 1
         return metric_dict
@@ -215,7 +217,8 @@ class DepthEstimationModel(BaseModel):
                 y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1).detach()
                 y_phong = self.phong_loss((y_hat_depth.detach(), y_hat_normals),
                                           synth_phong.to(self.phong_loss.light.device))[1].cpu()
-                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), synth_normals),
+                y_hat_normals = (y_hat_normals + 1) / 2
+                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), self.val_plottable_norms),
                                       prefix=f'{prefix}-synth-normals',
                                       labels=["Synth Image", "Predicted", "Ground Truth"])
                 self.gen_phong_plots(zip(denormed_synth_imgs, y_phong, synth_phong),
