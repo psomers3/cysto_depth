@@ -43,6 +43,8 @@ class DepthEstimationModel(BaseModel):
         self.plot_minmax_train = None
         self.plot_minmax_val = None
         self.val_plottable_norms = None
+        self.train_plottable_norms = None
+        self._val_epoch_count = 0
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
 
@@ -138,6 +140,8 @@ class DepthEstimationModel(BaseModel):
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
                 self.train_denorm_color_images = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
+                self.train_plottable_norms = (self.test_images[2] / self.test_images[2].abs().max() + 1) / 2 \
+                                             if self.config.predict_normals else None
             self.plot(prefix="train")
         return loss
 
@@ -168,26 +172,27 @@ class DepthEstimationModel(BaseModel):
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
         self.setup_losses()
         if self.config.predict_normals:
-            synth_img, synth_phong, synth_depth, synth_normals = batch
-            y_hat_depth, y_hat_normals = self(synth_img)
+            synth_img, _, synth_depth, _ = batch
+            y_hat_depth, _ = self(synth_img)
         else:
             synth_img, synth_depth = batch
             y_hat_depth = self(synth_img)
 
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
-
-        if batch_idx % self.config.val_plot_interval == 0:
-            # do plot on the same images without differing augmentations
-            if self.validation_images is None:
+        if self.validation_images is None:
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
                 self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
                 self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
                     2].abs().max() + 1) / 2 if self.config.predict_normals else None
-            self.plot(prefix)
-
         return metric_dict
+    
+    def on_validation_epoch_end(self) -> None:
+        if self._val_epoch_count % self.config.val_plot_interval == 0:            
+                self.plot('val')
+        self._val_epoch_count += 1
+        return super().on_validation_epoch_end()
 
     def test_step(self, batch, batch_idx):
         return self.shared_val_test_step(batch, batch_idx, "test")
@@ -206,10 +211,12 @@ class DepthEstimationModel(BaseModel):
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
                 minmax = self.plot_minmax_val
                 denormed_synth_imgs = self.val_denorm_color_images
+                plottable_norms = self.val_plottable_norms
             else:
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.test_images
                 minmax = self.plot_minmax_train
                 denormed_synth_imgs = self.train_denorm_color_images
+                plottable_norms = self.train_plottable_norms
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].detach().to(self.phong_loss.light.device), \
@@ -218,7 +225,7 @@ class DepthEstimationModel(BaseModel):
                 y_phong = self.phong_loss((y_hat_depth.detach(), y_hat_normals),
                                           synth_phong.to(self.phong_loss.light.device))[1].cpu()
                 y_hat_normals = (y_hat_normals + 1) / 2
-                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), self.val_plottable_norms),
+                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), plottable_norms),
                                       prefix=f'{prefix}-synth-normals',
                                       labels=["Synth Image", "Predicted", "Ground Truth"])
                 self.gen_phong_plots(zip(denormed_synth_imgs, y_phong, synth_phong),

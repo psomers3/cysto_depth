@@ -145,12 +145,15 @@ class Squarify:
     square image is then resized to the provided dimension.
     """
 
-    def __init__(self, image_size: int = None, clamp_values: bool = False):
+    def __init__(self, 
+                 image_size: int = None, 
+                 clamp_values: bool = False, 
+                 interpolation: torch_transforms.InterpolationMode = torch_transforms.InterpolationMode.BICUBIC):
         self.image_size = image_size
         self.resize = None
         self.clamp = clamp_values
         if self.image_size is not None:
-            self.resize = torch_transforms.Resize(self.image_size)
+            self.resize = torch_transforms.Resize(self.image_size, interpolation=interpolation)
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         data = torch_transforms.CenterCrop(min(data.shape[-2:]))(data)

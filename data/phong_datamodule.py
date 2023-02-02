@@ -108,11 +108,14 @@ class PhongDataModule(FileLoadingDataModule):
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
                                                   num_synchros=self.num_synchros,
                                                   additional_args=[[None, self.add_random_blur], [0], [0], [0]])
-        squarify = d_transforms.Squarify(image_size=self.image_size)
-        color_transforms = [mask, squarify]
+        normals_depth_squarify = d_transforms.Squarify(image_size=self.image_size, 
+                                                       interpolation=torch_transforms.InterpolationMode.NEAREST)
+        colors_squarify = d_transforms.Squarify(image_size=self.image_size, 
+                                                interpolation=torch_transforms.InterpolationMode.BICUBIC)
+        color_transforms = [colors_squarify, mask]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
-        depth_transforms = [channel_slice, to_mm, mask, squarify]
-        normals_transforms = [mask, squarify]
+        depth_transforms = [channel_slice, to_mm, normals_depth_squarify, mask]
+        normals_transforms = [normals_depth_squarify, mask]
         if split_stage == "train":
             # affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
             #                                                                      translate=(0, 0),
