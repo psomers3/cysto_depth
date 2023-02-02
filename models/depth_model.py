@@ -186,7 +186,7 @@ class DepthEstimationModel(BaseModel):
                 self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
                     2].abs().max() + 1) / 2 if self.config.predict_normals else None
             self.plot(prefix)
-        self.val_plot_counter += 1
+
         return metric_dict
 
     def test_step(self, batch, batch_idx):
