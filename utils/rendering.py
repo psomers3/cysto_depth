@@ -324,32 +324,37 @@ def get_points_in_3d(pixel_locations: torch.Tensor,
                      device: torch.device = None) -> torch.Tensor:
     if len(depth_map.shape) < 4:
         depth_map = depth_map[None]
+
+    pixel_locations = cam_intrinsic_matrix[-1, :2] - pixel_locations
+    pixel_locations /= cam_intrinsic_matrix[[0, 1], [0, 1]]
     pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1), device=device)], dim=-1)
-    rgbd_locations = pixel_locations[None] * depth_map
-    flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2],
-                                       rgbd_locations.shape[-1])
-    inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix)).to(device)
-    rotation = R.from_euler('XYZ', [0, 0, 0], degrees=True)  # obtained with guess and check... may not be correct
-    flip = torch.Tensor(rotation.as_matrix()).to(device)  # so point cloud isn't upside down
-    inv_intrinsic = flip @ inv_intrinsic
-    points_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
-    return points_3d.reshape(depth_map.shape[0], rgbd_locations.shape[-3], rgbd_locations.shape[-2], 3)
+    pixel_locations = torch.nn.functional.normalize(pixel_locations, dim=-1)
+    points_3d = pixel_locations[None] * depth_map
+    return points_3d
+    # flattened = points_3d.reshape(depth_map.shape[0], points_3d.shape[-3] * points_3d.shape[-2], points_3d.shape[-1])
+    # rotation = R.from_euler('XYZ', [0, 0, -90], degrees=True)
+    # flip = torch.Tensor(rotation.as_matrix()).to(device)  # so point cloud isn't upside down
+    # points_flipped = flip @ torch.unsqueeze(flattened, dim=-1)
+    # return points_flipped.reshape(depth_map.shape[0], points_3d.shape[-3], points_3d.shape[-2], 3)
 
 
 def get_normals_from_3d_points(points_3d: torch.Tensor):
-    dx, dy, dz = [torch.gradient(points_3d[:, :, i], dim=[0, 1], spacing=2) for i in range(3)]
-    dx, dy, dz = [(d[0] + d[1]) / 2 for d in [dx, dy, dz]]
+    dx, dy, dz = [torch.gradient(points_3d[:, :, i], dim=[-1])[0] for i in range(3)]
     gradients = torch.dstack([dx, dy, dz])
-    normals = torch.nn.functional.normalize(gradients, dim=-1)
+    normals = F.normalize(gradients, p=2, dim=-1)
     return normals
 
 
 def get_normals_from_depth_map(depth_map: torch.Tensor,
                                cam_intrinsic_matrix: torch.Tensor,
                                pixel_locations: torch.Tensor):
+    depth_map = depth_map.permute([1, 2, 0])
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
     points_in_3d = points_in_3d.reshape((*depth_map.shape[:2], 3))
     return get_normals_from_3d_points(points_in_3d.squeeze(-1))
+    # dx, dy = torch.gradient(depth_map, dim=[-1, -2])
+    # stacked = torch.cat([-dx/2, -dy/2, torch.ones_like(dx)], dim=0)
+    # return F.normalize(stacked, dim=0)
 
 
 def render_rgbd(depth_map: torch.Tensor,
