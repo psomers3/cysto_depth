@@ -10,6 +10,7 @@ from utils.image_utils import generate_heatmap_fig, generate_normals_fig, genera
 from models.decoder import Decoder
 from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
+from utils.rendering import get_normals_from_depth_map, get_pixel_locations
 
 imagenet_denorm = ImageNetNormalization(inverse=True)
 
@@ -32,6 +33,7 @@ class DepthEstimationModel(BaseModel):
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
             self.normals_decoder = None
+        self.pixel_locations = get_pixel_locations(self.config.image_size, self.config.image_size)
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss: CosineSimilarity = None
@@ -91,6 +93,7 @@ class DepthEstimationModel(BaseModel):
             self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config,
                                         device=self.device)
             self.normals_loss = CosineSimilarity(device=self.device)
+            self.pixel_locations.to(self.device)
 
     def training_step(self, batch, batch_idx):
         if self.config.predict_normals:
@@ -121,18 +124,19 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
-            # normals_regularization_loss = torch.nn.functional.mse_loss(
-            #     torch.linalg.norm(y_hat_normals, dim=1, keepdim=True),
-            #     torch.ones_like(y_hat_depth[-1], device=self.device))
-            # self.log("normals_regularization_loss", normals_regularization_loss)
+            calculated_normals = get_normals_from_depth_map(y_hat_depth,
+                                                            self.phong_loss.camera_intrinsics,
+                                                            self.pixel_locations).permute([2, 0, 1])
+            normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals).abs()
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
+            self.log('depth_to_normals_loss', normals_regularization_loss)
 
         loss = depth_loss * self.config.depth_loss_factor + \
                grad_loss * self.config.depth_grad_loss_factor + \
                normals_loss * self.config.normals_loss_factor + \
-               phong_loss * self.config.phong_loss_factor
-        # normals_regularization_loss
+               phong_loss * self.config.phong_loss_factor + \
+               normals_regularization_loss * self.config.calculated_normals_loss_factor
         self.log("training_loss", loss)
 
         if batch_idx % self.config.train_plot_interval == 0:

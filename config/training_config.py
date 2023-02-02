@@ -109,6 +109,8 @@ class SyntheticTrainingConfig:
     """ factor for loss cosine similarity on the normals outputs """
     depth_grad_loss_factor: float = 0.2
     """ factor for loss gradient between depth output values """
+    calculated_normals_loss_factor: float = 1
+    """ factor for comparing normals calculated from the predicted depth and the ground truth normals """
     phong_config: PhongConfig = '${..phong_config}'
     """ The config for the phong dataloader """
     predict_normals: bool = '${..predict_normals}'
