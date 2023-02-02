@@ -33,7 +33,7 @@ class DepthEstimationModel(BaseModel):
             self.normals_decoder = Decoder(3, output_each_level=False)
         else:
             self.normals_decoder = None
-        self.pixel_locations = get_pixel_locations(self.config.image_size, self.config.image_size)
+        self.pixel_locations = None
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss: CosineSimilarity = None
@@ -93,7 +93,9 @@ class DepthEstimationModel(BaseModel):
             self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config,
                                         device=self.device)
             self.normals_loss = CosineSimilarity(device=self.device)
-            self.pixel_locations.to(self.device)
+            self.pixel_locations = get_pixel_locations(self.config.image_size,
+                                                       self.config.image_size,
+                                                       device=self.device)
 
     def training_step(self, batch, batch_idx):
         if self.config.predict_normals:
