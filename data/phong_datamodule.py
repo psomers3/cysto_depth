@@ -32,7 +32,7 @@ class PhongDataSet(ImageDataset):
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
         self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
         self.grey = torch.ones((image_size, image_size, 3)) * .5
-
+        self.rgb_conversion = d_transforms.FlipBRGRGB()
         self.material = Materials(shininess=config.material_shininess)
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=(config.diffusion_color,),
@@ -50,6 +50,7 @@ class PhongDataSet(ImageDataset):
         imgs = super(PhongDataSet, self).__getitem__(idx)  # these are channel first
         color, depth, normals = imgs
         normals = torch.nn.functional.normalize(normals, dim=0)
+
         rendered = render_rgbd(depth.permute((1, 2, 0)),
                                self.grey,
                                normals.permute((1, 2, 0)),
@@ -115,20 +116,20 @@ class PhongDataModule(FileLoadingDataModule):
         color_transforms = [colors_squarify, mask]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         depth_transforms = [channel_slice, to_mm, normals_depth_squarify, mask]
-        normals_transforms = [normals_depth_squarify, mask]
+        normals_transforms = [normals_depth_squarify, d_transforms.FlipBRGRGB(), mask]
         if split_stage == "train":
-            # affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
-            #                                                                      translate=(0, 0),
-            #                                                                      image_size=self.image_size),
-            #                                             num_synchros=self.num_synchros,
-            #                                             additional_args=[[True],
-            #                                                              [False, True],
-            #                                                              [False, True]])
+            affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+                                                                                 translate=(0, 0),
+                                                                                 image_size=self.image_size),
+                                                        num_synchros=self.num_synchros,
+                                                        additional_args=[[True],
+                                                                         [False, True],
+                                                                         [False, True]])
             color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
             color_transforms.insert(0, color_jitter)
-            # color_transforms.append(affine)
-            # depth_transforms.append(affine)
-            # normals_transforms.append(affine)
+            color_transforms.append(affine)
+            depth_transforms.append(affine)
+            normals_transforms.append(affine)
         color_transforms.append(imagenet_norm)
         color_transforms = torch_transforms.Compose(color_transforms)
         depth_transforms = torch_transforms.Compose(depth_transforms)
@@ -160,9 +161,9 @@ if __name__ == '__main__':
     from utils.image_utils import matplotlib_show
     from utils.loss import PhongLoss
 
-    color_dir = '/Users/peter/Desktop/bladder_dataset_filtered/color'
-    depth_dir = '/Users/peter/Desktop/bladder_dataset_filtered/depth'
-    normals_dir = '/Users/peter/Desktop/bladder_dataset_filtered/normals'
+    color_dir = r'/Users/peter/isys/2023_01_29/color'
+    depth_dir = r'/Users/peter/isys/2023_01_29/depth'
+    normals_dir = r'/Users/peter/isys/2023_01_29/normals'
     phong = PhongConfig(attenuation=0.01, material_shininess=100)
     dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
@@ -173,14 +174,16 @@ if __name__ == '__main__':
     dm.setup('fit')
     loader = dm.train_dataloader()
     loader_iter = iter(loader)
-    loss = PhongLoss(phong, device='cpu')
+    denorm = d_transforms.ImageNetNormalization(inverse=True)
+    # loss = PhongLoss(phong, device='cpu')
     while True:
         sample = next(loader_iter)
-        loss_value, prediction = loss((sample[2], sample[3]), sample[1])
-        print(loss_value)
-        sample[-1] = sample[-1]*0.5 + 0.5
+        # loss_value, prediction = loss((sample[2], sample[3]), sample[1])
+        # print(loss_value)
+        sample[-1] = (sample[-1] + 1) * 0.5
+        sample[0] = denorm(sample[0])
         matplotlib_show(*sample)
-        matplotlib_show(prediction)
+        # matplotlib_show(prediction)
         plt.show(block=False)
         plt.pause(5)
         input("")

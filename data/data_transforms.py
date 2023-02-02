@@ -8,6 +8,14 @@ from torchvision.transforms import functional as torch_transforms_func
 from typing import *
 
 
+class FlipBRGRGB:
+    def __init__(self):
+        pass
+
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        return data[[2, 1, 0], ...]
+
+
 class DepthInvert:
     def __init__(self, min_depth: float = 0.5):
         self.clamp_max = 1 / min_depth
@@ -227,9 +235,9 @@ class PhongAffine:
                                                                                       scale_ranges=None,
                                                                                       shears=None)
         if data.shape[0] == 3 and is_normals:
-            radians = np.deg2rad(degrees)
-            rotation_matrix = torch.Tensor([[np.cos(radians), np.sin(radians), 0],
-                                            [-np.sin(radians), np.cos(radians), 0],
+            radians = np.deg2rad(-degrees)
+            rotation_matrix = torch.Tensor([[np.cos(radians), -np.sin(radians), 0],
+                                            [np.sin(radians), np.cos(radians), 0],
                                             [0, 0, 1]]).to(self.device)
             permuted = data.permute((1, 2, 0))
             normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))

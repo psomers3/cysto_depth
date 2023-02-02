@@ -329,7 +329,7 @@ def get_points_in_3d(pixel_locations: torch.Tensor,
     flattened = rgbd_locations.reshape(depth_map.shape[0], rgbd_locations.shape[-3] * rgbd_locations.shape[-2],
                                        rgbd_locations.shape[-1])
     inv_intrinsic = torch.Tensor(torch.inverse(cam_intrinsic_matrix)).to(device)
-    rotation = R.from_euler('XYZ', [0, 90, 180], degrees=True)  # obtained with guess and check... may not be correct
+    rotation = R.from_euler('XYZ', [0, 0, 0], degrees=True)  # obtained with guess and check... may not be correct
     flip = torch.Tensor(rotation.as_matrix()).to(device)  # so point cloud isn't upside down
     inv_intrinsic = flip @ inv_intrinsic
     points_3d = torch.matmul(inv_intrinsic[None], torch.unsqueeze(flattened, dim=-1))
