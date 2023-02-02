@@ -187,16 +187,16 @@ class DepthEstimationModel(BaseModel):
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
         if self.validation_images is None:
-                self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
-                                                                                   self.config.predict_normals)
-                self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
-                self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
-                    2].abs().max() + 1) / 2 if self.config.predict_normals else None
+            self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
+                                                                               self.config.predict_normals)
+            self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
+            self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
+                2].abs().max() + 1) / 2 if self.config.predict_normals else None
         return metric_dict
     
     def on_validation_epoch_end(self) -> None:
         if self._val_epoch_count % self.config.val_plot_interval == 0:            
-                self.plot('val')
+            self.plot('val')
         self._val_epoch_count += 1
         return super().on_validation_epoch_end()
 
