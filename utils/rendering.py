@@ -339,9 +339,9 @@ def get_points_in_3d(pixel_locations: torch.Tensor,
 
 
 def get_normals_from_3d_points(points_3d: torch.Tensor):
-    dx, dy, dz = [torch.gradient(points_3d[:, :, i], dim=[-1])[0] for i in range(3)]
-    gradients = torch.dstack([dx, dy, dz])
-    normals = F.normalize(gradients, p=2, dim=-1)
+    dx, dy, dz = [torch.unsqueeze(torch.gradient(points_3d[..., i], dim=[-1])[0], dim=1) for i in range(3)]
+    gradients = torch.cat([dx, dy, dz], dim=1)
+    normals = F.normalize(gradients, p=2, dim=1)
     return normals
 
 
@@ -349,9 +349,11 @@ def get_normals_from_depth_map(depth_map: torch.Tensor,
                                cam_intrinsic_matrix: torch.Tensor,
                                pixel_locations: torch.Tensor,
                                device: torch.device = None):
-    depth_map = depth_map.permute([1, 2, 0])
+    if depth_map.dim() < 4:
+        depth_map = depth_map[None]    
+    depth_map = depth_map.permute([0, 2, 3, 1])
     points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix, device)
-    points_in_3d = points_in_3d.reshape((*depth_map.shape[:2], 3))
+    points_in_3d = points_in_3d.reshape((*depth_map.shape[:-1], 3))
     return get_normals_from_3d_points(points_in_3d.squeeze(-1))
     # dx, dy = torch.gradient(depth_map, dim=[-1, -2])
     # stacked = torch.cat([-dx/2, -dy/2, torch.ones_like(dx)], dim=0)

@@ -84,7 +84,7 @@ class PhongLoss(nn.Module):
         self.squarify = d_transforms.Squarify(image_size)
         # get the original camera pixel locations at the desired image resolution
         original_image_size = get_image_size_from_intrisics(self.camera_intrinsics)
-        self.camera_intrinsics.to(device)
+        self.camera_intrinsics = self.camera_intrinsics.to(device)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
         self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))[:, :, [1, 0]].to(device)

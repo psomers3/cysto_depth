@@ -11,7 +11,11 @@ from models.decoder import Decoder
 from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
 from utils.rendering import get_normals_from_depth_map, get_pixel_locations
-
+# import debugpy
+# debugpy.listen(5678)
+# print("Waiting for debugger to attach... ", end='', flush=True)
+# debugpy.wait_for_client()
+# print("done!")
 imagenet_denorm = ImageNetNormalization(inverse=True)
 
 
@@ -126,9 +130,10 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
-            calculated_normals = get_normals_from_depth_map(y_hat_depth,
+            calculated_normals = get_normals_from_depth_map(y_hat_depth[-1],
                                                             self.phong_loss.camera_intrinsics,
-                                                            self.pixel_locations).permute([2, 0, 1])
+                                                            self.pixel_locations,
+                                                            device=self.device)
             normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals).abs()
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
@@ -228,7 +233,7 @@ class DepthEstimationModel(BaseModel):
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].detach().to(self.phong_loss.light.device), \
                                              y_hat_normals.detach().to(self.phong_loss.light.device)
                 y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1).detach()
-                y_phong = self.phong_loss((y_hat_depth.detach(), y_hat_normals),
+                y_phong = self.phong_loss((y_hat_depth, y_hat_normals),
                                           synth_phong.to(self.phong_loss.light.device))[1].cpu()
                 y_hat_normals = (y_hat_normals + 1) / 2
                 self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), plottable_norms),
