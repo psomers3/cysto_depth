@@ -347,9 +347,10 @@ def get_normals_from_3d_points(points_3d: torch.Tensor):
 
 def get_normals_from_depth_map(depth_map: torch.Tensor,
                                cam_intrinsic_matrix: torch.Tensor,
-                               pixel_locations: torch.Tensor):
+                               pixel_locations: torch.Tensor,
+                               device: torch.device = None):
     depth_map = depth_map.permute([1, 2, 0])
-    points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix)
+    points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix, device)
     points_in_3d = points_in_3d.reshape((*depth_map.shape[:2], 3))
     return get_normals_from_3d_points(points_in_3d.squeeze(-1))
     # dx, dy = torch.gradient(depth_map, dim=[-1, -2])
