@@ -207,10 +207,17 @@ class MatrixRotation:
         self.rotation = torch.Tensor(rotation)[None]
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        permuted = data.permute((1, 2, 0))
-        normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))
-        rotated = (self.rotation @ normals_reshaped.unsqueeze(-1)).squeeze(-1)
-        return rotated.permute((1, 0)).reshape(data.shape)
+        ndim = data.ndim
+        if ndim == 3:
+            permuted = data.permute((1, 2, 0))
+            normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))
+            rotated = (self.rotation @ normals_reshaped.unsqueeze(-1)).squeeze(-1)
+            return rotated.permute((1, 0)).reshape(data.shape)
+        else:
+            permuted = data.permute((0, 2, 3, 1)) if data.shape[-1] != 3 else data
+            normals_reshaped = permuted.reshape((data.shape[0] * permuted.shape[1] * permuted.shape[2], 3))
+            rotated = (self.rotation @ normals_reshaped.unsqueeze(-1)).squeeze(-1)
+            return rotated.permute((1, 0)).reshape(data.shape) if data.shape[-1] != 3 else rotated.reshape(data.shape)
 
 
 class PhongAffine:

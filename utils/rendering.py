@@ -8,7 +8,8 @@ from kornia.core import Tensor
 from kornia.utils import create_meshgrid
 from kornia.geometry.camera import unproject_points
 from kornia.filters import spatial_gradient
-
+from data.data_transforms import MatrixRotation
+from scipy.spatial.transform import Rotation
 # keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
 from pytorch3d.renderer.materials import Materials
 
@@ -457,7 +458,7 @@ def render_rgbd(depth_map: torch.Tensor,
     positions = positions.permute([0, 2, 3, 1])
     camera_positions = torch.Tensor((((0, 0, 0),),)).to(device)
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
-                                                                               normals_image,
+                                                                               -normals_image,
                                                                                spot_light,
                                                                                camera_positions,
                                                                                uniform_material)

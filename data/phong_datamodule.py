@@ -32,9 +32,8 @@ class PhongDataSet(ImageDataset):
         original_image_size = get_image_size_from_intrisics(self.camera_intrinsics.T)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
-        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)) - self.camera_intrinsics[-1, [1, 0]]
         self.grey = torch.ones((image_size, image_size, 3)) * .5
-        self.rgb_conversion = d_transforms.FlipBRGRGB()
         self.material = Materials(shininess=config.material_shininess)
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=(config.diffusion_color,),
@@ -121,18 +120,18 @@ class PhongDataModule(FileLoadingDataModule):
         normals_rotation = d_transforms.MatrixRotation(Rotation.from_euler('XYZ', [0, 180, 0], degrees=True).as_matrix())
         normals_transforms = [d_transforms.FlipBRGRGB(), normals_rotation, normals_depth_squarify, mask]
         if split_stage == "train":
-            affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
-                                                                                 translate=(0, 0),
-                                                                                 image_size=self.image_size),
-                                                        num_synchros=self.num_synchros,
-                                                        additional_args=[[True],
-                                                                         [False, True],
-                                                                         [False, True]])
+            # affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+            #                                                                      translate=(0, 0),
+            #                                                                      image_size=self.image_size),
+            #                                             num_synchros=self.num_synchros,
+            #                                             additional_args=[[True],
+            #                                                              [False, True],
+            #                                                              [False, True]])
             color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
             color_transforms.insert(0, color_jitter)
-            color_transforms.append(affine)
-            depth_transforms.append(affine)
-            normals_transforms.append(affine)
+            # color_transforms.append(affine)
+            # depth_transforms.append(affine)
+            # normals_transforms.append(affine)
         color_transforms.append(imagenet_norm)
         color_transforms = torch_transforms.Compose(color_transforms)
         depth_transforms = torch_transforms.Compose(depth_transforms)
