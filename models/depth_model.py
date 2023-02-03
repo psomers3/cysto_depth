@@ -118,7 +118,8 @@ class DepthEstimationModel(BaseModel):
 
         # iterate through outputs at each level of decoder from output to bottleneck
         for idx, predicted in enumerate(y_hat_depth[::-1]):
-            depth_loss += self.berhu(predicted, synth_depth)
+            lambda_factor = self.config.depth_loss_lambda_factor ** -idx
+            depth_loss += self.berhu(predicted, synth_depth) * lambda_factor
 
             # apply gradient loss after first epoch
             if self.current_epoch > 0:

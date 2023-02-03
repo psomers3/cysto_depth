@@ -105,6 +105,8 @@ class SyntheticTrainingConfig:
     """ factor for loss phong shading for depth and normals """
     depth_loss_factor: float = 1.0
     """ factor for loss BerHu on the depth outputs """
+    depth_loss_lambda_factor: float = 0.8
+    """ factor to scale depth loss by output layer """
     normals_loss_factor: float = 1.0
     """ factor for loss cosine similarity on the normals outputs """
     depth_grad_loss_factor: float = 0.2
