@@ -136,7 +136,7 @@ class DepthEstimationModel(BaseModel):
             calculated_normals = depth_to_normals(y_hat_depth[-1],
                                                   self.phong_loss.camera_intrinsics[None],
                                                   self.pixel_locations)
-            normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals).abs()
+            normals_regularization_loss = 1 - self.normals_loss(calculated_normals, synth_normals).abs()
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
             self.log('depth_to_normals_loss', normals_regularization_loss)
