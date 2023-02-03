@@ -106,7 +106,7 @@ class SyntheticTrainingConfig:
     depth_loss_factor: float = 1.0
     """ factor for loss BerHu on the depth outputs """
     depth_loss_lambda_factor: float = 0.8
-    """ factor to scale depth loss by output layer """
+    """ factor to scale depth loss by output layer [0 - 1] """
     normals_loss_factor: float = 1.0
     """ factor for loss cosine similarity on the normals outputs """
     depth_grad_loss_factor: float = 0.2
