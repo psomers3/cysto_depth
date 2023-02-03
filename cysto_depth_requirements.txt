@@ -13,3 +13,4 @@ tqdm
 seaborn
 tensorboard
 scipy
+kornia
