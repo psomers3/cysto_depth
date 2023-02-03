@@ -10,7 +10,8 @@ from utils.image_utils import generate_heatmap_fig, generate_normals_fig, genera
 from models.decoder import Decoder
 from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
-from utils.rendering import get_normals_from_depth_map, get_pixel_locations
+from utils.rendering import depth_to_normals, get_pixel_locations
+
 # import debugpy
 # debugpy.listen(5678)
 # print("Waiting for debugger to attach... ", end='', flush=True)
@@ -131,10 +132,9 @@ class DepthEstimationModel(BaseModel):
         if self.config.predict_normals:
             normals_loss = self.normals_loss(y_hat_normals, synth_normals)
             self.log("normals_cosine_similarity_loss", normals_loss)
-            calculated_normals = get_normals_from_depth_map(y_hat_depth[-1],
-                                                            self.phong_loss.camera_intrinsics,
-                                                            self.pixel_locations,
-                                                            device=self.device)
+            calculated_normals = depth_to_normals(y_hat_depth[-1],
+                                                  self.phong_loss.camera_intrinsics[None],
+                                                  self.pixel_locations)
             normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals).abs()
             phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
             self.log("phong_loss", phong_loss)
@@ -153,7 +153,7 @@ class DepthEstimationModel(BaseModel):
                                                                                self.config.predict_normals)
                 self.train_denorm_color_images = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
                 self.train_plottable_norms = (self.test_images[2] / self.test_images[2].abs().max() + 1) / 2 \
-                                             if self.config.predict_normals else None
+                    if self.config.predict_normals else None
             self.plot(prefix="train")
         return loss
 
@@ -199,9 +199,9 @@ class DepthEstimationModel(BaseModel):
             self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
                 2].abs().max() + 1) / 2 if self.config.predict_normals else None
         return metric_dict
-    
+
     def on_validation_epoch_end(self) -> None:
-        if self._val_epoch_count % self.config.val_plot_interval == 0:            
+        if self._val_epoch_count % self.config.val_plot_interval == 0:
             self.plot('val')
         self._val_epoch_count += 1
         return super().on_validation_epoch_end()

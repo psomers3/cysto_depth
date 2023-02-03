@@ -87,7 +87,7 @@ class PhongLoss(nn.Module):
         self.camera_intrinsics = self.camera_intrinsics.to(device)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
-        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))[:, :, [1, 0]].to(device)
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)).to(device)
         self.resized_pixel_locations.requires_grad_(False)
         self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
         self.grey.requires_grad_(False)
@@ -112,7 +112,7 @@ class PhongLoss(nn.Module):
         :return: the loss value and the rendered images
         """
         depth, normals = predicted_depth_normals
-        rendered = render_rgbd(torch.permute(depth, (0, 2, 3, 1)),
+        rendered = render_rgbd(depth,
                                self.grey,
                                normals.permute((0, 2, 3, 1)),
                                self.camera_intrinsics,

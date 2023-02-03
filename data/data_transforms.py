@@ -6,6 +6,7 @@ import torch
 from torchvision import transforms as torch_transforms
 from torchvision.transforms import functional as torch_transforms_func
 from typing import *
+from scipy.spatial.transform import Rotation
 
 
 class FlipBRGRGB:
@@ -201,6 +202,17 @@ class AddGaussianNoise:
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
+class MatrixRotation:
+    def __init__(self, rotation: Union[List[List[float]], torch.Tensor, np.ndarray]):
+        self.rotation = torch.Tensor(rotation)[None]
+
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        permuted = data.permute((1, 2, 0))
+        normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))
+        rotated = (self.rotation @ normals_reshaped.unsqueeze(-1)).squeeze(-1)
+        return rotated.permute((1, 0)).reshape(data.shape)
+
+
 class PhongAffine:
     """ special rotation to apply the proper rotation to normals """
 
@@ -235,10 +247,7 @@ class PhongAffine:
                                                                                       scale_ranges=None,
                                                                                       shears=None)
         if data.shape[0] == 3 and is_normals:
-            radians = np.deg2rad(-degrees)
-            rotation_matrix = torch.Tensor([[np.cos(radians), -np.sin(radians), 0],
-                                            [np.sin(radians), np.cos(radians), 0],
-                                            [0, 0, 1]]).to(self.device)
+            rotation_matrix = torch.Tensor(Rotation.from_euler('XYZ', [0, 0, degrees], degrees=True).as_matrix())
             permuted = data.permute((1, 2, 0))
             normals_reshaped = permuted.reshape((data.shape[1] * data.shape[2], 3))
             rotated = (rotation_matrix[None] @ normals_reshaped.unsqueeze(-1)).squeeze(-1)

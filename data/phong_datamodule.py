@@ -6,6 +6,7 @@ import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
 from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
+from scipy.spatial.transform import Rotation
 
 
 class PhongDataSet(ImageDataset):
@@ -31,7 +32,7 @@ class PhongDataSet(ImageDataset):
         original_image_size = get_image_size_from_intrisics(self.camera_intrinsics.T)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1)))
-        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))[:, :, [1, 0]]
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0))
         self.grey = torch.ones((image_size, image_size, 3)) * .5
         self.rgb_conversion = d_transforms.FlipBRGRGB()
         self.material = Materials(shininess=config.material_shininess)
@@ -52,7 +53,7 @@ class PhongDataSet(ImageDataset):
         color, depth, normals = imgs
         normals = torch.nn.functional.normalize(normals, dim=0)
 
-        rendered = render_rgbd(depth.permute((1, 2, 0)),
+        rendered = render_rgbd(depth,
                                self.grey,
                                normals.permute((1, 2, 0)),
                                self.camera_intrinsics,
@@ -117,20 +118,21 @@ class PhongDataModule(FileLoadingDataModule):
         color_transforms = [colors_squarify, mask]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         depth_transforms = [channel_slice, to_mm, normals_depth_squarify, mask]
-        normals_transforms = [normals_depth_squarify, d_transforms.FlipBRGRGB(), mask]
+        normals_rotation = d_transforms.MatrixRotation(Rotation.from_euler('XYZ', [0, 180, 0], degrees=True).as_matrix())
+        normals_transforms = [d_transforms.FlipBRGRGB(), normals_rotation, normals_depth_squarify, mask]
         if split_stage == "train":
-            # affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
-            #                                                                      translate=(0, 0),
-            #                                                                      image_size=self.image_size),
-            #                                             num_synchros=self.num_synchros,
-            #                                             additional_args=[[True],
-            #                                                              [False, True],
-            #                                                              [False, True]])
+            affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+                                                                                 translate=(0, 0),
+                                                                                 image_size=self.image_size),
+                                                        num_synchros=self.num_synchros,
+                                                        additional_args=[[True],
+                                                                         [False, True],
+                                                                         [False, True]])
             color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
             color_transforms.insert(0, color_jitter)
-            # color_transforms.append(affine)
-            # depth_transforms.append(affine)
-            # normals_transforms.append(affine)
+            color_transforms.append(affine)
+            depth_transforms.append(affine)
+            normals_transforms.append(affine)
         color_transforms.append(imagenet_norm)
         color_transforms = torch_transforms.Compose(color_transforms)
         depth_transforms = torch_transforms.Compose(depth_transforms)
@@ -161,7 +163,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from mpl_toolkits import mplot3d
     from utils.image_utils import matplotlib_show
-    from utils.rendering import get_normals_from_depth_map, get_pixel_locations , get_points_in_3d
+    from utils.rendering import get_pixel_locations, depth_to_normals, depth_to_3d
     from utils.loss import PhongLoss
     from pytorch_lightning.trainer.trainer import DataLoader
 
@@ -192,17 +194,12 @@ if __name__ == '__main__':
         sample[0] = denorm(sample[0])
         matplotlib_show(*sample)
         pixel_loc = loader.dataset.resized_pixel_locations
-        prediction = get_normals_from_depth_map(sample[2][0],
-                                                loss.camera_intrinsics,
-                                                pixel_loc)
-        matplotlib_show((prediction.permute([2, 0, 1]) + 1) * .5)
-        # matplotlib_show((prediction + 1) * .5)
+        prediction = depth_to_normals(sample[2], loss.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=True)
+        matplotlib_show((prediction + 1) * .5)
 
         fig = plt.figure()
         ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
-        x = get_points_in_3d(pixel_locations=pixel_loc,
-                             depth_map=sample[2][0].permute([1, 2, 0]),
-                             cam_intrinsic_matrix=loss.camera_intrinsics)[0]
+        x = depth_to_3d(sample[2], loss.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
         x = x.reshape((x.shape[0]*x.shape[1], 3))
         ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
         plt.show(block=True)

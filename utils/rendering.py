@@ -1,11 +1,13 @@
+import kornia.geometry.depth
 import torch
 from typing import *
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 from pytorch3d.renderer.lighting import diffuse, _validate_light_properties, TensorProperties
 from pytorch3d.renderer.lighting import convert_to_tensors_and_broadcast, F
-from pytorch3d.renderer.lighting import specular as phong_specular
-import pytorch3d.renderer.lighting as pytorch3d_lighting
+from kornia.core import Tensor
+from kornia.utils import create_meshgrid
+from kornia.geometry.camera import unproject_points
+from kornia.filters import spatial_gradient
 
 # keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
 from pytorch3d.renderer.materials import Materials
@@ -318,46 +320,105 @@ def phong_lighting(points, normals, lights, camera_positions, materials) \
     return ambient_color, diffuse_color, specular_color, light_attenuation
 
 
-def get_points_in_3d(pixel_locations: torch.Tensor,
-                     depth_map: torch.Tensor,
-                     cam_intrinsic_matrix: torch.Tensor,
-                     device: torch.device = None) -> torch.Tensor:
-    if len(depth_map.shape) < 4:
-        depth_map = depth_map[None]
+def depth_to_3d(depth: Tensor, camera_matrix: Tensor, pixel_grid: torch.Tensor = None, normalize_points: bool = False) -> Tensor:
+    """Compute a 3d point per pixel given its depth value and the camera intrinsics.
 
-    pixel_locations = cam_intrinsic_matrix[-1, :2] - pixel_locations
-    pixel_locations /= cam_intrinsic_matrix[[0, 1], [0, 1]]
-    pixel_locations = torch.cat([pixel_locations, torch.ones((*pixel_locations.shape[:-1], 1), device=device)], dim=-1)
-    pixel_locations = torch.nn.functional.normalize(pixel_locations, dim=-1)
-    points_3d = pixel_locations[None] * depth_map
-    return points_3d
-    # flattened = points_3d.reshape(depth_map.shape[0], points_3d.shape[-3] * points_3d.shape[-2], points_3d.shape[-1])
-    # rotation = R.from_euler('XYZ', [0, 0, -90], degrees=True)
-    # flip = torch.Tensor(rotation.as_matrix()).to(device)  # so point cloud isn't upside down
-    # points_flipped = flip @ torch.unsqueeze(flattened, dim=-1)
-    # return points_flipped.reshape(depth_map.shape[0], points_3d.shape[-3], points_3d.shape[-2], 3)
+    Args:
+        depth: image tensor containing a depth value per pixel with shape :math:`(B, 1, H, W)`.
+        camera_matrix: tensor containing the camera intrinsics with shape :math:`(B, 3, 3)`.
+        pixel_grid: tensor containg pixel locations corresponding to depth with shape :math:`(B, H, W, 2)`
+        normalize_points: whether to normalize the pointcloud. This must be set to `True` when the depth is
+          represented as the Euclidean ray length from the camera position.
+
+    Return:
+        tensor with a 3d point per pixel of the same resolution as the input :math:`(B, 3, H, W)`.
+
+    Example:
+        >>> depth = torch.rand(1, 1, 4, 4)
+        >>> K = torch.eye(3)[None]
+        >>> depth_to_3d(depth, K).shape
+        torch.Size([1, 3, 4, 4])
+    """
+    if not isinstance(depth, Tensor):
+        raise TypeError(f"Input depht type is not a Tensor. Got {type(depth)}.")
+
+    if not (len(depth.shape) == 4 and depth.shape[-3] == 1):
+        raise ValueError(f"Input depth musth have a shape (B, 1, H, W). Got: {depth.shape}")
+
+    if not isinstance(camera_matrix, Tensor):
+        raise TypeError(f"Input camera_matrix type is not a Tensor. " f"Got {type(camera_matrix)}.")
+
+    if not (len(camera_matrix.shape) == 3 and camera_matrix.shape[-2:] == (3, 3)):
+        raise ValueError(f"Input camera_matrix must have a shape (B, 3, 3). " f"Got: {camera_matrix.shape}.")
+
+    # create base coordinates grid
+    _, _, height, width = depth.shape
+    if pixel_grid is not None:
+        points_2d: Tensor = pixel_grid
+    else:
+        points_2d: Tensor = create_meshgrid(height, width, normalized_coordinates=False)  # 1xHxWx2
+    points_2d = points_2d.to(depth.device).to(depth.dtype)
+
+    # depth should come in Bx1xHxW
+    points_depth: Tensor = depth.permute(0, 2, 3, 1)  # 1xHxWx1
+
+    # project pixels to camera frame
+    camera_matrix_tmp: Tensor = camera_matrix[:, None, None]  # Bx1x1x3x3
+    points_3d: Tensor = unproject_points(
+        points_2d, points_depth, camera_matrix_tmp, normalize=normalize_points
+    )  # BxHxWx3
+
+    return points_3d.permute(0, 3, 1, 2)  # Bx3xHxW
 
 
-def get_normals_from_3d_points(points_3d: torch.Tensor):
-    dx, dy, dz = [torch.unsqueeze(torch.gradient(points_3d[..., i], dim=[-1])[0], dim=1) for i in range(3)]
-    gradients = torch.cat([dx, dy, dz], dim=1)
-    normals = F.normalize(gradients, p=2, dim=1)
-    return normals
+kornia.geometry.depth.depth_to_3d = depth_to_3d
 
 
-def get_normals_from_depth_map(depth_map: torch.Tensor,
-                               cam_intrinsic_matrix: torch.Tensor,
-                               pixel_locations: torch.Tensor,
-                               device: torch.device = None):
-    if depth_map.dim() < 4:
-        depth_map = depth_map[None]    
-    depth_map = depth_map.permute([0, 2, 3, 1])
-    points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix, device)
-    points_in_3d = points_in_3d.reshape((*depth_map.shape[:-1], 3))
-    return get_normals_from_3d_points(points_in_3d.squeeze(-1))
-    # dx, dy = torch.gradient(depth_map, dim=[-1, -2])
-    # stacked = torch.cat([-dx/2, -dy/2, torch.ones_like(dx)], dim=0)
-    # return F.normalize(stacked, dim=0)
+def depth_to_normals(depth: Tensor, camera_matrix: Tensor, pixel_grid: torch.Tensor = None, normalize_points: bool = False) -> Tensor:
+    """Compute the normal surface per pixel.
+
+    Args:
+        depth: image tensor containing a depth value per pixel with shape :math:`(B, 1, H, W)`.
+        camera_matrix: tensor containing the camera intrinsics with shape :math:`(B, 3, 3)`.
+        pixel_grid: tensor containg pixel locations corresponding to depth with shape :math:`(B, H, W, 2)`
+        normalize_points: whether to normalize the pointcloud. This must be set to `True` when the depth is
+        represented as the Euclidean ray length from the camera position.
+
+    Return:
+        tensor with a normal surface vector per pixel of the same resolution as the input :math:`(B, 3, H, W)`.
+
+    Example:
+        >>> depth = torch.rand(1, 1, 4, 4)
+        >>> K = torch.eye(3)[None]
+        >>> depth_to_normals(depth, K).shape
+        torch.Size([1, 3, 4, 4])
+    """
+    if not isinstance(depth, Tensor):
+        raise TypeError(f"Input depht type is not a Tensor. Got {type(depth)}.")
+
+    if not (len(depth.shape) == 4 and depth.shape[-3] == 1):
+        raise ValueError(f"Input depth musth have a shape (B, 1, H, W). Got: {depth.shape}")
+
+    if not isinstance(camera_matrix, Tensor):
+        raise TypeError(f"Input camera_matrix type is not a Tensor. " f"Got {type(camera_matrix)}.")
+
+    if not (len(camera_matrix.shape) == 3 and camera_matrix.shape[-2:] == (3, 3)):
+        raise ValueError(f"Input camera_matrix must have a shape (B, 3, 3). " f"Got: {camera_matrix.shape}.")
+
+    # compute the 3d points from depth
+    xyz: Tensor = depth_to_3d(depth, camera_matrix, pixel_grid=pixel_grid, normalize_points=normalize_points)  # Bx3xHxW
+
+    # compute the pointcloud spatial gradients
+    gradients: Tensor = spatial_gradient(xyz)  # Bx3x2xHxW
+
+    # compute normals
+    a, b = gradients[:, :, 0], gradients[:, :, 1]  # Bx3xHxW
+
+    normals: Tensor = torch.cross(a, b, dim=1)  # Bx3xHxW
+    return F.normalize(normals, dim=1, p=2)
+
+
+kornia.geometry.depth_to_normals = depth_to_normals
 
 
 def render_rgbd(depth_map: torch.Tensor,
@@ -388,10 +449,12 @@ def render_rgbd(depth_map: torch.Tensor,
         color_image = color_image[None]
     if normals_image.ndim < 4:
         normals_image = normals_image[None]
+    if cam_intrinsic_matrix.ndim < 4:
+        cam_intrinsic_matrix = cam_intrinsic_matrix[None]
 
-    points_in_3d = get_points_in_3d(pixel_locations, depth_map, cam_intrinsic_matrix, device=device)
+    points_in_3d = depth_to_3d(depth_map, camera_matrix=cam_intrinsic_matrix, pixel_grid=pixel_locations)
     positions = torch.squeeze(torch.squeeze(points_in_3d, dim=1), dim=-1)
-
+    positions = positions.permute([0, 2, 3, 1])
     camera_positions = torch.Tensor((((0, 0, 0),),)).to(device)
     ambient_color, diffuse_color, specular_color, attenuation = phong_lighting(positions,
                                                                                normals_image,
@@ -403,3 +466,5 @@ def render_rgbd(depth_map: torch.Tensor,
         return pixels
     else:
         return pixels.squeeze(0)
+
+
