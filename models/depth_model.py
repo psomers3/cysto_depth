@@ -17,6 +17,7 @@ from utils.rendering import depth_to_normals, get_pixel_locations
 # print("Waiting for debugger to attach... ", end='', flush=True)
 # debugpy.wait_for_client()
 # print("done!")
+
 imagenet_denorm = ImageNetNormalization(inverse=True)
 
 
@@ -233,11 +234,11 @@ class DepthEstimationModel(BaseModel):
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
                 y_hat_depth, y_hat_normals = y_hat_depth[-1].detach().to(self.phong_loss.light.device), \
                                              y_hat_normals.detach().to(self.phong_loss.light.device)
-                y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1).detach()
+                y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1)
                 y_phong = self.phong_loss((y_hat_depth, y_hat_normals),
                                           synth_phong.to(self.phong_loss.light.device))[1].cpu()
                 y_hat_normals = (y_hat_normals + 1) / 2
-                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.cpu(), plottable_norms),
+                self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.detach().cpu(), plottable_norms),
                                       prefix=f'{prefix}-synth-normals',
                                       labels=["Synth Image", "Predicted", "Ground Truth"])
                 self.gen_phong_plots(zip(denormed_synth_imgs, y_phong, synth_phong),
