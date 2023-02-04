@@ -189,12 +189,12 @@ if __name__ == '__main__':
         sample = next(loader_iter)
         # loss_value, prediction = loss((sample[2], sample[3]), sample[1])
         # print(loss_value)
-        sample[-1] = (sample[-1] + 1) * 0.5
+        sample[-1] = sample[-1]
         sample[0] = denorm(sample[0])
         matplotlib_show(*sample)
         pixel_loc = loader.dataset.resized_pixel_locations
         prediction = depth_to_normals(sample[2], loss.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
-        matplotlib_show((prediction + 1) * .5)
+        matplotlib_show(prediction)
 
         fig = plt.figure()
         ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
