@@ -7,6 +7,7 @@ from data.general_data_module import FileLoadingDataModule
 from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
 from scipy.spatial.transform import Rotation
+from data.memorize import MemorizeCheck
 
 
 class PhongDataSet(ImageDataset):
@@ -72,7 +73,8 @@ class PhongDataModule(FileLoadingDataModule):
                  image_size: int = 256,
                  workers_per_loader: int = 6,
                  phong_config: PhongConfig = PhongConfig(),
-                 add_random_blur: bool = False):
+                 add_random_blur: bool = False,
+                 memorize_check: bool = False):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -88,6 +90,7 @@ class PhongDataModule(FileLoadingDataModule):
         :param split: see parent class FileLoadingDataModule.
         :param image_size: final `square` image size to return for training.
         :param workers_per_loader: cpu threads to use for each data loader.
+        :param memorize_check: when true, will keep returning the same batch over and over.
         """
         directories = {'color': color_image_directory,
                        'depth': depth_image_directory,
@@ -99,6 +102,7 @@ class PhongDataModule(FileLoadingDataModule):
         self.image_size = image_size
         self.num_synchros = 3
         self.add_random_blur = add_random_blur
+        self.memorize_check = memorize_check
 
     def get_transforms(self, split_stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
@@ -157,13 +161,17 @@ class PhongDataModule(FileLoadingDataModule):
                                       files=list(zip(*self.split_files['test'].values())),
                                       transforms=self.get_transforms('test'))
 
+        if self.memorize_check:
+            dl = self.train_dataloader()
+            self.data_train = MemorizeCheck(next(iter(dl)), len(self.data_train))
+
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from mpl_toolkits import mplot3d
     from utils.image_utils import matplotlib_show
     from utils.rendering import depth_to_normals, depth_to_3d
-    from utils.loss import PhongLoss
+    from utils.loss import PhongLoss, CosineSimilarity
     from pytorch_lightning.trainer.trainer import DataLoader
 
     color_dir = r'/Users/peter/isys/2023_01_29/color'
@@ -191,18 +199,23 @@ if __name__ == '__main__':
         # print(loss_value)
         sample[-1] = sample[-1]
         sample[0] = denorm(sample[0])
-        matplotlib_show(*sample)
+        # matplotlib_show(*sample)
         pixel_loc = loader.dataset.resized_pixel_locations
         prediction = depth_to_normals(sample[2], loss.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
-        matplotlib_show(prediction)
-
-        fig = plt.figure()
-        ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
-        x = depth_to_3d(sample[2], loss.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
-        x = x.reshape((x.shape[0]*x.shape[1], 3))
-        ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
-        plt.show(block=True)
-        plt.pause(5)
-        input("")
-        for i in plt.get_fignums():
-            plt.close(i)
+        # matplotlib_show(prediction)
+        norm_loss = CosineSimilarity()
+        normals_loss = norm_loss(prediction, sample[2])
+        print(normals_loss)
+        normals_loss = norm_loss(sample[2], sample[2])
+        print(normals_loss)
+        break
+        # fig = plt.figure()
+        # ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
+        # x = depth_to_3d(sample[2], loss.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
+        # x = x.reshape((x.shape[0]*x.shape[1], 3))
+        # ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
+        # plt.show(block=True)
+        # plt.pause(5)
+        # input("")
+        # for i in plt.get_fignums():
+        #     plt.close(i)

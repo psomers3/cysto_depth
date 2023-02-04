@@ -164,7 +164,7 @@ class DepthEstimationModel(BaseModel):
                 self.plot_minmax_train, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
                 self.train_denorm_color_images = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
-                self.train_plottable_norms = (self.test_images[2] / self.test_images[2].abs().max() + 1) / 2 \
+                self.train_plottable_norms = (torch.nn.functional.normalize(self.test_images[2], dim=1) + 1) / 2 \
                     if self.config.predict_normals else None
             self.plot(prefix="train")
         return loss
@@ -208,8 +208,8 @@ class DepthEstimationModel(BaseModel):
             self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                self.config.predict_normals)
             self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
-            self.val_plottable_norms = (self.validation_images[2] / self.validation_images[
-                2].abs().max() + 1) / 2 if self.config.predict_normals else None
+            self.val_plottable_norms = (torch.nn.functional.normalize(self.validation_images[2], dim=1) + 1) / 2 \
+                if self.config.predict_normals else None
         return metric_dict
 
     def on_validation_epoch_end(self) -> None:

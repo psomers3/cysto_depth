@@ -3,23 +3,7 @@ from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
-from torch.utils.data import Dataset
-
-
-class MemorizeCheck(Dataset):
-    def __init__(self, batch, length):
-        self.batch = batch
-        self.length = length
-        self.i = 0
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, idx):
-        if self.i == len(self.batch):
-            self.i = 0
-        self.i += 1
-        return self.batch[0][self.i - 1], self.batch[1][self.i - 1]
+from data.memorize import MemorizeCheck
 
 
 class EndoDepthDataModule(FileLoadingDataModule):

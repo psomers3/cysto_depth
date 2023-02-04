@@ -19,11 +19,12 @@ class CosineSimilarity(nn.Module):
 
     def forward(self, predicted, target) -> torch.Tensor:
         predicted = F.normalize(predicted, dim=1)
+        non_zero_norm = torch.linalg.norm(target, dim=1) > 0.0
         if self.ignore_direction:
-            return (1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
+            return (1 - torch.where(non_zero_norm, self.loss(predicted, target),
                                     torch.ones([1], device=self.device))).abs().mean()
         else:
-            return (1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
+            return (1 - torch.where(non_zero_norm, self.loss(predicted, target),
                                     torch.ones([1], device=self.device))).mean()
 
 

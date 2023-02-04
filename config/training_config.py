@@ -239,3 +239,5 @@ class CystoDepthConfig:
     """ Whether to add random gaussian blur to the edge of the circular mask """
     sync_logging: bool = False
     """ Whether to sync log calls between devices. Can lead to large communication overhead """
+    memorize_check: bool = False
+    """ Whether to memorize a single batch from the training """
