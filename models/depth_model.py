@@ -144,7 +144,7 @@ class DepthEstimationModel(BaseModel):
                 calculated_normals = depth_to_normals(y_hat_depth[-1],
                                                       self.phong_loss.camera_intrinsics[None],
                                                       self.pixel_locations)
-                normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals)
+                normals_regularization_loss = self.calculated_normals_loss(calculated_normals, synth_normals)
                 self.log('depth_to_normals_loss', normals_regularization_loss, sync_dist=self.config.sync_logging)
             if self.config.phong_loss_epochs[0] \
                     <= self.current_epoch \
