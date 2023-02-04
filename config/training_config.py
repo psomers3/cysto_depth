@@ -92,7 +92,7 @@ class SyntheticTrainingConfig:
     val_check_interval: int = 10
     """ how many steps before checking validation """
     val_plot_interval: int = 30
-    """ how many steps before plotting validation images """
+    """ how many validation epochs between plotting validation images """
     train_plot_interval: int = 500
     """ how many steps before plotting train images """
     accumulate_grad_batches: int = 4
