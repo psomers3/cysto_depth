@@ -141,6 +141,8 @@ class SyntheticTrainingConfig:
     """ Between which epochs to use supervised normals loss """
     phong_loss_epochs: List[int] = field(default_factory=lambda: [1, int(1e6)])
     """ Between which epochs to use phong loss """
+    sync_logging: bool = '${..sync_logging}'
+    """ Whether to sync log calls between devices. Can lead to large communication overhead """
 
 
 @dataclass
@@ -196,6 +198,8 @@ class GANTrainingConfig:
     residual_transfer: bool = True
     d_max_conf: float = 0.9
     warmup_steps: float = 0
+    sync_logging: bool = '${..sync_logging}'
+    """ Whether to sync log calls between devices. Can lead to large communication overhead """
 
 
 @dataclass
@@ -233,3 +237,5 @@ class CystoDepthConfig:
     """ Whether to predict the inverse of the depth """
     add_mask_blur: bool = False
     """ Whether to add random gaussian blur to the edge of the circular mask """
+    sync_logging: bool = False
+    """ Whether to sync log calls between devices. Can lead to large communication overhead """

@@ -131,12 +131,12 @@ class DepthEstimationModel(BaseModel):
                 # apply only to high resolution prediction
                 if idx == 0:
                     grad_loss = self.gradient_loss(predicted, synth_depth)
-                    self.log("depth_gradient_loss", grad_loss, sync_dist=True)
+                    self.log("depth_gradient_loss", grad_loss, sync_dist=self.config.sync_logging)
             self.log("depth_berhu_loss", depth_loss)
         if self.config.predict_normals:
             if self.config.normals_loss_epochs[0] <= self.current_epoch <= self.config.normals_loss_epochs[1]:
                 normals_loss = self.normals_loss(y_hat_normals, synth_normals)
-                self.log("normals_cosine_similarity_loss", normals_loss, sync_dist=True)
+                self.log("normals_cosine_similarity_loss", normals_loss, sync_dist=self.config.sync_logging)
 
             if self.config.normals_depth_regularization_loss_epochs[0] \
                     <= self.current_epoch \
@@ -145,19 +145,19 @@ class DepthEstimationModel(BaseModel):
                                                       self.phong_loss.camera_intrinsics[None],
                                                       self.pixel_locations)
                 normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals)
-                self.log('depth_to_normals_loss', normals_regularization_loss, sync_dist=True)
+                self.log('depth_to_normals_loss', normals_regularization_loss, sync_dist=self.config.sync_logging)
             if self.config.phong_loss_epochs[0] \
                     <= self.current_epoch \
                     <= self.config.phong_loss_epochs[1]:
                 phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
-                self.log("phong_loss", phong_loss, sync_dist=True)
+                self.log("phong_loss", phong_loss, sync_dist=self.config.sync_logging)
 
         loss = depth_loss * self.config.depth_loss_factor + \
                grad_loss * self.config.depth_grad_loss_factor + \
                normals_loss * self.config.normals_loss_factor + \
                phong_loss * self.config.phong_loss_factor + \
                normals_regularization_loss * self.config.calculated_normals_loss_factor
-        self.log("training_loss", loss, sync_dist=True)
+        self.log("training_loss", loss, sync_dist=self.config.sync_logging)
 
         if batch_idx % self.config.train_plot_interval == 0:
             if self.test_images is None:
