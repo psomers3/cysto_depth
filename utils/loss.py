@@ -20,10 +20,10 @@ class CosineSimilarity(nn.Module):
     def forward(self, predicted, target) -> torch.Tensor:
         predicted = F.normalize(predicted, dim=1)
         if self.ignore_direction:
-            return -torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
+            return 1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
                                    torch.ones([1], device=self.device)).abs().mean()
         else:
-            return -torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
+            return 2 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
                                    torch.ones([1], device=self.device)).mean()
 
 
