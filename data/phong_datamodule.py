@@ -4,7 +4,7 @@ from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
-from utils.rendering import get_image_size_from_intrisics, render_rgbd, PointLights, Materials
+from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
 from scipy.spatial.transform import Rotation
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from mpl_toolkits import mplot3d
     from utils.image_utils import matplotlib_show
-    from utils.rendering import get_pixel_locations, depth_to_normals, depth_to_3d
+    from utils.rendering import depth_to_normals, depth_to_3d
     from utils.loss import PhongLoss
     from pytorch_lightning.trainer.trainer import DataLoader
 
