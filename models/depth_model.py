@@ -70,7 +70,7 @@ class DepthEstimationModel(BaseModel):
         depth_out = self.decoder(skip_outs)
         if self.config.predict_normals:
             if self.config.merged_decoder:
-                depth_out, normals_out = [layer[:, 0].unsqueeze(1) for layer in depth_out], depth_out[-1][:, 1:, ...]
+                depth_out, normals_out = [layer[:, 0, ...].unsqueeze(1) for layer in depth_out], depth_out[-1][:, 1:, ...]
             else:
                 normals_out = self.normals_decoder(skip_outs)
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,

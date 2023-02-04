@@ -39,7 +39,7 @@ class Decoder(torch.nn.Module):
         """
 
         :param feature_levels: bottleneck to output
-        :param num_output_channels: last convolutional layer feature number
+        :param num_output_channels: last convolutional layer feature number.
         :param output_each_level: on call, whether to return output at each upscale
         """
         super().__init__()
@@ -60,7 +60,13 @@ class Decoder(torch.nn.Module):
 
         self.conv_original_size2 = convrelu(feature_levels[-3], feature_levels[-1], 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
-        self.conv_last = nn.Conv2d(feature_levels[-1], num_output_channels, 1)
+        if num_output_channels != 4:
+            self.conv_last = nn.Conv2d(feature_levels[-1], num_output_channels, 1)
+        else:
+            self.conv_last = nn.Conv2d(feature_levels[-1], 1, 1)
+            number_learn_kernels = 8
+            self.normals_learn_layers = convrelu(feature_levels[-1] + 1, number_learn_kernels, 3, 1)
+            self.normals_out = nn.Conv2d(number_learn_kernels + 1, 3, 3, 1, padding=1)
 
     def forward(self, _input):
         x_original, layer0, layer1, layer2, layer3, layer4 = _input
@@ -91,6 +97,11 @@ class Decoder(torch.nn.Module):
         x = self.conv_original_size2(x)
 
         out4 = self.conv_last(x)
+        if self.normals_out is not None:
+            x = torch.cat([x, out4], dim=1)
+            x = self.normals_learn_layers(x)
+            x = self.normals_out(torch.cat([out4, x], dim=1))
+            out4 = torch.cat([out4, x], dim=1)
 
         if self.output_each_level:
             return [out1, out2, out3, out4]
