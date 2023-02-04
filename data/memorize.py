@@ -15,4 +15,4 @@ class MemorizeCheck(Dataset):
         if self.i == len(self.batch):
             self.i = 0
         self.i += 1
-        return [self.batch[0][self.i - 1] for i in range(self.num_items_in_batch)]
+        return [self.batch[i][self.i - 1] for i in range(self.num_items_in_batch)]
