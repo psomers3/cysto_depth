@@ -43,6 +43,7 @@ class DepthEstimationModel(BaseModel):
         self.berhu = BerHu()
         self.gradient_loss = GradientLoss()
         self.normals_loss: CosineSimilarity = None
+        self.calculated_normals_loss: CosineSimilarity = None
         self.phong_loss: PhongLoss = None
         self.validation_images = None
         self.test_images = None
@@ -99,6 +100,7 @@ class DepthEstimationModel(BaseModel):
             self.phong_loss = PhongLoss(image_size=self.config.image_size, config=self.config.phong_config,
                                         device=self.device)
             self.normals_loss = CosineSimilarity(device=self.device)
+            self.calculated_normals_loss = CosineSimilarity(device=self.device, ignore_direction=True)
             self.pixel_locations = get_pixel_locations(self.config.image_size,
                                                        self.config.image_size,
                                                        device=self.device)
@@ -123,23 +125,32 @@ class DepthEstimationModel(BaseModel):
             lambda_factor = self.config.depth_loss_lambda_factor ** idx
             depth_loss += self.berhu(predicted, synth_depth) * lambda_factor
 
-            # apply gradient loss after first epoch
-            if self.current_epoch > 0:
+            if self.config.depth_gradient_loss_epochs[0] \
+                    <= self.current_epoch \
+                    <= self.config.depth_gradient_loss_epochs[1]:
                 # apply only to high resolution prediction
                 if idx == 0:
                     grad_loss = self.gradient_loss(predicted, synth_depth)
                     self.log("depth_gradient_loss", grad_loss)
             self.log("depth_berhu_loss", depth_loss)
         if self.config.predict_normals:
-            normals_loss = self.normals_loss(y_hat_normals, synth_normals)
-            self.log("normals_cosine_similarity_loss", normals_loss)
-            calculated_normals = depth_to_normals(y_hat_depth[-1],
-                                                  self.phong_loss.camera_intrinsics[None],
-                                                  self.pixel_locations)
-            normals_regularization_loss = 1 - self.normals_loss(calculated_normals, synth_normals).abs()
-            phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
-            self.log("phong_loss", phong_loss)
-            self.log('depth_to_normals_loss', normals_regularization_loss)
+            if self.config.normals_loss_epochs[0] <= self.current_epoch <= self.config.normals_loss_epochs[1]:
+                normals_loss = self.normals_loss(y_hat_normals, synth_normals)
+                self.log("normals_cosine_similarity_loss", normals_loss)
+
+            if self.config.normals_depth_regularization_loss_epochs[0] \
+                    <= self.current_epoch \
+                    <= self.config.normals_depth_regularization_loss_epochs[1]:
+                calculated_normals = depth_to_normals(y_hat_depth[-1],
+                                                      self.phong_loss.camera_intrinsics[None],
+                                                      self.pixel_locations)
+                normals_regularization_loss = self.normals_loss(calculated_normals, synth_normals)
+                self.log('depth_to_normals_loss', normals_regularization_loss)
+            if self.config.phong_loss_epochs[0] \
+                    <= self.current_epoch \
+                    <= self.config.phong_loss_epochs[1]:
+                phong_loss = self.phong_loss((y_hat_depth[-1], y_hat_normals), synth_phong)[0]
+                self.log("phong_loss", phong_loss)
 
         loss = depth_loss * self.config.depth_loss_factor + \
                grad_loss * self.config.depth_grad_loss_factor + \

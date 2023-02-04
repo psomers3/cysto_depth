@@ -11,14 +11,20 @@ from typing import *
 
 
 class CosineSimilarity(nn.Module):
-    def __init__(self, device: torch.device = None):
+    def __init__(self, ignore_direction: bool = False, device: torch.device = None):
         super(CosineSimilarity, self).__init__()
         self.loss = torch.nn.CosineSimilarity(dim=1)
         self.device = device
+        self.ignore_direction = ignore_direction
 
     def forward(self, predicted, target) -> torch.Tensor:
         predicted = F.normalize(predicted, dim=1)
-        return 1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target), torch.ones([1], device=self.device)).mean()
+        if self.ignore_direction:
+            return 1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
+                                   torch.ones([1], device=self.device)).abs().mean()
+        else:
+            return 1 - torch.where(torch.linalg.norm(target, dim=1) > 0.0, self.loss(predicted, target),
+                                   torch.ones([1], device=self.device)).mean()
 
 
 class BerHu(nn.Module):
@@ -87,7 +93,8 @@ class PhongLoss(nn.Module):
         self.camera_intrinsics = self.camera_intrinsics.to(device)
         pixels = get_pixel_locations(*original_image_size)
         self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1))).to(device)
-        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)) - self.camera_intrinsics[-1, [1, 0]]
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)) - self.camera_intrinsics[
+            -1, [1, 0]]
         self.resized_pixel_locations = self.resized_pixel_locations.to(device)
         self.resized_pixel_locations.requires_grad_(False)
         self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
@@ -129,4 +136,3 @@ class AvgTensorNorm(nn.Module):
     def forward(self, predicted):
         avg_norm = torch.norm(predicted, p='fro')
         return avg_norm
-

@@ -4,7 +4,7 @@ from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
-from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
+from utils.rendering import get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
 from scipy.spatial.transform import Rotation
 
@@ -193,7 +193,7 @@ if __name__ == '__main__':
         sample[0] = denorm(sample[0])
         matplotlib_show(*sample)
         pixel_loc = loader.dataset.resized_pixel_locations
-        prediction = depth_to_normals(sample[2], loss.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=True)
+        prediction = depth_to_normals(sample[2], loss.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
         matplotlib_show((prediction + 1) * .5)
 
         fig = plt.figure()

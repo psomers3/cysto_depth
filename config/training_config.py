@@ -133,6 +133,14 @@ class SyntheticTrainingConfig:
     """ Base model to use for the encoder [resnet18, resnet34, resnet50] """
     add_mask_blur: bool = "${..add_mask_blur}"
     """ Whether to add random gaussian blur to the edge of the circular mask """
+    depth_gradient_loss_epochs: List[int] = field(default_factory=lambda: [1, int(1e6)])
+    """ Between which epochs to use loss """
+    normals_depth_regularization_loss_epochs: List[int] = field(default_factory=lambda: [1, int(1e6)])
+    """ Between which epochs to guide the depth using normals """
+    normals_loss_epochs: List[int] = field(default_factory=lambda: [1, int(1e6)])
+    """ Between which epochs to use supervised normals loss """
+    phong_loss_epochs: List[int] = field(default_factory=lambda: [1, int(1e6)])
+    """ Between which epochs to use phong loss """
 
 
 @dataclass
