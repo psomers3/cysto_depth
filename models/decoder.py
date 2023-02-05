@@ -35,7 +35,8 @@ class Decoder(torch.nn.Module):
     def __init__(self,
                  feature_levels: List[int],
                  num_output_channels: int = 1,
-                 output_each_level: bool = False) -> None:
+                 output_each_level: bool = False,
+                 extra_normals_layers: bool = False) -> None:
         """
 
         :param feature_levels: bottleneck to output
@@ -60,7 +61,7 @@ class Decoder(torch.nn.Module):
 
         self.conv_original_size2 = convrelu(feature_levels[-3], feature_levels[-1], 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
-        if num_output_channels != 4:
+        if num_output_channels != 4 or not extra_normals_layers:
             self.conv_last = nn.Conv2d(feature_levels[-1], num_output_channels, 1)
         else:
             self.conv_last = nn.Conv2d(feature_levels[-1], 1, 1)
