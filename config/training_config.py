@@ -89,11 +89,11 @@ class SyntheticTrainingConfig:
     max_epochs: int = 10
     monitor_metric: str = 'val_rmse'
     """ main metric to track for performance """
-    val_check_interval: int = 10
+    val_check_interval: int = '${..val_check_interval}'
     """ how many steps before checking validation """
-    val_plot_interval: int = 30
+    val_plot_interval: int = '${..val_plot_interval}'
     """ how many validation epochs between plotting validation images """
-    train_plot_interval: int = 500
+    train_plot_interval: int = '${..train_plot_interval}'
     """ how many steps before plotting train images """
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
@@ -164,8 +164,12 @@ class GANTrainingConfig:
     max_epochs: int = 10
     monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
-    val_check_interval: int = 1
-    """ how many batches before doing validation update """
+    val_check_interval: int = '${..val_check_interval}'
+    """ how many steps before checking validation """
+    val_plot_interval: int = '${..val_plot_interval}'
+    """ how many validation epochs between plotting validation images """
+    train_plot_interval: int = '${..train_plot_interval}'
+    """ how many steps before plotting train images """
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 16
@@ -243,3 +247,9 @@ class CystoDepthConfig:
     """ Whether to memorize a single batch from the training """
     torch_float_precision: str = ""
     """ Sets the internal precision of float32 matrix multiplications. [medium, high, highest] """
+    val_check_interval: int = 10
+    """ how many steps before checking validation """
+    val_plot_interval: int = 30
+    """ how many validation epochs between plotting validation images """
+    train_plot_interval: int = 500
+    """ how many steps before plotting train images """
