@@ -58,7 +58,8 @@ class GAN(BaseModel):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         self.depth_model.apply(freeze_batchnorm)
-        self.generator.apply(freeze_batchnorm)
+        if self.config.freeze_batch_norm:
+            self.generator.apply(freeze_batchnorm)
 
         # x = synthetic image, z = real image
         x, z = batch
@@ -66,7 +67,7 @@ class GAN(BaseModel):
             # output of encoder when evaluating a real image
             encoder_outs, encoder_mare_outs = self.generator(z)
             decoder_outs_synth = self.depth_model.decoder(encoder_outs)
-            img_out = decoder_outs_synth[-1][:, 0:, ...]
+            img_out = decoder_outs_synth[-1][:, 0, ...].unsqueeze(1)
 
             # compare output levels to make sure they produce roughly the same output
             if self.config.residual_transfer:
@@ -104,8 +105,8 @@ class GAN(BaseModel):
             return g_loss
         elif optimizer_idx > 0:
             if optimizer_idx == 1:
-                y = self.depth_model(x)[-1][:, 0:, ...].detach()
-                y_hat = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0:, ...].detach()
+                y = self.depth_model(x)[-1][:, 0, ...].unsqueeze(1).detach()
+                y_hat = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
                 d = self.d_img
                 name = "img"
             else:
@@ -143,8 +144,8 @@ class GAN(BaseModel):
     def validation_step(self, batch, batch_idx):
         x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
-        img_unapdated = self.depth_model(z)[-1][:, 0:, ...]
-        img_adapted = y_hat[-1][:, 0:, ...]
+        img_unapdated = self.depth_model(z)[-1][:, 0, ...].unsqueeze(1)
+        img_adapted = y_hat[-1][:, 0, ...].unsqueeze(1)
         plot_tensors = [self.imagenet_denorm(z)]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
@@ -164,8 +165,8 @@ class GAN(BaseModel):
     def test_step(self, batch, batch_idx):
         x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
-        img_unapdated = self.depth_model(z)[-1][:, 0:, ...]
-        img_adapted = y_hat[-1][:, 0:, ...]
+        img_unapdated = self.depth_model(z)[-1][:, 0, ...].unsqueeze(1)
+        img_adapted = y_hat[-1][:, 0, ...].unsqueeze(1)
         plot_tensors = [self.imagenet_denorm(z)]
         # no labels for test step
         labels = ["", "", "", ""]
