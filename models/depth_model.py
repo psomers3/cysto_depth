@@ -70,7 +70,8 @@ class DepthEstimationModel(BaseModel):
         depth_out = self.decoder(skip_outs)
         if self.config.predict_normals:
             if self.config.merged_decoder:
-                depth_out, normals_out = [layer[:, 0, ...].unsqueeze(1) for layer in depth_out], depth_out[-1][:, 1:, ...]
+                depth_out, normals_out = [layer[:, 0, ...].unsqueeze(1) for layer in depth_out], depth_out[-1][:, 1:,
+                                                                                                 ...]
             else:
                 normals_out = self.normals_decoder(skip_outs)
             return depth_out, torch.where(depth_out[-1] > self.config.min_depth, normals_out,
@@ -144,7 +145,11 @@ class DepthEstimationModel(BaseModel):
                 calculated_normals = depth_to_normals(y_hat_depth[-1],
                                                       self.phong_loss.camera_intrinsics[None],
                                                       self.pixel_locations)
-                normals_regularization_loss = self.calculated_normals_loss(calculated_normals, synth_normals)
+                calculated_synthetic_normals = depth_to_normals(synth_depth,
+                                                                self.phong_loss.camera_intrinsics[None],
+                                                                self.pixel_locations)
+                normals_regularization_loss = self.calculated_normals_loss(calculated_normals,
+                                                                           calculated_synthetic_normals)
                 self.log('depth_to_normals_loss', normals_regularization_loss, sync_dist=self.config.sync_logging)
             if self.config.phong_loss_epochs[0] \
                     <= self.current_epoch \
