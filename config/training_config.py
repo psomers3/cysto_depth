@@ -143,6 +143,8 @@ class SyntheticTrainingConfig:
     """ Between which epochs to use phong loss """
     sync_logging: bool = '${..sync_logging}'
     """ Whether to sync log calls between devices. Can lead to large communication overhead """
+    normals_extra_layers: int = 0
+    """ Extra convolutions after depth before predicting normals """
 
 
 @dataclass

@@ -36,7 +36,7 @@ class Decoder(torch.nn.Module):
                  feature_levels: List[int],
                  num_output_channels: int = 1,
                  output_each_level: bool = False,
-                 extra_normals_layers: bool = False) -> None:
+                 extra_normals_layers: int = 0) -> None:
         """
 
         :param feature_levels: bottleneck to output
@@ -61,14 +61,13 @@ class Decoder(torch.nn.Module):
 
         self.conv_original_size2 = convrelu(feature_levels[-3], feature_levels[-1], 3, 1)
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
-        if num_output_channels != 4 or not extra_normals_layers:
+        if num_output_channels != 4 or extra_normals_layers == 0:
             self.conv_last = nn.Conv2d(feature_levels[-1], num_output_channels, 1)
             self.normals_out = None
         else:
             self.conv_last = nn.Conv2d(feature_levels[-1], 1, 1)
-            number_learn_kernels = 8
-            self.normals_learn_layers = convrelu(feature_levels[-1] + 1, number_learn_kernels, 3, 1)
-            self.normals_out = nn.Conv2d(number_learn_kernels + 1, 3, 3, 1, padding=1)
+            self.normals_learn_layers = convrelu(feature_levels[-1] + 1, extra_normals_layers, 3, 1)
+            self.normals_out = nn.Conv2d(extra_normals_layers + 1, 3, 3, 1, padding=1)
 
     def forward(self, _input):
         x_original, layer0, layer1, layer2, layer3, layer4 = _input
