@@ -187,10 +187,16 @@ def blender_rendering():
                     scene.frame_set(frame_number)
                     stl_obj.material_slots[0].material = bpy.data.materials[material_name]
                     bpy.ops.render.render(write_still=True, scene=scene.name)
+
+                    # switch to basic material and renderer for rendering normals and depth
+                    scene.render.engine = 'BLENDER_EEVEE'
                     stl_obj.material_slots[0].material = bpy.data.materials['Material']
-                    [setattr(n, 'mute', not n.mute) for n in output_nodes]
+                    [setattr(n, 'mute', not n.mute) for n in output_nodes if n is not None]
                     bpy.ops.render.render(write_still=True, scene=scene.name)
-                    [setattr(n, 'mute', not n.mute) for n in output_nodes]
+
+                    # put everything back
+                    [setattr(n, 'mute', not n.mute) for n in output_nodes if n is not None]
+                    scene.render.engine = config.blender.render.engine
 
                 if config.with_tool:
                     loop_angle_offset.location = (0, 0, 0)
