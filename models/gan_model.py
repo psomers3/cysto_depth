@@ -34,7 +34,7 @@ class GAN(BaseModel):
         self.generator.load_state_dict(self.depth_model.encoder.state_dict(), strict=False)
         self.depth_model.requires_grad = False
 
-        d_in_shapes = [512, 256, 128, 64, 64]
+        d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
         for d_in_shape in d_in_shapes[:3]:
             d = Discriminator(in_channels=d_in_shape, single_out=image_gan)
