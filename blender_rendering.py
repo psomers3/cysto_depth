@@ -106,7 +106,9 @@ def blender_rendering():
     default_material = bpy.data.materials['Material']
 
     # set paths for rendering outputs
-    output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
+    output_nodes = butils.add_render_output_nodes(scene,
+                                                  normals=config.render_normals,
+                                                  custom_normals_label='raw_normals')
 
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
@@ -133,6 +135,8 @@ def blender_rendering():
         # apply materials to bladder wall and tumors
         stl_obj.material_slots[0].material = default_material
         tumor.material_slots[0].material = default_material
+        if config.render_normals:
+            butils.add_normals_to_all_materials()
 
         # set the name of the stl as part of the file name. index is automatically appended
         [setattr(n.file_slots[0], 'path', f'{stl_obj.name}_#####') for n in output_nodes if n is not None]
