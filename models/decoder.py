@@ -63,6 +63,7 @@ class Decoder(torch.nn.Module):
         # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         if num_output_channels != 4 or not extra_normals_layers:
             self.conv_last = nn.Conv2d(feature_levels[-1], num_output_channels, 1)
+            self.normals_out = None
         else:
             self.conv_last = nn.Conv2d(feature_levels[-1], 1, 1)
             number_learn_kernels = 8

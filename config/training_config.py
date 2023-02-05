@@ -241,3 +241,5 @@ class CystoDepthConfig:
     """ Whether to sync log calls between devices. Can lead to large communication overhead """
     memorize_check: bool = False
     """ Whether to memorize a single batch from the training """
+    torch_float_precision: str = ""
+    """ Sets the internal precision of float32 matrix multiplications. [medium, high, highest] """

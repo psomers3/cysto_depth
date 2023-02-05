@@ -2,6 +2,7 @@
 
 import os
 import hydra
+import torch
 from omegaconf import OmegaConf
 from config.training_config import CystoDepthConfig
 from simple_parsing import ArgumentParser
@@ -27,6 +28,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
     if not os.path.exists(config.log_directory):
         os.makedirs(config.log_directory)
+    if config.torch_float_precision:
+        torch.set_float32_matmul_precision(config.torch_float_precision)
 
     trainer_dict = get_default_args(pl.Trainer.__init__)
     [trainer_dict.update({key: val}) for key, val in config.trainer_config.items() if key in trainer_dict]
