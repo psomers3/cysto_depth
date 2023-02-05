@@ -31,19 +31,29 @@ class AdaptiveEncoder(VanillaEncoder):
 
         self.gate_coefficients = nn.Parameter(torch.zeros(5), requires_grad=self.adaptive_gating, )
 
-        self.res_layer0 = nn.Sequential(convrelu(3, 64, 5, 2, 1, relu=activation, norm=norm, init_zero=init_zero),
-                                        convrelu(64, 3, 5, 2, 1, relu=activation, init_zero=init_zero, norm=norm))
-        self.res_layer1 = nn.Sequential(convrelu(64, 64, 5, 2, 1, relu=activation, norm=norm, init_zero=init_zero),
-                                        convrelu(64, 64, 5, 2, 1, relu=activation, init_zero=init_zero, norm=norm))
-        self.res_layer2 = nn.Sequential(convrelu(64, 128, 5, 2, 1, relu=activation, norm=norm, init_zero=init_zero),
-                                        convrelu(128, 64, 5, 2, 1, relu=activation, init_zero=init_zero, norm=norm))
+        self.res_layer0 = nn.Sequential(convrelu(3, self.feature_levels[0], 5, 2, 1,
+                                                 relu=activation, norm=norm, init_zero=init_zero),
+                                        convrelu(self.feature_levels[0], 3, 5, 2, 1,
+                                                 relu=activation, init_zero=init_zero, norm=norm))
+        self.res_layer1 = nn.Sequential(convrelu(self.feature_levels[0], self.feature_levels[1], 5, 2, 1,
+                                                 relu=activation, norm=norm, init_zero=init_zero),
+                                        convrelu(self.feature_levels[1], self.feature_levels[0], 5, 2, 1,
+                                                 relu=activation, init_zero=init_zero, norm=norm))
+        self.res_layer2 = nn.Sequential(convrelu(self.feature_levels[1], self.feature_levels[2], 5, 2, 1,
+                                                 relu=activation, norm=norm, init_zero=init_zero),
+                                        convrelu(self.feature_levels[2], self.feature_levels[1], 5, 2, 1,
+                                                 relu=activation, init_zero=init_zero, norm=norm))
         self.res_layer3 = nn.Sequential(
-            convrelu(128, 256, 3, 1, 1, relu=activation, norm=norm, init_zero=init_zero),
-            convrelu(256, 128, 3, 1, 1, relu=activation, init_zero=init_zero, norm=norm)
+            convrelu(self.feature_levels[2], self.feature_levels[3], 3, 1, 1,
+                     relu=activation, norm=norm, init_zero=init_zero),
+            convrelu(self.feature_levels[3], self.feature_levels[2], 3, 1, 1,
+                     relu=activation, init_zero=init_zero, norm=norm)
         )
         self.res_layer4 = nn.Sequential(
-            convrelu(256, 512, 3, 1, 1, relu=activation, norm=norm, init_zero=init_zero),
-            convrelu(512, 256, 3, 1, 1, relu=activation, init_zero=init_zero, norm=norm)
+            convrelu(self.feature_levels[3], self.feature_levels[4], 3, 1, 1,
+                     relu=activation, norm=norm, init_zero=init_zero),
+            convrelu(self.feature_levels[4], self.feature_levels[3], 3, 1, 1,
+                     relu=activation, init_zero=init_zero, norm=norm)
         )
         self.criterion = AvgTensorNorm()
 
