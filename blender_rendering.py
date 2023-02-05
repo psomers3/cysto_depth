@@ -106,19 +106,13 @@ def blender_rendering():
     default_material = bpy.data.materials['Material']
 
     # set paths for rendering outputs
-    output_nodes = butils.add_render_output_nodes(scene,
-                                                  normals=config.render_normals,
-                                                  custom_normals_label='raw_normals',
-                                                  custom_depth_label='raw_depth')
+    output_nodes = butils.add_render_output_nodes(scene, normals=config.render_normals)
 
     # create a blender object that will put the camera to random positions using a shrinkwrap constraint
     random_position = bpy.data.objects.new('random_pos', None)
     endo_collection.objects.link(random_position)
     endo_tip.parent = random_position
     rand_pos_shrinkwrap_constraint = butils.add_shrinkwrap_constraint(random_position, config.shrinkwrap_tool)
-    if config.render_normals:
-        butils.add_normals_to_all_materials()
-    butils.add_depth_to_all_materials()
 
     for stl_file in stl_files:
         stl_obj = butils.import_stl(str(stl_file), center=True, collection=bladder_collection, flip_normals=False)
@@ -177,20 +171,6 @@ def blender_rendering():
                 camera_ray_length = Vector(random_position.matrix_world.to_translation() - camera_hit_location).length
                 random_position.location = random_position.matrix_world.to_translation() + Vector(
                     camera_direction * np.random.uniform(0, camera_ray_length * 0.9))
-                # loop_euler = loop_angle_offset.matrix_world.to_euler()
-                # loop_direction = np.reshape(loop_direction_marker[:-1], (1, -1)) @ loop_euler.to_matrix()
-                # loop_no_clip_points = np.array(loop_angle_offset.matrix_world) @ loop_no_clip_markers
-                # loop_no_clip_points = loop_no_clip_points[:-1]
-                # loop_ray_length = []
-                # for idx, point in enumerate(np.split(loop_no_clip_points, loop_no_clip_points.shape[1], axis=1)):
-                #     loop_ray_length.append(0)
-                #     hit, hit_location, _, _ = stl_obj.ray_cast(np.reshape(point, -1), np.reshape(loop_direction, -1))
-                #     if hit:
-                #         loop_ray_length[idx] = Vector(Vector(point) - hit_location).length
-                # loop_angle_offset.location = Vector(loop_direction_marker[:-1]).normalized() * \
-                #                              min((config.resection_loop.max_extension *
-                #                                   config.resection_loop.scaling_factor) + insulation_retraction,
-                #                                  np.random.uniform(0, min(loop_ray_length), size=1))
                 if config.with_tool:
                     insulation.keyframe_insert(frame=frame_number, data_path='location')
                     wire.keyframe_insert(frame=frame_number, data_path='location')
