@@ -37,7 +37,7 @@ class GAN(BaseModel):
 
         d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
-        for d_in_shape in d_in_shapes[:3]:
+        for d_in_shape in d_in_shapes[:-1]:
             d = Discriminator(in_channels=d_in_shape, single_out=image_gan)
             d_feat_list.append(d)
         self.d_img = ImgDiscriminator(in_shape=1)
@@ -104,12 +104,13 @@ class GAN(BaseModel):
             return g_loss
         elif optimizer_idx > 0:
             if optimizer_idx == 1:
-                y = self.depth_model(x)[-1].detach()
+                y = self.depth_model(x)[-1][:, 0:, ...].detach()
                 y_hat = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0:, ...].detach()
                 d = self.d_img
                 name = "img"
             else:
                 decoder_outs_synth = self.depth_model.encoder(x)[0][::-1]
+
                 y = decoder_outs_synth[optimizer_idx - 2].detach()
                 decoder_outs_real = self.generator(z)[0][::-1]
                 # evaluate current generator with a real image and take bottleneck output
