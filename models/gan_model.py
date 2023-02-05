@@ -24,9 +24,10 @@ class GAN(BaseModel):
         super().__init__()
         self.save_hyperparameters(Namespace(**gan_config))
         synth_config.resume_from_checkpoint = ''
-        self.depth_model = DepthEstimationModel.load_from_checkpoint(gan_config.synthetic_base_model,
-                                                                     strict=False,
-                                                                     config=synth_config)
+        self.depth_model: DepthEstimationModel = DepthEstimationModel.load_from_checkpoint(
+            gan_config.synthetic_base_model,
+            strict=False,
+            config=synth_config)
         self.config = gan_config
         self.generator = AdaptiveEncoder(gan_config.adaptive_gating, backbone=synth_config.backbone) \
             if gan_config.residual_transfer else VanillaEncoder(backbone=synth_config.backbone)
@@ -65,8 +66,7 @@ class GAN(BaseModel):
             # output of encoder when evaluating a real image
             encoder_outs, encoder_mare_outs = self.generator(z)
             decoder_outs_synth = self.depth_model.decoder(encoder_outs)
-
-            img_out = decoder_outs_synth[3]
+            img_out = decoder_outs_synth[-1][:, 0:, ...]
 
             # compare output levels to make sure they produce roughly the same output
             if self.config.residual_transfer:
@@ -105,7 +105,7 @@ class GAN(BaseModel):
         elif optimizer_idx > 0:
             if optimizer_idx == 1:
                 y = self.depth_model(x)[-1].detach()
-                y_hat = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
+                y_hat = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0:, ...].detach()
                 d = self.d_img
                 name = "img"
             else:
@@ -142,8 +142,8 @@ class GAN(BaseModel):
     def validation_step(self, batch, batch_idx):
         x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
-        img_unapdated = self.depth_model(z)[-1]
-        img_adapted = y_hat[-1]
+        img_unapdated = self.depth_model(z)[-1][:, 0:, ...]
+        img_adapted = y_hat[-1][:, 0:, ...]
         plot_tensors = [self.imagenet_denorm(z)]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
@@ -163,8 +163,8 @@ class GAN(BaseModel):
     def test_step(self, batch, batch_idx):
         x, z = batch
         y_hat = self.depth_model.decoder(self.generator(z)[0])
-        img_unapdated = self.depth_model(z)[-1]
-        img_adapted = y_hat[-1]
+        img_unapdated = self.depth_model(z)[-1][:, 0:, ...]
+        img_adapted = y_hat[-1][:, 0:, ...]
         plot_tensors = [self.imagenet_denorm(z)]
         # no labels for test step
         labels = ["", "", "", ""]
