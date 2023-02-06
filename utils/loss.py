@@ -5,7 +5,8 @@ from torch.autograd import Variable
 import numpy as np
 import data.data_transforms as d_transforms
 # from utils.metrics import SILog
-from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
+from utils.rendering import get_pixel_locations, \
+    get_image_size_from_intrisics, render_rgbd, PointLights, Materials, PhongRender
 from config.training_config import PhongConfig
 from typing import *
 
@@ -85,32 +86,8 @@ class GradientLoss(nn.Module):
 class PhongLoss(nn.Module):
     def __init__(self, config: PhongConfig, image_size: int = 256, device=None) -> None:
         super(PhongLoss, self).__init__()
-        self.config = config
-        self.camera_intrinsics = torch.Tensor(config.camera_intrinsics, device='cpu')
-        self.camera_intrinsics.requires_grad_(False)
-        self.squarify = d_transforms.Squarify(image_size)
-        # get the original camera pixel locations at the desired image resolution
-        original_image_size = get_image_size_from_intrisics(self.camera_intrinsics)
-        self.camera_intrinsics = self.camera_intrinsics.to(device)
-        pixels = get_pixel_locations(*original_image_size)
-        self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1))).to(device)
-        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)) - self.camera_intrinsics[
-            -1, [1, 0]]
-        self.resized_pixel_locations = self.resized_pixel_locations.to(device)
-        self.resized_pixel_locations.requires_grad_(False)
-        self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
-        self.grey.requires_grad_(False)
-        self.material = Materials(shininess=config.material_shininess, device=device)
-        self.material.requires_grad_(False)
-        self.light = PointLights(location=((0, 0, 0),),
-                                 diffuse_color=(config.diffusion_color,),
-                                 specular_color=(config.specular_color,),
-                                 ambient_color=(config.ambient_color,),
-                                 attenuation_factor=config.attenuation,
-                                 device=device)
-        self.light.requires_grad_(False)
+        self.phong_renderer = PhongRender(config=config, image_size=image_size, device=device)
         self.image_loss = torch.nn.MSELoss()
-        self.device = device
 
     def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...], true_phong: torch.Tensor) \
             -> Tuple[torch.Tensor, torch.Tensor]:
@@ -120,16 +97,7 @@ class PhongLoss(nn.Module):
         :param true_phong:
         :return: the loss value and the rendered images
         """
-        depth, normals = predicted_depth_normals
-        rendered = render_rgbd(depth,
-                               self.grey,
-                               normals.permute((0, 2, 3, 1)),
-                               self.camera_intrinsics,
-                               self.light,
-                               self.material,
-                               self.resized_pixel_locations,
-                               device=self.device)
-        rendered = rendered.permute(0, 3, 1, 2)
+        rendered = self.phong_renderer(predicted_depth_normals)
         return self.image_loss(rendered, true_phong), rendered
 
 

@@ -146,10 +146,10 @@ class DepthEstimationModel(BaseModel):
                     <= self.current_epoch \
                     <= self.config.normals_depth_regularization_loss_epochs[1]:
                 calculated_normals = depth_to_normals(y_hat_depth[-1],
-                                                      self.phong_loss.camera_intrinsics[None],
+                                                      self.phong_loss.phong_renderer.camera_intrinsics[None],
                                                       self.pixel_locations)
                 calculated_synthetic_normals = depth_to_normals(synth_depth,
-                                                                self.phong_loss.camera_intrinsics[None],
+                                                                self.phong_loss.phong_renderer.camera_intrinsics[None],
                                                                 self.pixel_locations)
                 normals_regularization_loss = self.calculated_normals_loss(calculated_normals,
                                                                            calculated_synthetic_normals)
@@ -251,11 +251,11 @@ class DepthEstimationModel(BaseModel):
                 plottable_norms = self.train_plottable_norms
             if self.config.predict_normals:
                 y_hat_depth, y_hat_normals = self(synth_imgs.to(self.device))
-                y_hat_depth, y_hat_normals = y_hat_depth[-1].detach().to(self.phong_loss.light.device), \
-                                             y_hat_normals.detach().to(self.phong_loss.light.device)
+                y_hat_depth, y_hat_normals = y_hat_depth[-1].detach().to(self.phong_loss.phong_renderer.device), \
+                                             y_hat_normals.detach().to(self.phong_loss.phong_renderer.device)
                 y_hat_normals = torch.nn.functional.normalize(y_hat_normals, dim=1)
                 y_phong = self.phong_loss((y_hat_depth, y_hat_normals),
-                                          synth_phong.to(self.phong_loss.light.device))[1].cpu()
+                                          synth_phong.to(self.phong_loss.phong_renderer.device))[1].cpu()
                 y_hat_normals = (y_hat_normals + 1) / 2
                 self.gen_normal_plots(zip(denormed_synth_imgs, y_hat_normals.detach().cpu(), plottable_norms),
                                       prefix=f'{prefix}-synth-normals',

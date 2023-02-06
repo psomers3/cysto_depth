@@ -8,7 +8,8 @@ from kornia.core import Tensor
 from kornia.utils import create_meshgrid
 from kornia.geometry.camera import unproject_points
 from kornia.filters import spatial_gradient
-from data.data_transforms import MatrixRotation
+from data.data_transforms import Squarify
+from config.training_config import PhongConfig
 from scipy.spatial.transform import Rotation
 # keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
 from pytorch3d.renderer.materials import Materials
@@ -469,3 +470,60 @@ def render_rgbd(depth_map: torch.Tensor,
         return pixels.squeeze(0)
 
 
+class PhongRender(torch.nn.Module):
+    def __init__(self, config: PhongConfig, image_size: int = 256, device=None) -> None:
+        super(PhongRender, self).__init__()
+        self.config = config
+        self.camera_intrinsics = torch.Tensor(config.camera_intrinsics, device='cpu')
+        self.camera_intrinsics.requires_grad_(False)
+        self.squarify = Squarify(image_size)
+        # get the original camera pixel locations at the desired image resolution
+        original_image_size = get_image_size_from_intrisics(self.camera_intrinsics)
+        self.camera_intrinsics = self.camera_intrinsics.to(device)
+        pixels = get_pixel_locations(*original_image_size)
+        self.resized_pixel_locations = self.squarify(torch.permute(pixels, (2, 0, 1))).to(device)
+        self.resized_pixel_locations = torch.permute(self.resized_pixel_locations, (1, 2, 0)) - self.camera_intrinsics[
+            -1, [1, 0]]
+        self.resized_pixel_locations = self.resized_pixel_locations.to(device)
+        self.resized_pixel_locations.requires_grad_(False)
+        self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
+        self.grey.requires_grad_(False)
+        self.material = Materials(shininess=config.material_shininess, device=device)
+        self.material.requires_grad_(False)
+        self.light = PointLights(location=((0, 0, 0),),
+                                 diffuse_color=(config.diffusion_color,),
+                                 specular_color=(config.specular_color,),
+                                 ambient_color=(config.ambient_color,),
+                                 attenuation_factor=config.attenuation,
+                                 device=device)
+        self.light.requires_grad_(False)
+        self.device = device
+
+    def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...]) \
+            -> torch.Tensor:
+        """
+
+        :param predicted_depth_normals: tuple of (depth, normals)
+        :type predicted_depth_normals: Tuple[torch.Tensor, ...]
+        :return: the loss value and the rendered images
+        """
+        depth, normals = predicted_depth_normals
+        rendered = render_rgbd(depth,
+                               self.grey,
+                               normals.permute((0, 2, 3, 1)),
+                               self.camera_intrinsics,
+                               self.light,
+                               self.material,
+                               self.resized_pixel_locations,
+                               device=self.device)
+        rendered = rendered.permute(0, 3, 1, 2)
+        return rendered
+    
+    def __call__(self, *args, **kwargs) -> torch.Tensor:
+        """
+
+        :param predicted_depth_normals: tuple of (depth, normals)
+        :type predicted_depth_normals: Tuple[torch.Tensor, ...]
+        :return: the loss value and the rendered images
+        """
+        return super(PhongRender, self).__call__(*args, **kwargs)

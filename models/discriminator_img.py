@@ -4,13 +4,13 @@ from utils.torch_utils import convrelu
 
 
 class ImgDiscriminator(nn.Module):
-    def __init__(self, in_shape):
+    def __init__(self, in_channels):
         super().__init__()
 
         self.conv = nn.Sequential(
             # Shape N, 512, x.H/32, x.W/32
             # receptive field: 
-            convrelu(in_shape, 64, 4, 0, 2, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(in_channels, 64, 4, 0, 2, norm="instance", relu="leaky", alpha=0.2),
             torch.nn.Dropout(),
             convrelu(64, 128, 4, 1, 2, norm="instance", relu="leaky", alpha=0.2),
             torch.nn.Dropout(),
@@ -29,3 +29,6 @@ class ImgDiscriminator(nn.Module):
         validity = self.conv(_input)
         validity = self.out(validity)
         return validity
+
+    def __call__(self, *args, **kwargs) -> torch.Tensor:
+        return super(ImgDiscriminator, self).__call__(*args, **kwargs)

@@ -202,7 +202,8 @@ class GANTrainingConfig:
     beta_2: float = 0.999
     residual_loss_factor: float = 5
     scale_loss_factor: float = 0
-    img_discriminator_factor: float = 0
+    img_discriminator_factor: float = 0.0
+    phong_discriminator_factor: float = 1.0
     residual_transfer: bool = True
     d_max_conf: float = 0.9
     warmup_steps: float = 0
