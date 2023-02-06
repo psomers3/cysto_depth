@@ -138,7 +138,8 @@ class GAN(BaseModel):
             self.log("g_res_loss", residual_loss)
             self.log("g_scale_loss", scale_loss)
             return g_loss
-        elif optimizer_idx > 0:
+        elif optimizer_idx > 0:  # discriminators
+            # image level discriminator
             if optimizer_idx == 1:
                 if self.config.predict_normals:
                     prediction_from_synth = self.depth_model(x)[0][-1].detach()
@@ -151,6 +152,7 @@ class GAN(BaseModel):
                     prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
                 d = self.d_img
                 name = "img"
+            # phong discriminator
             elif optimizer_idx == 2 and self.config.predict_normals:
                 if self.depth_model.config.merged_decoder:
                     depth_out, normals_out = self.depth_model(x)
@@ -169,13 +171,13 @@ class GAN(BaseModel):
                     prediction_from_real = self.phong_renderer((depth_out, normals_out))
                 d = self.phong_discriminator
                 name = "phong"
+            # feature discriminators
             else:
                 decoder_outs_synth = self.depth_model.encoder(x)[0][::-1]
-
-                prediction_from_synth = decoder_outs_synth[optimizer_idx - self.feat_idx_start]
+                prediction_from_synth = decoder_outs_synth[optimizer_idx - self.feat_idx_start].detach()
                 decoder_outs_real = self.generator(z)[0][::-1]
                 # evaluate current generator with a real image and take bottleneck output
-                prediction_from_real = decoder_outs_real[optimizer_idx - self.feat_idx_start]
+                prediction_from_real = decoder_outs_real[optimizer_idx - self.feat_idx_start].detach()
                 d = self.d_feat_modules[optimizer_idx - self.feat_idx_start]
                 name = str(optimizer_idx - self.feat_idx_start)
 
