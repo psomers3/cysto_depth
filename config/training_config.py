@@ -21,6 +21,8 @@ class TrainerDictConfig:
     """ value for gradient clipping during training. Defaults to no clipping. """
     gradient_clip_algorithm: str = 'norm'
     """ type of gradient clipping to do. Either 'value' or 'norm' """
+    num_nodes: int = 1
+    """ Number of nodes (for SLURM or whatever) """
 
 
 @dataclass
