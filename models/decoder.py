@@ -44,6 +44,7 @@ class Decoder(torch.nn.Module):
         :param feature_levels: bottleneck to output
         :param num_output_channels: last convolutional layer feature number.
         :param output_each_level: on call, whether to return output at each upscale
+        :param extra_normals_layers: number of extra features to add for convolution before normals output
         :param phong_renderer: if provided, the depth values will be converted to normals before being appended to
                                the extra normals layers
         """
