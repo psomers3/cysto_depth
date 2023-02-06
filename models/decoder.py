@@ -107,10 +107,10 @@ class Decoder(torch.nn.Module):
         out4 = self.conv_last(x)
         if self.normals_out is not None:
             if self.phong_renderer is not None:
-                if self.phong_renderer.device != self.device:
+                if self.phong_renderer.device != x.device:
                     self.phong_renderer = PhongRender(self.phong_renderer.config,
                                                       image_size=self.phong_renderer.image_size,
-                                                      device=self.device)
+                                                      device=x.device)
                 x2 = depth_to_normals(out4,
                                       self.phong_renderer.camera_intrinsics[None],
                                       self.phong_renderer.resized_pixel_locations,
