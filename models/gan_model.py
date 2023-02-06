@@ -107,7 +107,6 @@ class GAN(BaseModel):
             feat_outs = encoder_outs[::-1][:len(self.d_feat_modules)]
             for idx, feature_out in enumerate(feat_outs):
                 real_predicted = self.d_feat_modules[idx](feature_out).type_as(feature_out)
-                # TODO: move this allocation of ground truth labels somewhere else
                 real = torch.ones(real_predicted.size(),
                                   device=self.device,
                                   dtype=feature_out.dtype) * self.config.d_max_conf
@@ -117,11 +116,10 @@ class GAN(BaseModel):
 
             # Use ones as ground truth to get generator to figure out how to trick discriminator
             valid_predicted_depth = self.d_img(depth_out)
-            if self._generator_img_label is None:
-                self._generator_img_label = torch.ones_like(valid_predicted_depth,
+            g_img_label = torch.ones_like(valid_predicted_depth,
                                                             device=self.device,
                                                             dtype=valid_predicted_depth.dtype)
-            g_loss_img = self.adversarial_loss(valid_predicted_depth, self._generator_img_label)
+            g_loss_img = self.adversarial_loss(valid_predicted_depth, g_img_label)
             self.log("g_loss_img", g_loss_img)
 
             phong_loss = 0
