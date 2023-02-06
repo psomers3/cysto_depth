@@ -47,8 +47,6 @@ class GAN(BaseModel):
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
         self.phong_discriminator = ImgDiscriminator(in_channels=3)
-        self._generator_img_label = None
-        """ Store the labels here so it's not allocated every iteration """
         self.feat_idx_start: int = 0
 
     def forward(self, z, full_prediction=False):
@@ -126,7 +124,7 @@ class GAN(BaseModel):
             if self.config.predict_normals:
                 synth_phong_rendering = self.phong_renderer((depth_out, normals_out))
                 phong_discrimination = self.phong_discriminator(synth_phong_rendering)
-                phong_loss = self.adversarial_loss(phong_discrimination, self._generator_img_label)
+                phong_loss = self.adversarial_loss(phong_discrimination, g_img_label)
                 self.log("g_phong_loss", phong_loss)
 
             g_loss_feat = torch.sum(torch.stack(g_losses_feat))
