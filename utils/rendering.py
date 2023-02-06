@@ -474,6 +474,7 @@ class PhongRender(torch.nn.Module):
     def __init__(self, config: PhongConfig, image_size: int = 256, device=None) -> None:
         super(PhongRender, self).__init__()
         self.config = config
+        self.image_size = image_size
         self.camera_intrinsics = torch.Tensor(config.camera_intrinsics, device='cpu')
         self.camera_intrinsics.requires_grad_(False)
         self.squarify = Squarify(image_size)
@@ -488,13 +489,14 @@ class PhongRender(torch.nn.Module):
         self.resized_pixel_locations.requires_grad_(False)
         self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
         self.grey.requires_grad_(False)
-        self.material = Materials(shininess=config.material_shininess)
+        self.material = Materials(shininess=config.material_shininess, device=device)
         self.material.requires_grad_(False)
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=(config.diffusion_color,),
                                  specular_color=(config.specular_color,),
                                  ambient_color=(config.ambient_color,),
-                                 attenuation_factor=config.attenuation)
+                                 attenuation_factor=config.attenuation,
+                                 device=device)
         self.light.requires_grad_(False)
         self.device = device
 
