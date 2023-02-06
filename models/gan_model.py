@@ -145,7 +145,7 @@ class GAN(BaseModel):
         elif optimizer_idx > 0:
             if optimizer_idx == 1:
                 if self.config.predict_normals:
-                    prediction_from_synth, _ = self.depth_model(x)[0][-1].detach()
+                    prediction_from_synth = self.depth_model(x)[0][-1].detach()
                     if self.depth_model.config.merged_decoder:
                         prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
                     else:
