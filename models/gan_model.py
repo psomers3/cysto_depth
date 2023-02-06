@@ -146,7 +146,10 @@ class GAN(BaseModel):
             if optimizer_idx == 1:
                 if self.config.predict_normals:
                     prediction_from_synth, _ = self.depth_model(x)[0][-1].detach()
-                    prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[0][-1].detach()
+                    if self.depth_model.config.merged_decoder:
+                        prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
+                    else:
+                        prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1]
                 else:
                     prediction_from_synth, _ = self.depth_model(x)[-1].detach()
                     prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
@@ -206,16 +209,23 @@ class GAN(BaseModel):
 
     def validation_step(self, batch, batch_idx):
         x, z = batch
-        y_hat = self.depth_model.decoder(self.generator(z)[0])
-        img_unapdated = self.depth_model(z)[-1][:, 0, ...].unsqueeze(1)
-        img_adapted = y_hat[-1][:, 0, ...].unsqueeze(1)
+        if self.config.predict_normals:
+            depth_unadapted = self.depth_model(z)[0][-1].detach()
+            if self.depth_model.config.merged_decoder:
+                depth_adapted = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
+            else:
+                depth_adapted = self.depth_model.decoder(self.generator(z)[0])[-1]
+        else:
+            y_hat = self.depth_model.decoder(self.generator(z)[0])
+            depth_unadapted = self.depth_model(z)[-1]
+            depth_adapted = y_hat[-1]
         plot_tensors = [self.imagenet_denorm(z)]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
         minmax = []
-        plot_tensors.append(img_adapted)
-        plot_tensors.append(img_unapdated)
-        plot_tensors.append(img_adapted - img_unapdated)
+        plot_tensors.append(depth_adapted)
+        plot_tensors.append(depth_unadapted)
+        plot_tensors.append(depth_adapted - depth_unadapted)
 
         self.add_histograms(step=self.global_step)
         for idx, imgs in enumerate(zip(*plot_tensors)):
