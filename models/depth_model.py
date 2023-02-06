@@ -10,7 +10,7 @@ from utils.image_utils import generate_heatmap_fig, generate_normals_fig, genera
 from models.decoder import Decoder
 from data.data_transforms import ImageNetNormalization
 from argparse import Namespace
-from utils.rendering import depth_to_normals, get_pixel_locations
+from utils.rendering import depth_to_normals, get_pixel_locations, PhongRender
 
 # import debugpy
 # debugpy.listen(5678)
@@ -35,7 +35,10 @@ class DepthEstimationModel(BaseModel):
         self.decoder = Decoder(feature_levels=self.encoder.feature_levels[::-1],
                                num_output_channels=num_output_layers,
                                output_each_level=True,
-                               extra_normals_layers=config.normals_extra_layers)
+                               extra_normals_layers=config.normals_extra_layers,
+                               phong_renderer=PhongRender(config=config.phong_config,
+                                                          image_size=config.image_size)
+                                              if config.decoder_calculate_norms else None)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(feature_levels=self.encoder.feature_levels,
                                            num_output_channels=3,

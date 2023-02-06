@@ -145,6 +145,8 @@ class SyntheticTrainingConfig:
     """ Whether to sync log calls between devices. Can lead to large communication overhead """
     normals_extra_layers: int = 0
     """ Extra convolutions after depth before predicting normals """
+    decoder_calculate_norms: bool = False
+    """ Whether to calculate the normals from depth before giving to normals extra layers """
 
 
 @dataclass

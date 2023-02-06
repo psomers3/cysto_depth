@@ -488,16 +488,27 @@ class PhongRender(torch.nn.Module):
         self.resized_pixel_locations.requires_grad_(False)
         self.grey = torch.ones((image_size, image_size, 3), device=device) * .5
         self.grey.requires_grad_(False)
-        self.material = Materials(shininess=config.material_shininess, device=device)
+        self.material = Materials(shininess=config.material_shininess)
         self.material.requires_grad_(False)
         self.light = PointLights(location=((0, 0, 0),),
                                  diffuse_color=(config.diffusion_color,),
                                  specular_color=(config.specular_color,),
                                  ambient_color=(config.ambient_color,),
-                                 attenuation_factor=config.attenuation,
-                                 device=device)
+                                 attenuation_factor=config.attenuation)
         self.light.requires_grad_(False)
         self.device = device
+
+    def _sync_devices(self, device: torch.device):
+        if self.resized_pixel_locations.device != device:
+            self.resized_pixel_locations = self.resized_pixel_locations.to(device)
+        if self.grey.device != device:
+            self.grey = self.grey.to(device)
+        if self.material.device != device:
+            self.material = self.material.to(device)
+        if self.light.device != device:
+            self.light = self.light.to(device)
+        if self.camera_intrinsics.device != device:
+            self.camera_intrinsics = self.camera_intrinsics.to(device)
 
     def forward(self, predicted_depth_normals: Tuple[torch.Tensor, ...]) \
             -> torch.Tensor:
@@ -508,6 +519,7 @@ class PhongRender(torch.nn.Module):
         :return: the loss value and the rendered images
         """
         depth, normals = predicted_depth_normals
+        self._sync_devices(device=depth.device)
         rendered = render_rgbd(depth,
                                self.grey,
                                normals.permute((0, 2, 3, 1)),
@@ -515,7 +527,7 @@ class PhongRender(torch.nn.Module):
                                self.light,
                                self.material,
                                self.resized_pixel_locations,
-                               device=self.device)
+                               device=depth.device)
         rendered = rendered.permute(0, 3, 1, 2)
         return rendered
     

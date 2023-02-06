@@ -2,6 +2,7 @@ from torch import nn
 import torch
 from utils.torch_utils import convrelu
 from typing import *
+from utils.rendering import depth_to_normals, PhongRender
 
 
 def init_subpixel(weight):
@@ -36,23 +37,27 @@ class Decoder(torch.nn.Module):
                  feature_levels: List[int],
                  num_output_channels: int = 1,
                  output_each_level: bool = False,
-                 extra_normals_layers: int = 0) -> None:
+                 extra_normals_layers: int = 0,
+                 phong_renderer: PhongRender = None) -> None:
         """
 
         :param feature_levels: bottleneck to output
         :param num_output_channels: last convolutional layer feature number.
         :param output_each_level: on call, whether to return output at each upscale
+        :param phong_renderer: if provided, the depth values will be converted to normals before being appended to
+                               the extra normals layers
         """
         super().__init__()
         self.output_each_level = output_each_level
         self.num_output_channels = num_output_channels
+        self.phong_renderer = phong_renderer
 
         # self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         feature_levels_doubled = feature_levels[:-2] * 2
         feature_levels_doubled.sort(reverse=True)
         self.upsamples = torch.nn.ModuleList([UpsampleShuffle(nfeat, nfeat) for nfeat in feature_levels_doubled[:-1]])
 
-        self.conv_ups = torch.nn.ModuleList([convrelu(feature_levels[i+1] + feature_levels_doubled[i], nfeat, 3, 1)
+        self.conv_ups = torch.nn.ModuleList([convrelu(feature_levels[i + 1] + feature_levels_doubled[i], nfeat, 3, 1)
                                              for i, nfeat in enumerate(feature_levels_doubled[1:-1])])
 
         if self.output_each_level:
@@ -66,7 +71,8 @@ class Decoder(torch.nn.Module):
             self.normals_out = None
         else:
             self.conv_last = nn.Conv2d(feature_levels[-1], 1, 1)
-            self.normals_learn_layers = convrelu(feature_levels[-1] + 1, extra_normals_layers, 3, 1)
+            appended_feature = 1 if self.phong_renderer is None else 3
+            self.normals_learn_layers = convrelu(feature_levels[-1] + appended_feature, extra_normals_layers, 3, 1)
             self.normals_out = nn.Conv2d(extra_normals_layers + 1, 3, 3, 1, padding=1)
 
     def forward(self, _input):
@@ -99,7 +105,14 @@ class Decoder(torch.nn.Module):
 
         out4 = self.conv_last(x)
         if self.normals_out is not None:
-            x = torch.cat([x, out4], dim=1)
+            if self.phong_renderer is not None:
+                x2 = depth_to_normals(out4,
+                                      self.phong_renderer.camera_intrinsics[None],
+                                      self.phong_renderer.resized_pixel_locations,
+                                      normalize_points=True)
+                x = torch.cat([x, x2], dim=1)
+            else:
+                x = torch.cat([out4, x], dim=1)
             x = self.normals_learn_layers(x)
             x = self.normals_out(torch.cat([out4, x], dim=1))
             out4 = torch.cat([out4, x], dim=1)
