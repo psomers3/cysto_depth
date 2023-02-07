@@ -2,17 +2,15 @@ import kornia.geometry.depth
 import torch
 from typing import *
 import numpy as np
-from pytorch3d.renderer.lighting import diffuse, _validate_light_properties, TensorProperties
-from pytorch3d.renderer.lighting import convert_to_tensors_and_broadcast, F
+from utils.pytorch3d_lighting import diffuse, _validate_light_properties, \
+    TensorProperties, convert_to_tensors_and_broadcast, F
 from kornia.core import Tensor
 from kornia.utils import create_meshgrid
 from kornia.geometry.camera import unproject_points
 from kornia.filters import spatial_gradient
 from data.data_transforms import Squarify
 from config.training_config import PhongConfig
-from scipy.spatial.transform import Rotation
-# keep following line, so we can import from here and make this file the only PyTorch3D direct dependency
-from pytorch3d.renderer.materials import Materials
+from utils.pytorch3d_materials import Materials
 
 
 def blinn_specular(
