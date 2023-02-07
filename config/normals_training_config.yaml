@@ -1,15 +1,15 @@
 log_directory: ./logs
 predict_normals: true
 print_config: true
-adaptive_gating: true
-mode: synthetic
+adaptive_gating: false
+mode: gan
 training_stage: train
 split_save_dir: ./splits
 num_workers: 1
 synthetic_config:
-  normals_extra_layers: 3
-  decoder_calculate_norms: true
-  backbone: resnet34
+  normals_extra_layers: 0
+  decoder_calculate_norms: false
+  backbone: resnet18
   merged_decoder: true
   max_epochs: 300
   batch_size: 4

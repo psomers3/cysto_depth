@@ -200,7 +200,7 @@ class GANTrainingConfig:
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=None,
-                                               save_weights_only=True)
+                                               save_weights_only=False)
     phong_config: PhongConfig = '${..phong_config}'
     """ The config for the phong dataloader """
     predict_normals: bool = '${..predict_normals}'
