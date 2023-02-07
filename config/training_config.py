@@ -219,9 +219,10 @@ class GANTrainingConfig:
     scale_loss_factor: float = 0
     img_discriminator_factor: float = 0.0
     phong_discriminator_factor: float = 1.0
-    residual_transfer: bool = True
     d_max_conf: float = 0.9
-    warmup_steps: float = 0
+    """ scaling factor for confidence of discriminators on synthetic data """
+    warmup_steps: int = 0
+    """ how many steps to train the discriminator before training generator """
     sync_logging: bool = '${..sync_logging}'
     """ Whether to sync log calls between devices. Can lead to large communication overhead """
 

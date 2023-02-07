@@ -100,12 +100,15 @@ class GAN(BaseModel):
             self.generator.apply(freeze_batchnorm)
 
         optimizers: List[torch.optim.Optimizer] = self.optimizers(use_pl_optimizer=True)
+        schedulers: List[torch.optim.lr_scheduler.CyclicLR] = self.lr_schedulers()
         generator_opt = optimizers[0]
+        generator_sched = schedulers[0]
         discriminator_opts = [optimizers[i] for i in range(1, len(optimizers))]
+        discriminator_sched = [schedulers[i] for i in range(1, len(schedulers))]
 
         # x = synthetic image, z = real image
         x, z = batch
-        generator_step = batch_idx % 2 == 0
+        generator_step = batch_idx % 2 == 0 if self.global_step >= self.config.warmup_steps else False
         if generator_step:
             # output of encoder when evaluating a real image
             encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
@@ -158,6 +161,7 @@ class GAN(BaseModel):
             generator_opt.zero_grad()
             self.manual_backward(g_loss)
             generator_opt.step()
+            generator_sched.step()
 
         else:  # discriminators
             with torch.no_grad():
@@ -189,6 +193,7 @@ class GAN(BaseModel):
             self.manual_backward(d_loss)
             [d_opt.step() for d_opt in discriminator_opts]
             self.log("d_loss", d_loss)
+            [d_sched.step() for d_sched in discriminator_sched]
 
     def _apply_discriminator_loss(self, real: torch.Tensor, synth: torch.Tensor, discriminator: Callable,
                                   name: str) -> torch.Tensor:
@@ -212,16 +217,12 @@ class GAN(BaseModel):
 
     def validation_step(self, batch, batch_idx):
         x, z = batch
-        if self.config.predict_normals:
-            depth_unadapted = self.depth_model(z)[0][-1].detach()
-            if self.depth_model.config.merged_decoder:
-                depth_adapted = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
-            else:
-                depth_adapted = self.depth_model.decoder(self.generator(z)[0])[-1]
-        else:
-            y_hat = self.depth_model.decoder(self.generator(z)[0])
-            depth_unadapted = self.depth_model(z)[-1]
-            depth_adapted = y_hat[-1]
+        # predictions with real images through generator
+        _, _, decoder_outs_adapted, _ = self.get_predictions(z, generator=True)
+        depth_adapted = decoder_outs_adapted[-1]
+        _, _, decoder_outs_unadapted, _ = self.get_predictions(z, generator=False)
+        depth_unadapted = decoder_outs_unadapted[-1]
+
         plot_tensors = [self.imagenet_denorm(z)]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
