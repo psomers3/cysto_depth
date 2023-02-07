@@ -281,6 +281,7 @@ class GAN(BaseModel):
         opt_d_img = torch.optim.Adam(filter(lambda p: p.requires_grad, self.d_img.parameters()), lr=lr_d,
                                      betas=(b1, b2))
         up_steps = self.config.cyclic_step_period // 2
+
         lr_scheduler_g = torch.optim.lr_scheduler.CyclicLR(opt_g, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
                                                            cycle_momentum=False, step_size_up=up_steps)
         lr_scheduler_d_img = torch.optim.lr_scheduler.CyclicLR(opt_d_img, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
@@ -306,6 +307,8 @@ class GAN(BaseModel):
             optimizers.insert(2, opt_d_phong)
             schedulers.insert(2, lr_scheduler_d_phong)
             self.feat_idx_start += 1
+
+        schedulers = [{'scheduler': s, 'interval': 'step', 'frequency': 1} for s in schedulers]
         return optimizers, schedulers
 
     def _on_epoch_end(self):
