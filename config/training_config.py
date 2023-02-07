@@ -43,6 +43,8 @@ class CallbackConfig:
     """ Number of epochs between checkpoints """
     model_ckpt_save_k: Union[int, None] = None
     """ keep the top k saved checkpoints """
+    save_weights_only: bool = False
+    """ Only save model weights on checkpoints """
 
 
 @dataclass
@@ -197,7 +199,8 @@ class GANTrainingConfig:
     """ folder containing (or will contain) the generated real image training data """
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
-                                               model_ckpt_save_k=None)
+                                               model_ckpt_save_k=None,
+                                               save_weights_only=True)
     phong_config: PhongConfig = '${..phong_config}'
     """ The config for the phong dataloader """
     predict_normals: bool = '${..predict_normals}'

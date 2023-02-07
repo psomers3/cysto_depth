@@ -1,3 +1,4 @@
+import pytorch_lightning.loggers
 from matplotlib import pyplot as plt
 from torch.nn import functional as F
 import torch
@@ -13,6 +14,7 @@ from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_f
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
 from argparse import Namespace
 from utils.rendering import PhongRender
+from pathlib import Path
 
 
 class GAN(BaseModel):
