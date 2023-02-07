@@ -8,12 +8,14 @@ import torch
 class AdaptiveEncoder(VanillaEncoder):
     def __init__(self,
                  adaptive_gating: bool = False,
+                 residual_learning: bool = False,
                  backbone: str = 'resnet18',
                  use_image_net_weights: bool = False):
         """
 
         :param adaptive_gating: whether to add the resnet blocks for adaptive transfer learning. If false,
                                 behaves as a normal vanilla encoder.
+        :param residual_learning: Whether to add residual blocks to the vanilla encoder and freeze the vanilla encoder.
         :param backbone: base encoder structure to use.
         :param use_image_net_weights: whether to initialize with imagenet weights
         """
@@ -22,8 +24,10 @@ class AdaptiveEncoder(VanillaEncoder):
         activation = "leaky"
         norm = 'batch'
         self.adaptive_gating = adaptive_gating
+        self.residual_learning = residual_learning
 
-        if not self.adaptive_gating:
+        if not self.residual_learning:
+            # pure vanilla case
             return
 
         for param in self.parameters():
@@ -64,7 +68,7 @@ class AdaptiveEncoder(VanillaEncoder):
             return input_tensor1 + input_tensor2
 
     def forward(self, encoder_input):
-        if not self.adaptive_gating:
+        if not self.residual_learning:
             return VanillaEncoder.forward(self, encoder_input)
         x_original = self.conv_original_size0(encoder_input)
         x_original = self.conv_original_size1(x_original)

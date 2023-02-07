@@ -28,6 +28,7 @@ class DepthEstimationModel(BaseModel):
         self.save_hyperparameters(Namespace(**config))
         self.config = config
         self.encoder = AdaptiveEncoder(adaptive_gating=config.adaptive_gating,
+                                       residual_learning=config.residual_learning,
                                        use_image_net_weights=config.load_imagenet_weights,
                                        backbone=config.backbone)
 

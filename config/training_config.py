@@ -22,7 +22,7 @@ class TrainerDictConfig:
     gradient_clip_algorithm: str = 'norm'
     """ type of gradient clipping to do. Either 'value' or 'norm' """
     num_nodes: int = 1
-    """ Number of nodes (for SLURM or whatever) """
+    """ Number of nodes (for SLURM or whatever). Leave this as 1 and specify the nodes in the SLURM script. """
 
 
 @dataclass
@@ -123,6 +123,8 @@ class SyntheticTrainingConfig:
     """ Final square size to make all images """
     adaptive_gating: bool = '${..adaptive_gating}'
     """ Whether to turn on adaptive gating for domain adaptation """
+    residual_learning: bool = '${..residual_learning}'
+    """ Whether to use additional residual blocks for the adversarial learning """
     min_depth: float = .5
     """ depth value used to mask normals to zero """
     merged_decoder: bool = True
@@ -200,6 +202,8 @@ class GANTrainingConfig:
     """ Final square size to make all images """
     adaptive_gating: bool = '${..adaptive_gating}'
     """ Whether to turn on adaptive gating for domain adaptation """
+    residual_learning: bool = '${..residual_learning}'
+    """ Whether to use additional residual blocks for the adversarial learning """
     freeze_batch_norm: bool = True
     """ Whether to freeze the batch norm statistics for the generator """
     beta_1: float = 0.5
@@ -227,6 +231,8 @@ class CystoDepthConfig:
     """ tensorboard log directory """
     adaptive_gating: bool = False
     """ Whether to turn on adaptive gating for domain adaptation """
+    residual_learning: bool = True
+    """ Whether to use additional residual blocks for the adversarial learning """
     image_gan: bool = False
     """ Whether uses full output for discriminator instead of patches """
     num_workers: int = 6

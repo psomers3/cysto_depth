@@ -30,8 +30,9 @@ class GAN(BaseModel):
             strict=False,
             config=synth_config)
         self.config = gan_config
-        self.generator = AdaptiveEncoder(gan_config.adaptive_gating, backbone=synth_config.backbone) \
-            if gan_config.residual_transfer else VanillaEncoder(backbone=synth_config.backbone)
+        self.generator = AdaptiveEncoder(adaptive_gating=gan_config.adaptive_gating,
+                                         backbone=synth_config.backbone,
+                                         residual_learning=gan_config.residual_learning)
 
         self.generator.load_state_dict(self.depth_model.encoder.state_dict(), strict=False)
         self.depth_model.requires_grad = False
@@ -140,46 +141,47 @@ class GAN(BaseModel):
             return g_loss
         elif optimizer_idx > 0:  # discriminators
             # image level discriminator
-            if optimizer_idx == 1:
-                if self.config.predict_normals:
-                    prediction_from_synth = self.depth_model(x)[0][-1].detach()
-                    if self.depth_model.config.merged_decoder:
-                        prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
+            with torch.no_grad():
+                if optimizer_idx == 1:
+                    if self.config.predict_normals:
+                        prediction_from_synth = self.depth_model(x)[0][-1].detach()
+                        if self.depth_model.config.merged_decoder:
+                            prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
+                        else:
+                            prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
                     else:
-                        prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1]
+                        prediction_from_synth, _ = self.depth_model(x)[-1].detach()
+                        prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
+                    d = self.d_img
+                    name = "img"
+                # phong discriminator
+                elif optimizer_idx == 2 and self.config.predict_normals:
+                    if self.depth_model.config.merged_decoder:
+                        depth_out, normals_out = self.depth_model(x)
+                        prediction_from_synth = self.phong_renderer((depth_out[-1], normals_out))
+                        output = self.depth_model.decoder(self.generator(z)[0])
+                        depth_out = output[-1][:, 0, ...].unsqueeze(1).detach()
+                        normals_out = output[-1][:, 1:, ...].detach()
+                        prediction_from_real = self.phong_renderer((depth_out, normals_out)).detach()
+                    else:
+                        decoder_outs_synth, normals_out = self.depth_model(x)
+                        depth_out = decoder_outs_synth[-1]
+                        prediction_from_synth = self.phong_renderer((depth_out, normals_out)).detach()
+                        decoder_outs_synth = self.depth_model.decoder(self.generator(z)[0])
+                        normals_out = self.depth_model.normals_decoder(self.generator(z)[0])
+                        depth_out = decoder_outs_synth[-1]
+                        prediction_from_real = self.phong_renderer((depth_out, normals_out)).detach()
+                    d = self.phong_discriminator
+                    name = "phong"
+                # feature discriminators
                 else:
-                    prediction_from_synth, _ = self.depth_model(x)[-1].detach()
-                    prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
-                d = self.d_img
-                name = "img"
-            # phong discriminator
-            elif optimizer_idx == 2 and self.config.predict_normals:
-                if self.depth_model.config.merged_decoder:
-                    depth_out, normals_out = self.depth_model(x)
-                    prediction_from_synth = self.phong_renderer((depth_out[-1], normals_out))
-                    output = self.depth_model.decoder(self.generator(z)[0])
-                    depth_out = output[-1][:, 0, ...].unsqueeze(1).detach()
-                    normals_out = output[-1][:, 1:, ...].detach()
-                    prediction_from_real = self.phong_renderer((depth_out, normals_out))
-                else:
-                    decoder_outs_synth, normals_out = self.depth_model(x)
-                    depth_out = decoder_outs_synth[-1]
-                    prediction_from_synth = self.phong_renderer((depth_out, normals_out))
-                    decoder_outs_synth = self.depth_model.decoder(self.generator(z)[0])
-                    normals_out = self.depth_model.normals_decoder(self.generator(z)[0])
-                    depth_out = decoder_outs_synth[-1]
-                    prediction_from_real = self.phong_renderer((depth_out, normals_out))
-                d = self.phong_discriminator
-                name = "phong"
-            # feature discriminators
-            else:
-                decoder_outs_synth = self.depth_model.encoder(x)[0][::-1]
-                prediction_from_synth = decoder_outs_synth[optimizer_idx - self.feat_idx_start].detach()
-                decoder_outs_real = self.generator(z)[0][::-1]
-                # evaluate current generator with a real image and take bottleneck output
-                prediction_from_real = decoder_outs_real[optimizer_idx - self.feat_idx_start].detach()
-                d = self.d_feat_modules[optimizer_idx - self.feat_idx_start]
-                name = str(optimizer_idx - self.feat_idx_start)
+                    decoder_outs_synth = self.depth_model.encoder(x)[0][::-1]
+                    prediction_from_synth = decoder_outs_synth[optimizer_idx - self.feat_idx_start].detach()
+                    decoder_outs_real = self.generator(z)[0][::-1]
+                    # evaluate current generator with a real image and take bottleneck output
+                    prediction_from_real = decoder_outs_real[optimizer_idx - self.feat_idx_start].detach()
+                    d = self.d_feat_modules[optimizer_idx - self.feat_idx_start]
+                    name = str(optimizer_idx - self.feat_idx_start)
 
             real_predicted = d(prediction_from_synth)
             fake_predicted = d(prediction_from_real)
