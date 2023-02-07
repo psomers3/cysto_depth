@@ -12,6 +12,7 @@ from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_f
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
 from argparse import Namespace
 from utils.rendering import PhongRender
+from typing import *
 
 
 class GAN(BaseModel):
@@ -22,6 +23,7 @@ class GAN(BaseModel):
             image_gan: bool = False,
     ):
         super().__init__()
+        self.automatic_optimization = False
         self.save_hyperparameters(Namespace(**gan_config))
         synth_config.resume_from_checkpoint = ''
         self.depth_model: DepthEstimationModel = DepthEstimationModel.load_from_checkpoint(
@@ -66,53 +68,69 @@ class GAN(BaseModel):
     def adversarial_loss(y_hat, y):
         return F.binary_cross_entropy(y_hat, y)
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def get_predictions(self, x: torch.Tensor, generator: bool):
+        """ helper function to clean up the training_step function.
+
+        :param x: batch of images
+        :param generator: whether to use the generator encoder
+        :return: encoder_outs, encoder_mare_outs, decoder_outs, normals
+        """
+        if generator:
+            encoder_outs, encoder_mare_outs = self.generator(x)
+        else:
+            encoder_outs, encoder_mare_outs = self.depth_model.encoder(x)
+        if self.config.predict_normals:
+            if self.depth_model.config.merged_decoder:
+                output = self.depth_model.decoder(encoder_outs)
+                decoder_outs = [self.depth_model.decoder(encoder_outs)[i][:, 0, ...].unsqueeze(1) for i in
+                                range(len(output))]
+                normals = output[-1][:, 1:, ...]
+            else:
+                normals = self.depth_model.normals_decoder(encoder_outs)
+                decoder_outs = self.depth_model.decoder(encoder_outs)
+        else:
+            decoder_outs = self.depth_model.decoder(encoder_outs)
+            normals = None
+
+        return encoder_outs, encoder_mare_outs, decoder_outs, normals
+
+    def training_step(self, batch, batch_idx):
         self.depth_model.apply(freeze_batchnorm)
         if self.config.freeze_batch_norm:
             self.generator.apply(freeze_batchnorm)
 
+        optimizers: List[torch.optim.Optimizer] = self.optimizers(use_pl_optimizer=True)
+        generator_opt = optimizers[0]
+        discriminator_opts = [optimizers[i] for i in range(1, len(optimizers))]
+
         # x = synthetic image, z = real image
         x, z = batch
-
-        # generator optimizer index = 0
-        # depth map discriminator optimizer index = 1
-        # feature level optimizers indexes = 2 - 5
-        # phong img optimizer index = 6
-        if optimizer_idx == 0 and self.global_step >= self.config.warmup_steps:
+        generator_step = batch_idx % 2 == 0
+        if generator_step:
             # output of encoder when evaluating a real image
-            encoder_outs, encoder_mare_outs = self.generator(z)
-            if self.depth_model.config.predict_normals:
-                if self.depth_model.config.merged_decoder:
-                    decoder_outs_synth = self.depth_model.decoder(encoder_outs)
-                    depth_out = decoder_outs_synth[-1][:, 0, ...].unsqueeze(1)
-                    normals_out = decoder_outs_synth[-1][:, 1:, ...]
-                else:
-                    decoder_outs_synth, normals_out = self.depth_model.decoder(encoder_outs)
-                    depth_out = decoder_outs_synth[-1]
-            else:
-                decoder_outs_synth = self.depth_model.decoder(encoder_outs)
-                depth_out = decoder_outs_synth[-1]
-
+            encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
+                                                                                                              generator=True)
+            depth_out = decoder_outs_real[-1]
             # compare output levels to make sure they produce roughly the same output
             if self.config.residual_transfer:
-                residual_loss = torch.mean(torch.stack(encoder_mare_outs))
+                residual_loss = torch.mean(torch.stack(encoder_mare_outs_real))
             else:
                 residual_loss = torch.tensor([0]).type_as(z)
 
             scale_loss = 0
             # actual output of the discriminator
             g_losses_feat = []
-            feat_outs = encoder_outs[::-1][:len(self.d_feat_modules)]
+            feat_outs = encoder_outs_real[::-1][:len(self.d_feat_modules)]
             for idx, feature_out in enumerate(feat_outs):
                 real_predicted = self.d_feat_modules[idx](feature_out).type_as(feature_out)
-                real = torch.ones(real_predicted.size(),
-                                  device=self.device,
-                                  dtype=feature_out.dtype) * self.config.d_max_conf
+                real = torch.ones_like(real_predicted,
+                                       device=self.device,
+                                       dtype=feature_out.dtype) * self.config.d_max_conf
                 loss = self.adversarial_loss(real_predicted, real)
                 self.log("g_loss_feature_{}".format(idx), loss)
                 g_losses_feat.append(loss)
 
-            # Use ones as ground truth to get generator to figure out how to trick discriminator
+            # Use ones (="synth image") as ground truth to get generator to figure out how to trick discriminator
             valid_predicted_depth = self.d_img(depth_out)
             g_img_label = torch.ones_like(valid_predicted_depth,
                                           device=self.device,
@@ -122,7 +140,7 @@ class GAN(BaseModel):
 
             phong_loss = 0
             if self.config.predict_normals:
-                synth_phong_rendering = self.phong_renderer((depth_out, normals_out))
+                synth_phong_rendering = self.phong_renderer((depth_out, normals_real))
                 phong_discrimination = self.phong_discriminator(synth_phong_rendering)
                 phong_loss = self.adversarial_loss(phong_discrimination, g_img_label)
                 self.log("g_phong_loss", phong_loss)
@@ -137,75 +155,60 @@ class GAN(BaseModel):
             self.log("g_skip_loss", g_loss_feat)
             self.log("g_res_loss", residual_loss)
             self.log("g_scale_loss", scale_loss)
-            return g_loss
-        elif optimizer_idx > 0:  # discriminators
-            # image level discriminator
+            generator_opt.zero_grad()
+            self.manual_backward(g_loss)
+            generator_opt.step()
+
+        else:  # discriminators
             with torch.no_grad():
-                if optimizer_idx == 1:
-                    if self.config.predict_normals:
-                        prediction_from_synth = self.depth_model(x)[0][-1].detach()
-                        if self.depth_model.config.merged_decoder:
-                            prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0,
-                                                   ...].unsqueeze(1).detach()
-                        else:
-                            prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
-                    else:
-                        prediction_from_synth, _ = self.depth_model(x)[-1].detach()
-                        prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
-                    d = self.d_img
-                    name = "img"
-                # phong discriminator
-                elif optimizer_idx == 2 and self.config.predict_normals:
-                    if self.depth_model.config.merged_decoder:
-                        depth_out, normals_out = self.depth_model(x)
-                        prediction_from_synth = self.phong_renderer((depth_out[-1], normals_out))
-                        output = self.depth_model.decoder(self.generator(z)[0])
-                        depth_out = output[-1][:, 0, ...].unsqueeze(1).detach()
-                        normals_out = output[-1][:, 1:, ...].detach()
-                        prediction_from_real = self.phong_renderer((depth_out, normals_out)).detach()
-                    else:
-                        decoder_outs_synth, normals_out = self.depth_model(x)
-                        depth_out = decoder_outs_synth[-1]
-                        prediction_from_synth = self.phong_renderer((depth_out, normals_out)).detach()
-                        decoder_outs_synth = self.depth_model.decoder(self.generator(z)[0])
-                        normals_out = self.depth_model.normals_decoder(self.generator(z)[0])
-                        depth_out = decoder_outs_synth[-1]
-                        prediction_from_real = self.phong_renderer((depth_out, normals_out)).detach()
-                    d = self.phong_discriminator
-                    name = "phong"
-                # feature discriminators
-                else:
-                    decoder_outs_synth = self.depth_model.encoder(x)[0][::-1]
-                    prediction_from_synth = decoder_outs_synth[optimizer_idx - self.feat_idx_start].detach()
-                    decoder_outs_real = self.generator(z)[0][::-1]
-                    # evaluate current generator with a real image and take bottleneck output
-                    prediction_from_real = decoder_outs_real[optimizer_idx - self.feat_idx_start].detach()
-                    d = self.d_feat_modules[optimizer_idx - self.feat_idx_start]
-                    name = str(optimizer_idx - self.feat_idx_start)
+                # predictions with real images through generator
+                encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
+                                                                                                                  generator=True)
+                # predictions with synthetic images through frozen network
+                encoder_outs_synth, encoder_mare_outs_synth, decoder_outs_synth, normals_synth = self.get_predictions(x,
+                                                                                                                      generator=False)
 
-            real_predicted = d(prediction_from_synth)
-            fake_predicted = d(prediction_from_real)
+                depth_real = decoder_outs_real[-1]
+                depth_synth = decoder_outs_synth[-1]
 
-            # how well can it label as real
-            # TODO: move this allocation of ground truth labels somewhere else
-            real = torch.ones_like(real_predicted,
-                                   device=self.device,
-                                   dtype=real_predicted.dtype) * self.config.d_max_conf
-            fake = torch.zeros_like(fake_predicted,
-                                    device=self.device,
-                                    dtype=prediction_from_real.dtype)
+                if self.config.predict_normals:
+                    phong_synth = self.phong_renderer((depth_synth, normals_synth))
+                    phong_real = self.phong_renderer((depth_real, normals_real))
 
-            real_loss = self.adversarial_loss(real_predicted, real)
-            fake_loss = self.adversarial_loss(fake_predicted, fake)
-            # discriminator loss is the average of these
-            d_loss = (real_loss + fake_loss) / 2
-            self.log(f"d_loss_{name}", d_loss)
-            if optimizer_idx == 1:
-                self.accum_dlosses = 0
-            self.accum_dlosses += d_loss.detach()
-            if optimizer_idx == 5:
-                self.log("d_loss", self.accum_dlosses)
-            return d_loss
+            d_loss = 0
+            d_loss += self._apply_discriminator_loss(depth_real, depth_synth, self.d_img, 'img')
+            feat_outs = zip(encoder_outs_real[::-1], encoder_outs_synth[::-1])
+            for idx, d_feat in enumerate(self.d_feat_modules):
+                feature_out_r, feature_out_s = next(feat_outs)
+                d_loss += self._apply_discriminator_loss(feature_out_r, feature_out_s, d_feat, f'{idx}')
+
+            if self.config.predict_normals:
+                d_loss += self._apply_discriminator_loss(phong_real, phong_synth, self.phong_discriminator, 'phong')
+
+            [d_opt.zero_grad() for d_opt in discriminator_opts]
+            self.manual_backward(d_loss)
+            [d_opt.step() for d_opt in discriminator_opts]
+            self.log("d_loss", d_loss)
+
+    def _apply_discriminator_loss(self, real: torch.Tensor, synth: torch.Tensor, discriminator: Callable,
+                                  name: str) -> torch.Tensor:
+        synth_depth_discriminated = discriminator(synth)
+        real_depth_discriminated = discriminator(real)
+
+        # label the real data as zeros and synth as ones
+        real_label = torch.zeros_like(real_depth_discriminated,
+                                      device=self.device,
+                                      dtype=synth_depth_discriminated.dtype) * self.config.d_max_conf
+        synth_label = torch.ones_like(synth_depth_discriminated,
+                                      device=self.device,
+                                      dtype=real_depth_discriminated.dtype)
+
+        synth_loss = self.adversarial_loss(synth_depth_discriminated, synth_label)
+        real_loss = self.adversarial_loss(real_depth_discriminated, real_label)
+        # discriminator loss is the average of these
+        d_loss = (real_loss + synth_loss) / 2
+        self.log(f"d_loss_{name}", d_loss)
+        return d_loss
 
     def validation_step(self, batch, batch_idx):
         x, z = batch
