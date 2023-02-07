@@ -170,6 +170,8 @@ class GANTrainingConfig:
     discriminator_lr: float = 5e-5
     """ learning rate for discriminator """
     max_epochs: int = 10
+    optimizer: str = 'radam'
+    """ Which torch optimizer to use. ['adam', 'radam'] """
     monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
     val_check_interval: int = '${..val_check_interval}'

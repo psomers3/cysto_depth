@@ -116,8 +116,8 @@ class GAN(BaseModel):
             # Use ones as ground truth to get generator to figure out how to trick discriminator
             valid_predicted_depth = self.d_img(depth_out)
             g_img_label = torch.ones_like(valid_predicted_depth,
-                                                            device=self.device,
-                                                            dtype=valid_predicted_depth.dtype)
+                                          device=self.device,
+                                          dtype=valid_predicted_depth.dtype)
             g_loss_img = self.adversarial_loss(valid_predicted_depth, g_img_label)
             self.log("g_loss_img", g_loss_img)
 
@@ -146,7 +146,8 @@ class GAN(BaseModel):
                     if self.config.predict_normals:
                         prediction_from_synth = self.depth_model(x)[0][-1].detach()
                         if self.depth_model.config.merged_decoder:
-                            prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0, ...].unsqueeze(1).detach()
+                            prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1][:, 0,
+                                                   ...].unsqueeze(1).detach()
                         else:
                             prediction_from_real = self.depth_model.decoder(self.generator(z)[0])[-1].detach()
                     else:
@@ -280,9 +281,16 @@ class GAN(BaseModel):
                                           betas=(b1, b2)) for discriminator in self.d_feat_modules]
         opt_d_img = torch.optim.Adam(filter(lambda p: p.requires_grad, self.d_img.parameters()), lr=lr_d,
                                      betas=(b1, b2))
-        lr_scheduler_g = torch.optim.lr_scheduler.CyclicLR(opt_g, base_lr=lr_g, max_lr=lr_g*10, gamma=.1)
-        lr_scheduler_d_img = torch.optim.lr_scheduler.CyclicLR(opt_d_img, base_lr=lr_g,max_lr=lr_g*10,  gamma=.1)
-        lr_schedulers_d_feat = [torch.optim.lr_scheduler.CyclicLR(opt, base_lr=lr_g, max_lr=lr_g*10, gamma=.1) for opt in
+        lr_scheduler_g = torch.optim.lr_scheduler.CyclicLR(opt_g, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
+                                                           cycle_momentum=not self.config.optimizer == 'adam')
+        lr_scheduler_d_img = torch.optim.lr_scheduler.CyclicLR(opt_d_img, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
+                                                               cycle_momentum=not self.config.optimizer == 'adam')
+        lr_schedulers_d_feat = [torch.optim.lr_scheduler.CyclicLR(opt,
+                                                                  base_lr=lr_g,
+                                                                  max_lr=lr_g * 10,
+                                                                  gamma=.1,
+                                                                  cycle_momentum=not self.config.optimizer == 'adam')
+                                for opt in
                                 opt_d_feature]
         optimizers, schedulers = [opt_g, opt_d_img, *opt_d_feature], \
                                  [lr_scheduler_g, lr_scheduler_d_img, *lr_schedulers_d_feat]
@@ -290,7 +298,11 @@ class GAN(BaseModel):
         if self.config.predict_normals:
             opt_d_phong = torch.optim.Adam(filter(lambda p: p.requires_grad, self.phong_discriminator.parameters()),
                                            lr=lr_d, betas=(b1, b2))
-            lr_scheduler_d_phong = torch.optim.lr_scheduler.CyclicLR(opt_d_phong, base_lr=lr_g, max_lr=lr_g*10, gamma=.1)
+            lr_scheduler_d_phong = torch.optim.lr_scheduler.CyclicLR(opt_d_phong,
+                                                                     base_lr=lr_g,
+                                                                     max_lr=lr_g * 10,
+                                                                     gamma=.1,
+                                                                     cycle_momentum=not self.config.optimizer == 'adam')
             optimizers.insert(2, opt_d_phong)
             schedulers.insert(2, lr_scheduler_d_phong)
             self.feat_idx_start += 1
