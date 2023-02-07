@@ -308,7 +308,7 @@ class GAN(BaseModel):
             schedulers.insert(2, lr_scheduler_d_phong)
             self.feat_idx_start += 1
 
-        schedulers = [{'scheduler': s, 'interval': 'step', 'frequency': 1} for s in schedulers]
+        schedulers = [{'scheduler': s, 'interval': 'step', 'frequency': 1, 'strict': False} for s in schedulers]
         return optimizers, schedulers
 
     def _on_epoch_end(self):
