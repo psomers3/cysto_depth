@@ -281,15 +281,16 @@ class GAN(BaseModel):
                                           betas=(b1, b2)) for discriminator in self.d_feat_modules]
         opt_d_img = torch.optim.Adam(filter(lambda p: p.requires_grad, self.d_img.parameters()), lr=lr_d,
                                      betas=(b1, b2))
+        up_steps = self.config.cyclic_step_period // 2
         lr_scheduler_g = torch.optim.lr_scheduler.CyclicLR(opt_g, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
-                                                           cycle_momentum=False)
+                                                           cycle_momentum=False, step_size_up=up_steps)
         lr_scheduler_d_img = torch.optim.lr_scheduler.CyclicLR(opt_d_img, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
-                                                               cycle_momentum=False)
+                                                               cycle_momentum=False, step_size_up=up_steps)
         lr_schedulers_d_feat = [torch.optim.lr_scheduler.CyclicLR(opt,
                                                                   base_lr=lr_g,
                                                                   max_lr=lr_g * 10,
                                                                   gamma=.1,
-                                                                  cycle_momentum=False)
+                                                                  cycle_momentum=False, step_size_up=up_steps)
                                 for opt in
                                 opt_d_feature]
         optimizers, schedulers = [opt_g, opt_d_img, *opt_d_feature], \
@@ -302,7 +303,7 @@ class GAN(BaseModel):
                                                                      base_lr=lr_g,
                                                                      max_lr=lr_g * 10,
                                                                      gamma=.1,
-                                                                     cycle_momentum=False)
+                                                                     cycle_momentum=False, step_size_up=up_steps)
             optimizers.insert(2, opt_d_phong)
             schedulers.insert(2, lr_scheduler_d_phong)
             self.feat_idx_start += 1

@@ -166,12 +166,14 @@ class GANTrainingConfig:
     training_split_file: str = ''
     """ An existing training split json file. If not empty, will be used instead of training_split """
     generator_lr: float = 5e-6
-    """ learning rate for generator """
+    """ base learning rate for generator """
     discriminator_lr: float = 5e-5
-    """ learning rate for discriminator """
+    """ base learning rate for discriminator """
     max_epochs: int = 10
     optimizer: str = 'radam'
     """ Which torch optimizer to use. ['adam', 'radam'] """
+    cyclic_step_period: int = 1000
+    """ How many steps for a full cycle (up and down) of learning rate changes """
     monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
     val_check_interval: int = '${..val_check_interval}'
