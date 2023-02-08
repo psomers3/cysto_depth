@@ -292,7 +292,7 @@ class GAN(BaseModel):
         x, z = batch
         # predictions with real images through generator
         _, _, decoder_outs_adapted, normals_adapted = self.get_predictions(z, generator=True)
-        depth_adapted = decoder_outs_adapted[-1].cpu()
+        depth_adapted = decoder_outs_adapted[-1]
 
         if self.unadapted_images_for_plotting is None:
             _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
@@ -301,7 +301,7 @@ class GAN(BaseModel):
                 phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
             else:
                 phong_unadapted = None
-            self.unadapted_images_for_plotting = (depth_unadapted.cpu(), normals_unadapted.cpu(), phong_unadapted.cpu())
+            self.unadapted_images_for_plotting = (depth_unadapted, normals_unadapted.cpu(), phong_unadapted.cpu())
 
         depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
         denormed_images = self.imagenet_denorm(z).cpu()
@@ -310,8 +310,8 @@ class GAN(BaseModel):
         centers = [None, None, None, 0]
         minmax = []
         plot_tensors.append(depth_adapted)
-        plot_tensors.append(depth_unadapted)
-        plot_tensors.append(depth_adapted - depth_unadapted)
+        plot_tensors.append(depth_unadapted.cpu())
+        plot_tensors.append((depth_adapted - depth_unadapted).cpu())
 
         self.add_histograms(step=self.global_step)
         for idx, imgs in enumerate(zip(*plot_tensors)):
