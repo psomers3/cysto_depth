@@ -197,14 +197,14 @@ class GAN(BaseModel):
             if self.config.predict_normals:
                 phong_synth = self.phong_renderer((depth_synth, normals_synth))
                 phong_real = self.phong_renderer((depth_real, normals_real))
-                calculated_phong_synth = self.phong_renderer(depth_synth,
+                calculated_phong_synth = self.phong_renderer((depth_synth,
                                                              depth_to_normals(depth_synth,
                                                                               self.phong_renderer.camera_intrinsics[None],
-                                                                              self.phong_renderer.resized_pixel_locations))
-                calculated_phong_real = self.phong_renderer(depth_real,
+                                                                              self.phong_renderer.resized_pixel_locations)))
+                calculated_phong_real = self.phong_renderer((depth_real,
                                                             depth_to_normals(depth_real,
                                                                              self.phong_renderer.camera_intrinsics[None],
-                                                                             self.phong_renderer.resized_pixel_locations))
+                                                                             self.phong_renderer.resized_pixel_locations)))
 
         d_loss = 0
         d_loss += self._apply_discriminator_loss(depth_real, depth_synth, self.d_img, 'img')
