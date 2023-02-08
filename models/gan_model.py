@@ -181,8 +181,8 @@ class GAN(BaseModel):
             encoder_outs_synth, encoder_mare_outs_synth, decoder_outs_synth, normals_synth = self.get_predictions(x,
                                                                                                                   generator=False)
 
-            depth_real = torch.clamp(decoder_outs_real[-1])
-            depth_synth = torch.clamp(decoder_outs_synth[-1])
+            depth_real = torch.clamp(decoder_outs_real[-1], 0, 1e5)
+            depth_synth = torch.clamp(decoder_outs_synth[-1], 0, 1e5)
 
             if self.config.predict_normals:
                 phong_synth = self.phong_renderer((depth_synth, normals_synth))
