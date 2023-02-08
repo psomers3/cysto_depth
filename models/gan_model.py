@@ -8,7 +8,7 @@ from models.discriminator import Discriminator
 from models.depth_model import DepthEstimationModel
 from data.data_transforms import ImageNetNormalization
 import socket
-from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_final_imgs
+from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_final_imgs, generate_img_fig
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
 from argparse import Namespace
 from utils.rendering import PhongRender
@@ -111,7 +111,7 @@ class GAN(BaseModel):
         # output of encoder when evaluating a real image
         encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
                                                                                                           generator=True)
-        depth_out = torch.clamp(decoder_outs_real[-1], 0, 1e5)
+        depth_out = decoder_outs_real[-1]
         # compare output levels to make sure they produce roughly the same output
         residual_loss = 0
         if self.config.residual_learning:
@@ -181,8 +181,8 @@ class GAN(BaseModel):
             encoder_outs_synth, encoder_mare_outs_synth, decoder_outs_synth, normals_synth = self.get_predictions(x,
                                                                                                                   generator=False)
 
-            depth_real = torch.clamp(decoder_outs_real[-1], 0, 1e5)
-            depth_synth = torch.clamp(decoder_outs_synth[-1], 0, 1e5)
+            depth_real = decoder_outs_real[-1]
+            depth_synth = decoder_outs_synth[-1]
 
             if self.config.predict_normals:
                 phong_synth = self.phong_renderer((depth_synth, normals_synth))
@@ -248,8 +248,8 @@ class GAN(BaseModel):
         depth_adapted = decoder_outs_adapted[-1]
         _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
         depth_unadapted = decoder_outs_unadapted[-1]
-
-        plot_tensors = [self.imagenet_denorm(z)]
+        denormed_images = self.imagenet_denorm(z)
+        plot_tensors = [denormed_images]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
         minmax = []
@@ -268,6 +268,11 @@ class GAN(BaseModel):
         if normals_adapted is not None:
             phong_adapted = self.phong_renderer((depth_adapted, normals_adapted))
             phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted))
+            labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
+            for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
+                fig = generate_img_fig(img_set, labels)
+                self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
+                plt.close(fig)
 
     def test_step(self, batch, batch_idx):
         x, z = batch
