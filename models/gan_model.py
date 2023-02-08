@@ -153,6 +153,7 @@ class GAN(BaseModel):
                                                                 self.phong_renderer.resized_pixel_locations)))
             depth_phong_loss = self.adversarial_loss(self.depth_phong_discriminator(depth_phong), g_img_label)
             self.g_losses_log[f'g_loss_depth_phong'] += depth_phong_loss.detach()
+            phong_loss += depth_phong
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
         g_loss = g_loss_feat \
