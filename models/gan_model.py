@@ -103,7 +103,7 @@ class GAN(BaseModel):
 
     def generator_train_step(self, batch, batch_idx):
         # x = synthetic image, z = real image
-        x, z = batch
+        _, z = batch
         optimizers: List[torch.optim.Optimizer] = self.optimizers(use_pl_optimizer=True)
         schedulers: List[torch.optim.lr_scheduler.CyclicLR] = self.lr_schedulers()
         generator_opt = optimizers[0]
@@ -111,7 +111,7 @@ class GAN(BaseModel):
         # output of encoder when evaluating a real image
         encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
                                                                                                           generator=True)
-        depth_out = decoder_outs_real[-1]
+        depth_out = torch.clamp(decoder_outs_real[-1], 0, 1e5)
         # compare output levels to make sure they produce roughly the same output
         residual_loss = 0
         if self.config.residual_learning:
@@ -181,8 +181,8 @@ class GAN(BaseModel):
             encoder_outs_synth, encoder_mare_outs_synth, decoder_outs_synth, normals_synth = self.get_predictions(x,
                                                                                                                   generator=False)
 
-            depth_real = decoder_outs_real[-1]
-            depth_synth = decoder_outs_synth[-1]
+            depth_real = torch.clamp(decoder_outs_real[-1])
+            depth_synth = torch.clamp(decoder_outs_synth[-1])
 
             if self.config.predict_normals:
                 phong_synth = self.phong_renderer((depth_synth, normals_synth))
@@ -244,9 +244,9 @@ class GAN(BaseModel):
     def validation_step(self, batch, batch_idx):
         x, z = batch
         # predictions with real images through generator
-        _, _, decoder_outs_adapted, _ = self.get_predictions(z, generator=True)
+        _, _, decoder_outs_adapted, normals_adapted = self.get_predictions(z, generator=True)
         depth_adapted = decoder_outs_adapted[-1]
-        _, _, decoder_outs_unadapted, _ = self.get_predictions(z, generator=False)
+        _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
         depth_unadapted = decoder_outs_unadapted[-1]
 
         plot_tensors = [self.imagenet_denorm(z)]
@@ -264,6 +264,10 @@ class GAN(BaseModel):
             self.logger.experiment.add_figure("GAN Prediction Result-{}-{}".format(batch_idx, idx), fig,
                                               self.global_step)
             plt.close(fig)
+
+        if normals_adapted is not None:
+            phong_adapted = self.phong_renderer((depth_adapted, normals_adapted))
+            phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted))
 
     def test_step(self, batch, batch_idx):
         x, z = batch
