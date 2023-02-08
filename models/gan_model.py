@@ -101,7 +101,8 @@ class GAN(BaseModel):
             else:
                 normals = self.depth_model.normals_decoder(encoder_outs)
                 decoder_outs = self.depth_model.decoder(encoder_outs)
-            normals = torch.where(decoder_outs[-1] >= self.depth_model.config.min_depth, normals, 0)
+            normals = torch.where(decoder_outs[-1] > self.depth_model.config.min_depth,
+                                  normals, torch.zeros([1], device=self.device))
         else:
             decoder_outs = self.depth_model.decoder(encoder_outs)
             normals = None
@@ -164,7 +165,7 @@ class GAN(BaseModel):
             depth_phong_loss = self.adversarial_loss(self.depth_phong_discriminator(depth_phong), g_img_label)
             self.g_losses_log[f'g_loss_depth_phong'] += depth_phong_loss.detach()
             phong_loss += depth_phong_loss
-            cosine_loss = self.cosine_sim(normals_real, calculated_norms)
+            cosine_loss = self.cosine_sim(calculated_norms, normals_real)
             self.g_losses_log['g_cosine_sim'] += cosine_loss.detach()
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
