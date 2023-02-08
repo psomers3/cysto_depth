@@ -204,7 +204,7 @@ if __name__ == '__main__':
                        synth_split={'train': .6, 'validate': 0.3, 'test': .1})
     dm.prepare_data()
     dm.setup('fit')
-    loader = dm.train_dataloader()
+    loader = dm.val_dataloader()
     sample = next(iter(loader))
     sample = [denorm(s) for s in sample]
     matplotlib_show(*sample)

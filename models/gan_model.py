@@ -297,7 +297,7 @@ class GAN(BaseModel):
         self.add_histograms(step=self.global_step)
         for idx, imgs in enumerate(zip(*plot_tensors)):
             fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
-                                       align_scales=True)
+                                       align_scales=False)
             self.logger.experiment.add_figure("GAN Prediction Result-{}-{}".format(batch_idx, idx), fig,
                                               self.global_step)
             plt.close(fig)
