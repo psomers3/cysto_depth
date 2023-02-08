@@ -219,6 +219,8 @@ class GANTrainingConfig:
     scale_loss_factor: float = 0
     img_discriminator_factor: float = 0.0
     phong_discriminator_factor: float = 1.0
+    feature_discriminator_factor: float = 1.0
+    """ scaling factor for feature level discriminators """
     d_max_conf: float = 0.9
     """ scaling factor for confidence of discriminators on synthetic data """
     warmup_steps: int = 0

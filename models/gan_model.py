@@ -169,7 +169,7 @@ class GAN(BaseModel):
             self.g_losses_log['g_cosine_sim'] += cosine_loss.detach()
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
-        g_loss = g_loss_feat \
+        g_loss = + self.config.feature_discriminator_factor * g_loss_feat \
                  + self.config.residual_loss_factor * residual_loss \
                  + self.config.img_discriminator_factor * g_loss_img \
                  + self.config.phong_discriminator_factor * phong_loss \
