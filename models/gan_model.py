@@ -63,12 +63,8 @@ class GAN(BaseModel):
         self.discriminators_global_step = -1
         self.unadapted_images_for_plotting = None
 
-    def forward(self, z, full_prediction=False):
-        if full_prediction:
-            encoder_outs, encoder_mare_outs = self.generator(z)
-            return self.depth_model.decoder(encoder_outs)
-        else:
-            return self.generator(z)
+    def forward(self, x, generator: bool = True):
+        return self.get_predictions(x, generator=generator)
 
     def on_validation_epoch_start(self) -> None:
         if self.config.predict_normals:
@@ -123,8 +119,7 @@ class GAN(BaseModel):
         generator_opt = optimizers[0]
         generator_sched = schedulers[0]
         # output of encoder when evaluating a real image
-        encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
-                                                                                                          generator=True)
+        encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self(z,generator=True)
         depth_out = decoder_outs_real[-1]
         # compare output levels to make sure they produce roughly the same output
         residual_loss = torch.Tensor([0]).to(z.device)
@@ -206,11 +201,9 @@ class GAN(BaseModel):
 
         with torch.no_grad():
             # predictions with real images through generator
-            encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self.get_predictions(z,
-                                                                                                              generator=True)
+            encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self(z, generator=True)
             # predictions with synthetic images through frozen network
-            encoder_outs_synth, encoder_mare_outs_synth, decoder_outs_synth, normals_synth = self.get_predictions(x,
-                                                                                                                  generator=False)
+            encoder_outs_synth, encoder_mare_outs_synth, decoder_outs_synth, normals_synth = self(x, generator=False)
 
             depth_real = decoder_outs_real[-1]
             depth_synth = decoder_outs_synth[-1]
@@ -298,11 +291,11 @@ class GAN(BaseModel):
             return
         x, z = batch
         # predictions with real images through generator
-        _, _, decoder_outs_adapted, normals_adapted = self.get_predictions(z, generator=True)
+        _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
         depth_adapted = decoder_outs_adapted[-1]
 
         if self.unadapted_images_for_plotting is None:
-            _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
+            _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
             depth_unadapted = decoder_outs_unadapted[-1]
             if normals_unadapted is not None:
                 phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
