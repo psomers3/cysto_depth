@@ -10,13 +10,13 @@ class ImgDiscriminator(nn.Module):
         self.conv = nn.Sequential(
             # Shape N, 512, x.H/32, x.W/32
             # receptive field: 
-            convrelu(in_channels, 64, 4, 0, 2, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(in_channels, 64, 4, 0, 2, norm="batch", relu="leaky", alpha=0.2),
             torch.nn.Dropout(),
-            convrelu(64, 128, 4, 1, 2, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(64, 128, 4, 1, 2, norm="batch", relu="leaky", alpha=0.2),
             torch.nn.Dropout(),
-            convrelu(128, 256, 4, 1, 2, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(128, 256, 4, 1, 2, norm="batch", relu="leaky", alpha=0.2),
             torch.nn.Dropout(),
-            convrelu(256, 512, 4, 1, 2, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(256, 512, 4, 1, 2, norm="batch", relu="leaky", alpha=0.2),
             torch.nn.Dropout(),
             nn.Conv2d(512, 1, 4, 1, 2),
             nn.Flatten()

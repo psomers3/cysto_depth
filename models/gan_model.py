@@ -106,6 +106,13 @@ class GAN(BaseModel):
     def generator_train_step(self, batch, batch_idx):
         # x = synthetic image, z = real image
         _, z = batch
+
+        # set discriminators to eval so that any normalization statistics don't get updated
+        self.d_img.eval()
+        self.d_feat_modules.eval()
+        self.depth_phong_discriminator.eval()
+        self.phong_discriminator.eval()
+
         optimizers: List[torch.optim.Optimizer] = self.optimizers(use_pl_optimizer=True)
         schedulers: List[torch.optim.lr_scheduler.CyclicLR] = self.lr_schedulers()
         generator_opt = optimizers[0]
@@ -179,6 +186,13 @@ class GAN(BaseModel):
     def discriminators_train_step(self, batch, batch_idx):
         # x = synthetic image, z = real image
         x, z = batch
+
+        # set discriminators to train because idk if they were set back after generator step
+        self.d_img.train()
+        self.d_feat_modules.train()
+        self.depth_phong_discriminator.train()
+        self.phong_discriminator.train()
+
         optimizers: List[torch.optim.Optimizer] = self.optimizers(use_pl_optimizer=True)
         schedulers: List[torch.optim.lr_scheduler.CyclicLR] = self.lr_schedulers()
         discriminator_opts = [optimizers[i] for i in range(1, len(optimizers))]
