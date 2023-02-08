@@ -149,8 +149,8 @@ class GAN(BaseModel):
         g_loss_img = self.adversarial_loss(valid_predicted_depth, g_img_label)
         self.g_losses_log[f'g_loss_img'] += g_loss_img.detach()
 
-        phong_loss = torch.Tensor([0]).to(z.device)
-        cosine_loss = torch.Tensor([0]).to(z.device)
+        phong_loss = 0
+        cosine_loss = 0
         if self.config.predict_normals:
             synth_phong_rendering = self.phong_renderer((depth_out, normals_real))
             phong_discrimination = self.phong_discriminator(synth_phong_rendering)
@@ -164,7 +164,7 @@ class GAN(BaseModel):
             self.g_losses_log[f'g_loss_depth_phong'] += depth_phong_loss.detach()
             phong_loss += depth_phong_loss
             cosine_loss = self.cosine_sim(normals_real, calculated_norms)
-            self.g_losses_log['g_loss_cosine'] += cosine_loss
+            self.g_losses_log['g_loss_cosine'] += cosine_loss.detach()
             cosine_loss = cosine_loss
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
