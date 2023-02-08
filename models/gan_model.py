@@ -51,7 +51,7 @@ class GAN(BaseModel):
         self.phong_renderer: PhongRender = None
         self.phong_discriminator = ImgDiscriminator(in_channels=3)
         self.depth_phong_discriminator = ImgDiscriminator(in_channels=3)
-        self.cosine_sim = CosineSimilarity(ignore_direction=True)
+        self.cosine_sim: CosineSimilarity =  None
         self.feat_idx_start: int = 0
         # TODO: make the log dictionaries TypedDicts and define them elsewhere with comments
         self.d_losses_log = {'d_loss': 0, 'd_loss_img': 0, 'd_loss_phong': 0, 'd_loss_depth_phong': 0}
@@ -75,6 +75,7 @@ class GAN(BaseModel):
             self.phong_renderer = PhongRender(config=self.config.phong_config,
                                               image_size=self.config.image_size,
                                               device=self.device)
+            self.cosine_sim = CosineSimilarity(ignore_direction=True, device=self.device)
 
     @staticmethod
     def adversarial_loss(y_hat, y):
