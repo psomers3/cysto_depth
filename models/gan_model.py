@@ -215,7 +215,7 @@ class GAN(BaseModel):
 
         if self.config.predict_normals:
             d_loss += self._apply_discriminator_loss(phong_real, phong_synth, self.phong_discriminator, 'phong')
-            d_loss += self.depth_phong_discriminator(calculated_phong_real,
+            d_loss += self._apply_discriminator_loss(calculated_phong_real,
                                                      calculated_phong_synth,
                                                      self.depth_phong_discriminator,
                                                      'depth_phong')
