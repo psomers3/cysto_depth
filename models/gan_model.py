@@ -11,7 +11,7 @@ import socket
 from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_final_imgs, generate_img_fig
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
 from argparse import Namespace
-from utils.rendering import PhongRender
+from utils.rendering import PhongRender, depth_to_normals
 from typing import *
 
 
@@ -54,7 +54,7 @@ class GAN(BaseModel):
         self.d_losses_log = {'d_loss': 0, 'd_loss_img': 0, 'd_loss_phong': 0}
         self.d_losses_log.update({f'd_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.g_losses_log = {'g_loss': 0, 'g_loss_img': 0, 'g_loss_phong': 0, 'g_feat_loss': 0, 'g_res_loss': 0,
-                             'g_neg_loss': 0}
+                             'g_neg_loss': 0, 'g_loss_depth_phong': 0}
         self.g_losses_log.update({f'g_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.generator_global_step = -1
         self.discriminators_global_step = -1
@@ -146,6 +146,12 @@ class GAN(BaseModel):
             phong_discrimination = self.phong_discriminator(synth_phong_rendering)
             phong_loss = self.adversarial_loss(phong_discrimination, g_img_label)
             self.g_losses_log[f'g_loss_phong'] += phong_loss.detach()
+
+            depth_phong = self.phong_renderer((depth_out,
+                                               depth_to_normals(depth_out, self.phong_renderer.camera_intrinsics[None],
+                                                                self.phong_renderer.resized_pixel_locations)))
+            depth_phong_loss = self.adversarial_loss(self.phong_discriminator(depth_phong), g_img_label)
+            self.g_losses_log[f'g_loss_depth_phong'] += depth_phong_loss.detach()
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
         g_loss_img = g_loss_img
