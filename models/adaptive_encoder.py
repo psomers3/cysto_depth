@@ -33,7 +33,7 @@ class AdaptiveEncoder(VanillaEncoder):
         for param in self.parameters():
             param.requires_grad = False
 
-        self.gate_coefficients = nn.Parameter(torch.zeros(5), requires_grad=self.adaptive_gating, )
+        self.gate_coefficients = nn.Parameter(torch.zeros(5), requires_grad=self.adaptive_gating)
 
         self.res_layer0 = nn.Sequential(convrelu(3, self.feature_levels[0], 5, 2, 1,
                                                  relu=activation, norm=norm, init_zero=init_zero),
@@ -60,6 +60,22 @@ class AdaptiveEncoder(VanillaEncoder):
                      relu=activation, init_zero=init_zero, norm=norm)
         )
         self.criterion = AvgTensorNorm()
+
+    def set_residuals_train(self):
+        """ helper function to turn on batch norm updates after turning the rest of them in the network off. """
+        self.res_layer0.train()
+        self.res_layer1.train()
+        self.res_layer2.train()
+        self.res_layer3.train()
+        self.res_layer4.train()
+
+    def set_residuals_eval(self):
+        """ helper function to turn off batch norm updates after turning the rest of them in the network on. """
+        self.res_layer0.eval()
+        self.res_layer1.eval()
+        self.res_layer2.eval()
+        self.res_layer3.eval()
+        self.res_layer4.eval()
 
     def _gate(self, input_tensor1: torch.Tensor, input_tensor2: torch.Tensor, level: int) -> torch.Tensor:
         if self.adaptive_gating:

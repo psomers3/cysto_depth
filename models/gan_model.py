@@ -254,9 +254,12 @@ class GAN(BaseModel):
             self.d_losses_log.update({k: 0 for k in self.d_losses_log.keys()})
 
     def training_step(self, batch, batch_idx):
+        # start by freezing all batchnorm layers throughout the networks that shouldn't update statistics
         self.depth_model.apply(freeze_batchnorm)
         if self.config.freeze_batch_norm:
             self.generator.apply(freeze_batchnorm)
+            if self.config.residual_learning:
+                self.generator.set_residuals_train()
 
         generator_step = batch_idx % 2 == 0 if self.global_step >= self.config.warmup_steps else False
         if generator_step:
@@ -296,6 +299,7 @@ class GAN(BaseModel):
             return
         x, z = batch
         # predictions with real images through generator
+        self.generator.apply(freeze_batchnorm)
         _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
         depth_adapted = decoder_outs_adapted[-1]
 
