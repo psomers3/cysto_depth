@@ -292,7 +292,7 @@ class GAN(BaseModel):
         x, z = batch
         # predictions with real images through generator
         _, _, decoder_outs_adapted, normals_adapted = self.get_predictions(z, generator=True)
-        depth_adapted = decoder_outs_adapted[-1]
+        depth_adapted = decoder_outs_adapted[-1].cpu()
 
         if self.unadapted_images_for_plotting is None:
             _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
