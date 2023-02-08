@@ -101,6 +101,7 @@ class GAN(BaseModel):
             else:
                 normals = self.depth_model.normals_decoder(encoder_outs)
                 decoder_outs = self.depth_model.decoder(encoder_outs)
+            normals = torch.where(decoder_outs[-1] >= self.depth_model.config.min_depth, normals, 0)
         else:
             decoder_outs = self.depth_model.decoder(encoder_outs)
             normals = None
