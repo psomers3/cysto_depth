@@ -192,7 +192,7 @@ class GAN(BaseModel):
     def discriminators_train_step(self, batch, batch_idx) -> None:
         # x = synthetic image, z = real image
         x, z = batch
-
+        self.generator.set_residuals_eval()
         # set discriminators to train because idk if they were set back after generator step
         self.d_img.train()
         self.d_feat_modules.train()

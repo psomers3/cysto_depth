@@ -63,19 +63,21 @@ class AdaptiveEncoder(VanillaEncoder):
 
     def set_residuals_train(self):
         """ helper function to turn on batch norm updates after turning the rest of them in the network off. """
-        self.res_layer0.train()
-        self.res_layer1.train()
-        self.res_layer2.train()
-        self.res_layer3.train()
-        self.res_layer4.train()
+        if self.residual_learning:
+            self.res_layer0.train()
+            self.res_layer1.train()
+            self.res_layer2.train()
+            self.res_layer3.train()
+            self.res_layer4.train()
 
     def set_residuals_eval(self):
         """ helper function to turn off batch norm updates after turning the rest of them in the network on. """
-        self.res_layer0.eval()
-        self.res_layer1.eval()
-        self.res_layer2.eval()
-        self.res_layer3.eval()
-        self.res_layer4.eval()
+        if self.residual_learning:
+            self.res_layer0.eval()
+            self.res_layer1.eval()
+            self.res_layer2.eval()
+            self.res_layer3.eval()
+            self.res_layer4.eval()
 
     def _gate(self, input_tensor1: torch.Tensor, input_tensor2: torch.Tensor, level: int) -> torch.Tensor:
         if self.adaptive_gating:
