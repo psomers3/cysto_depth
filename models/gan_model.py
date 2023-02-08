@@ -59,6 +59,7 @@ class GAN(BaseModel):
         self.g_losses_log.update({f'g_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.generator_global_step = -1
         self.discriminators_global_step = -1
+        self.unadapted_images_for_plotting = None
 
     def forward(self, z, full_prediction=False):
         if full_prediction:
@@ -279,12 +280,26 @@ class GAN(BaseModel):
         return d_loss
 
     def validation_step(self, batch, batch_idx):
+        """
+        TODO: This function only does plotting... We need some sort of metric
+        :param batch:
+        :param batch_idx:
+        :return:
+        """
+        if batch_idx != 0:
+            # just plot one batch worth of images. In case there are a lot...
+            return
         x, z = batch
         # predictions with real images through generator
         _, _, decoder_outs_adapted, normals_adapted = self.get_predictions(z, generator=True)
         depth_adapted = decoder_outs_adapted[-1]
-        _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
-        depth_unadapted = decoder_outs_unadapted[-1]
+
+        if self.unadapted_images_for_plotting is None:
+            _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
+            depth_unadapted = decoder_outs_unadapted[-1]
+            self.unadapted_images_for_plotting = (depth_unadapted.cpu(), normals_unadapted.cpu())
+
+        depth_unadapted, normals_unadapted = self.unadapted_images_for_plotting
         denormed_images = self.imagenet_denorm(z).cpu()
         plot_tensors = [denormed_images]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
@@ -298,8 +313,7 @@ class GAN(BaseModel):
         for idx, imgs in enumerate(zip(*plot_tensors)):
             fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
                                        align_scales=False)
-            self.logger.experiment.add_figure("GAN Prediction Result-{}-{}".format(batch_idx, idx), fig,
-                                              self.global_step)
+            self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
             plt.close(fig)
 
         if normals_adapted is not None:
