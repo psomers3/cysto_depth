@@ -49,9 +49,10 @@ class GAN(BaseModel):
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
         self.phong_discriminator = ImgDiscriminator(in_channels=3)
+        self.depth_phong_discriminator = ImgDiscriminator(in_channels=3)
         self.feat_idx_start: int = 0
         # TODO: make the log dictionaries TypedDicts and define them elsewhere with comments
-        self.d_losses_log = {'d_loss': 0, 'd_loss_img': 0, 'd_loss_phong': 0}
+        self.d_losses_log = {'d_loss': 0, 'd_loss_img': 0, 'd_loss_phong': 0, 'd_loss_depth_phong': 0}
         self.d_losses_log.update({f'd_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.g_losses_log = {'g_loss': 0, 'g_loss_img': 0, 'g_loss_phong': 0, 'g_feat_loss': 0, 'g_res_loss': 0,
                              'g_neg_loss': 0, 'g_loss_depth_phong': 0}
@@ -150,16 +151,15 @@ class GAN(BaseModel):
             depth_phong = self.phong_renderer((depth_out,
                                                depth_to_normals(depth_out, self.phong_renderer.camera_intrinsics[None],
                                                                 self.phong_renderer.resized_pixel_locations)))
-            depth_phong_loss = self.adversarial_loss(self.phong_discriminator(depth_phong), g_img_label)
+            depth_phong_loss = self.adversarial_loss(self.depth_phong_discriminator(depth_phong), g_img_label)
             self.g_losses_log[f'g_loss_depth_phong'] += depth_phong_loss.detach()
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
-        g_loss_img = g_loss_img
         g_loss = g_loss_feat \
                  + self.config.residual_loss_factor * residual_loss \
                  + self.config.img_discriminator_factor * g_loss_img \
                  + self.config.phong_discriminator_factor * phong_loss \
-                 # + g_neg_loss
+            # + g_neg_loss
 
         self.g_losses_log['g_loss'] += g_loss.detach()
         self.g_losses_log['g_feat_loss'] += g_loss_feat.detach()
@@ -197,6 +197,14 @@ class GAN(BaseModel):
             if self.config.predict_normals:
                 phong_synth = self.phong_renderer((depth_synth, normals_synth))
                 phong_real = self.phong_renderer((depth_real, normals_real))
+                calculated_phong_synth = self.phong_renderer(depth_synth,
+                                                             depth_to_normals(depth_synth,
+                                                                              self.phong_renderer.camera_intrinsics[None],
+                                                                              self.phong_renderer.resized_pixel_locations))
+                calculated_phong_real = self.phong_renderer(depth_real,
+                                                            depth_to_normals(depth_real,
+                                                                             self.phong_renderer.camera_intrinsics[None],
+                                                                             self.phong_renderer.resized_pixel_locations))
 
         d_loss = 0
         d_loss += self._apply_discriminator_loss(depth_real, depth_synth, self.d_img, 'img')
@@ -207,6 +215,10 @@ class GAN(BaseModel):
 
         if self.config.predict_normals:
             d_loss += self._apply_discriminator_loss(phong_real, phong_synth, self.phong_discriminator, 'phong')
+            d_loss += self.depth_phong_discriminator(calculated_phong_real,
+                                                     calculated_phong_synth,
+                                                     self.depth_phong_discriminator,
+                                                     'depth_phong')
 
         self.manual_backward(d_loss)
         self.d_losses_log['d_loss'] += d_loss

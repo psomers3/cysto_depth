@@ -190,19 +190,22 @@ class GANDataModule(pl.LightningDataModule):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
+    from data.data_transforms import ImageNetNormalization
 
-    color_dir = r'/Users/peter/isys/output/color'
+    color_dir = r'/Users/peter/isys/2023_01_29/color'
     real_output = r'../gan_data'
     video_dir = r'/Users/peter/isys/videos'
+    denorm = ImageNetNormalization(inverse=True)
     dm = GANDataModule(batch_size=3,
-                       color_image_directory=color_dir,
+                       color_image_directories=[color_dir],
                        generate_output_directory=real_output,
                        generate_data=False,
-                       video_directory=video_dir,
-                       synth_split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"})
+                       video_directories=[video_dir],
+                       synth_split={'train': .6, 'validate': 0.3, 'test': .1})
     dm.prepare_data()
     dm.setup('fit')
     loader = dm.train_dataloader()
     sample = next(iter(loader))
+    sample = [denorm(s) for s in sample]
     matplotlib_show(*sample)
     plt.show(block=True)
