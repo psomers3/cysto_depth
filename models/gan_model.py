@@ -248,7 +248,7 @@ class GAN(BaseModel):
         depth_adapted = decoder_outs_adapted[-1]
         _, _, decoder_outs_unadapted, normals_unadapted = self.get_predictions(z, generator=False)
         depth_unadapted = decoder_outs_unadapted[-1]
-        denormed_images = self.imagenet_denorm(z)
+        denormed_images = self.imagenet_denorm(z).cpu()
         plot_tensors = [denormed_images]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
@@ -266,8 +266,8 @@ class GAN(BaseModel):
             plt.close(fig)
 
         if normals_adapted is not None:
-            phong_adapted = self.phong_renderer((depth_adapted, normals_adapted))
-            phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted))
+            phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).cpu()
+            phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
             labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
             for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
                 fig = generate_img_fig(img_set, labels)
