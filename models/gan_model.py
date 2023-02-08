@@ -53,7 +53,8 @@ class GAN(BaseModel):
         # TODO: make the log dictionaries TypedDicts and define them elsewhere with comments
         self.d_losses_log = {'d_loss': 0, 'd_loss_img': 0, 'd_loss_phong': 0}
         self.d_losses_log.update({f'd_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
-        self.g_losses_log = {'g_loss': 0, 'g_loss_img': 0, 'g_loss_phong': 0, 'g_feat_loss': 0, 'g_res_loss': 0}
+        self.g_losses_log = {'g_loss': 0, 'g_loss_img': 0, 'g_loss_phong': 0, 'g_feat_loss': 0, 'g_res_loss': 0,
+                             'g_neg_loss': 0}
         self.g_losses_log.update({f'g_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.generator_global_step = -1
         self.discriminators_global_step = -1
@@ -136,7 +137,9 @@ class GAN(BaseModel):
                                       dtype=valid_predicted_depth.dtype)
         g_loss_img = self.adversarial_loss(valid_predicted_depth, g_img_label)
         self.g_losses_log[f'g_loss_img'] += g_loss_img.detach()
-
+        neg_val_mask = torch.where(depth_out < 0.0, 1.0, 0.0)
+        g_neg_loss = neg_val_mask.mean() * 1e4
+        self.g_losses_log['g_neg_loss'] += g_neg_loss
         phong_loss = 0
         if self.config.predict_normals:
             synth_phong_rendering = self.phong_renderer((depth_out, normals_real))
@@ -149,7 +152,8 @@ class GAN(BaseModel):
         g_loss = g_loss_feat \
                  + self.config.residual_loss_factor * residual_loss \
                  + self.config.img_discriminator_factor * g_loss_img \
-                 + self.config.phong_discriminator_factor * phong_loss
+                 + self.config.phong_discriminator_factor * phong_loss \
+                 + g_neg_loss
 
         self.g_losses_log['g_loss'] += g_loss.detach()
         self.g_losses_log['g_feat_loss'] += g_loss_feat.detach()
