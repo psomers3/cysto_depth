@@ -113,6 +113,7 @@ class GAN(BaseModel):
                                                                                                           generator=True)
         depth_out = decoder_outs_real[-1]
         # compare output levels to make sure they produce roughly the same output
+        residual_loss = 0
         if self.config.residual_learning:
             residual_loss = torch.mean(torch.stack(encoder_mare_outs_real))
 
