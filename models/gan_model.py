@@ -163,8 +163,8 @@ class GAN(BaseModel):
             depth_phong_loss = self.adversarial_loss(self.depth_phong_discriminator(depth_phong), g_img_label)
             self.g_losses_log[f'g_loss_depth_phong'] += depth_phong_loss.detach()
             phong_loss += depth_phong_loss
-            # cosine_loss = self.cosine_sim(normals_real, calculated_norms)
-            # self.g_losses_log['g_loss_cosine'] += cosine_loss.detach()
+            cosine_loss = self.cosine_sim(normals_real.to(calculated_norms.device), calculated_norms)
+            self.g_losses_log['g_loss_cosine'] += cosine_loss.detach()
 
         g_loss_feat = torch.sum(torch.stack(g_losses_feat))
         g_loss = g_loss_feat \
