@@ -63,8 +63,11 @@ class GAN(BaseModel):
         self.discriminators_global_step = -1
         self.unadapted_images_for_plotting = None
 
-    def forward(self, x, generator: bool = True):
+    def forward(self, x, generator: bool = True) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
         return self.get_predictions(x, generator=generator)
+
+    def __call__(self, *args, **kwargs) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
+        return super(GAN, self).__call__(*args, **kwargs)
 
     def on_validation_epoch_start(self) -> None:
         if self.config.predict_normals:
@@ -77,12 +80,13 @@ class GAN(BaseModel):
     def adversarial_loss(y_hat, y):
         return F.binary_cross_entropy(y_hat, y)
 
-    def get_predictions(self, x: torch.Tensor, generator: bool):
+    def get_predictions(self, x: torch.Tensor, generator: bool) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
         """ helper function to clean up the training_step function.
 
         :param x: batch of images
         :param generator: whether to use the generator encoder
         :return: encoder_outs, encoder_mare_outs, decoder_outs, normals
+                Note: everything is a list of tensors for each Unet level except normals.
         """
         if generator:
             encoder_outs, encoder_mare_outs = self.generator(x)
@@ -104,7 +108,7 @@ class GAN(BaseModel):
 
         return encoder_outs, encoder_mare_outs, decoder_outs, normals
 
-    def generator_train_step(self, batch, batch_idx):
+    def generator_train_step(self, batch, batch_idx) -> None:
         # x = synthetic image, z = real image
         _, z = batch
 
@@ -119,7 +123,7 @@ class GAN(BaseModel):
         generator_opt = optimizers[0]
         generator_sched = schedulers[0]
         # output of encoder when evaluating a real image
-        encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self(z,generator=True)
+        encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self(z, generator=True)
         depth_out = decoder_outs_real[-1]
         # compare output levels to make sure they produce roughly the same output
         residual_loss = torch.Tensor([0]).to(z.device)
@@ -184,7 +188,7 @@ class GAN(BaseModel):
             self.log_dict(self.g_losses_log)
             self.g_losses_log.update({k: 0 for k in self.g_losses_log.keys()})
 
-    def discriminators_train_step(self, batch, batch_idx):
+    def discriminators_train_step(self, batch, batch_idx) -> None:
         # x = synthetic image, z = real image
         x, z = batch
 
