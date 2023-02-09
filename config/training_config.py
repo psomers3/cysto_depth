@@ -44,6 +44,20 @@ class EncoderConfig:
 
 
 @dataclass
+class DiscriminatorConfig:
+    activation: str = 'leaky'
+    """ activation function for the layers """
+    normalization: str = 'layer'
+    """ normalization for each layer [batch, layer, instance] """
+    in_channels: int = MISSING
+    """ number of input channels """
+    img_level: bool = False
+    """ Whether this discriminator uses the padding/stride for image level discrimination """
+    single_out: bool = False
+    """ Whether to return just the max of the output """
+
+
+@dataclass
 class CallbackConfig:
     """ Configuration for callbacks to be added to the training """
 
@@ -219,18 +233,17 @@ class GANTrainingConfig:
     """ Whether the network should predict normals """
     image_size: int = '${..image_size}'
     """ Final square size to make all images """
-    adaptive_gating: bool = '${..adaptive_gating}'
-    """ Whether to turn on adaptive gating for domain adaptation """
-    residual_learning: bool = '${..residual_learning}'
-    """ Whether to use additional residual blocks for the adversarial learning """
     freeze_batch_norm: bool = True
-    """ Whether to freeze the batch norm statistics for the generator """
+    """ Whether to freeze the batch norm statistics for the already learned generator """
     beta_1: float = 0.5
     beta_2: float = 0.999
     residual_loss_factor: float = 5
     scale_loss_factor: float = 0
+    depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3, img_level=True)
     img_discriminator_factor: float = 0.0
+    phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3, img_level=True)
     phong_discriminator_factor: float = 1.0
+    feature_level_discriminator: DiscriminatorConfig = DiscriminatorConfig(img_level=False)
     feature_discriminator_factor: float = 1.0
     """ scaling factor for feature level discriminators """
     d_max_conf: float = 0.9
@@ -251,12 +264,6 @@ class CystoDepthConfig:
     """ Training_stage can be one of ['train', 'test'] """
     log_directory: str = './logs'
     """ tensorboard log directory """
-    adaptive_gating: bool = False
-    """ Whether to turn on adaptive gating for domain adaptation """
-    residual_learning: bool = True
-    """ Whether to use additional residual blocks for the adversarial learning """
-    image_gan: bool = False
-    """ Whether uses full output for discriminator instead of patches """
     num_workers: int = 6
     """ Number of workers to use during data loading """
     image_size: int = 256

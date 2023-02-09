@@ -74,7 +74,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     image_size=config.image_size,
                                     workers_per_loader=config.num_workers,
                                     add_random_blur=config.add_mask_blur)
-        model = GAN(image_gan=config.image_gan, synth_config=config.synthetic_config, gan_config=config.gan_config)
+        model = GAN(synth_config=config.synthetic_config, gan_config=config.gan_config)
         config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})

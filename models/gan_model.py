@@ -2,14 +2,13 @@ from matplotlib import pyplot as plt
 from torch.nn import functional as F
 import torch
 from models.base_model import BaseModel
-from models.discriminator_img import ImgDiscriminator
 from models.adaptive_encoder import AdaptiveEncoder
 from models.discriminator import Discriminator
 from models.depth_model import DepthEstimationModel
 from data.data_transforms import ImageNetNormalization
 import socket
 from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_final_imgs, generate_img_fig
-from config.training_config import SyntheticTrainingConfig, GANTrainingConfig
+from config.training_config import SyntheticTrainingConfig, GANTrainingConfig, DiscriminatorConfig
 from argparse import Namespace
 from utils.rendering import PhongRender, depth_to_normals
 from utils.loss import CosineSimilarity
@@ -21,7 +20,6 @@ class GAN(BaseModel):
             self,
             synth_config: SyntheticTrainingConfig,
             gan_config: GANTrainingConfig,
-            image_gan: bool = False,
     ):
         super().__init__()
         self.automatic_optimization = False
@@ -40,15 +38,17 @@ class GAN(BaseModel):
         d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
         for d_in_shape in d_in_shapes[:-1]:
-            d = Discriminator(in_channels=d_in_shape, single_out=image_gan)
+            d_config: DiscriminatorConfig = gan_config.feature_level_discriminator.copy()
+            d_config.in_channels = d_in_shape
+            d = Discriminator(d_config)
             d_feat_list.append(d)
-        self.d_img = ImgDiscriminator(in_channels=1)
+        self.d_img = Discriminator(gan_config.depth_discriminator)
         self.d_feat_modules = torch.nn.ModuleList(modules=d_feat_list)
         self.gan = True
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
-        self.phong_discriminator = ImgDiscriminator(in_channels=3)
-        self.depth_phong_discriminator = ImgDiscriminator(in_channels=3)
+        self.phong_discriminator = Discriminator(gan_config.phong_discriminator)
+        self.depth_phong_discriminator = Discriminator(gan_config.phong_discriminator)
         self.cosine_sim: CosineSimilarity = None
         self.feat_idx_start: int = 0
         # TODO: make the log dictionaries TypedDicts and define them elsewhere with comments
