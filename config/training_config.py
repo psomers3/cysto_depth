@@ -197,6 +197,12 @@ class GANTrainingConfig:
     """ base learning rate for generator """
     discriminator_lr: float = 5e-5
     """ base learning rate for discriminator """
+    loss: str = 'wasserstein_gp'
+    """ Which loss to use for training the generator and discriminators [wasserstein_gp, wasserstein, cross_entropy] """
+    wasserstein_lambda: float = 10.0
+    """ lambda factor for wasserstein gradient penalty """
+    wasserstein_critic_updates: int = 5
+    """ How many batches to updated the critics before updating the generator """
     max_epochs: int = 10
     optimizer: str = 'radam'
     """ Which torch optimizer to use. ['adam', 'radam'] """

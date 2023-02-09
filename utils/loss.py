@@ -1,12 +1,10 @@
 import torch.nn as nn
 import torch
+from torch import Tensor
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
-import data.data_transforms as d_transforms
-# from utils.metrics import SILog
-from utils.rendering import get_pixel_locations, \
-    get_image_size_from_intrisics, render_rgbd, PointLights, Materials, PhongRender
+from utils.rendering import PhongRender
 from config.training_config import PhongConfig
 from typing import *
 
@@ -105,3 +103,58 @@ class AvgTensorNorm(nn.Module):
     def forward(self, predicted):
         avg_norm = torch.norm(predicted, p='fro')
         return avg_norm
+
+
+def binary_cross_entropy_loss(predicted: Tensor, ground_truth: Tensor, *args, **kwargs) -> Tensor:
+    return F.binary_cross_entropy(predicted, ground_truth)
+
+
+def wasserstein_discriminator_loss(original: Tensor, generated: Tensor, *args, **kwargs) -> Tensor:
+    """ Discriminator outputs from data originating from the original domain and
+        from the generator's attempt (generated)
+    """
+    return generated.mean() - original.mean()
+
+
+def wasserstein_generator_loss(generated: Tensor, *args, **kwargs) -> Tensor:
+    return -generated.mean()
+
+
+def wasserstein_gradient_penalty(original_input: Tensor,
+                                 generated_input: Tensor,
+                                 critic: torch.nn.Module,
+                                 wasserstein_lambda: float = 10) -> Tensor:
+    batch_size = original_input.shape[0]
+    epsilon = torch.rand(batch_size, *[1] * (original_input.ndim - 1), device=original_input.device)
+
+    interpolated_img = epsilon * original_input + (1 - epsilon) * generated_input
+    interpolated_out = critic(interpolated_img)
+
+    grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
+                                grad_outputs=torch.ones_like(interpolated_out, device=original_input.device),
+                                create_graph=True, retain_graph=True)[0]
+    grads = grads.reshape([batch_size, -1])
+    grad_penalty = wasserstein_lambda * ((grads.norm(2, dim=1) - 1) ** 2).mean()  # take norm per batch
+    return grad_penalty
+
+
+def wasserstein_gp_discriminator_loss(original_input: Tensor,
+                                      generated_input: Tensor,
+                                      critic: torch.nn.Module,
+                                      wasserstein_lambda: float = 10) -> Tensor:
+    """ https://arxiv.org/abs/1704.00028 """
+    original_input.requires_grad = True
+    generated_input.requires_grad = True
+
+    return (wasserstein_discriminator_loss(critic(original_input), critic(generated_input)) \
+           + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda)) * 1e-3
+
+
+GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {
+    'wasserstein_gp': wasserstein_gp_discriminator_loss,
+    'cross_entropy': binary_cross_entropy_loss,
+    'wasserstein': wasserstein_discriminator_loss}
+GANGeneratorLoss: Dict[str, Callable[..., Tensor]] = {
+    'wasserstein': wasserstein_generator_loss,
+    'cross_entropy': binary_cross_entropy_loss,
+    'wasserstein_gp': wasserstein_generator_loss}
