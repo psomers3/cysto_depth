@@ -9,9 +9,8 @@ class WGAN(GAN):
     def __init__(self,
                  synth_config: SyntheticTrainingConfig,
                  gan_config: GANTrainingConfig,
-                 image_gan: bool = False,
                  wasserstein_lambda: float = 10):
-        super().__init__(synth_config, gan_config, image_gan)
+        super().__init__(synth_config, gan_config)
         self.wasserstein_lamba = wasserstein_lambda
 
     @staticmethod

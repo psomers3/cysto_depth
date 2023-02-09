@@ -44,7 +44,6 @@ class GAN(BaseModel):
             d_feat_list.append(d)
         self.d_img = Discriminator(gan_config.depth_discriminator)
         self.d_feat_modules = torch.nn.ModuleList(modules=d_feat_list)
-        self.gan = True
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
         self.phong_discriminator = Discriminator(gan_config.phong_discriminator)
@@ -126,7 +125,7 @@ class GAN(BaseModel):
         depth_out = decoder_outs_real[-1]
         # compare output levels to make sure they produce roughly the same output
         residual_loss = torch.Tensor([0]).to(z.device)
-        if self.config.residual_learning:
+        if self.config.encoder.residual_learning:
             residual_loss = torch.mean(torch.stack(encoder_mare_outs_real))
 
         # actual output of the discriminator
@@ -256,7 +255,7 @@ class GAN(BaseModel):
         self.depth_model.apply(freeze_batchnorm)
         if self.config.freeze_batch_norm:
             self.generator.apply(freeze_batchnorm)
-            if self.config.residual_learning:
+            if self.config.encoder.residual_learning:
                 self.generator.set_residuals_train()
 
         generator_step = batch_idx % 2 == 0 if self.global_step >= self.config.warmup_steps else False

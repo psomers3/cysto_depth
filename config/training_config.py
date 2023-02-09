@@ -237,13 +237,17 @@ class GANTrainingConfig:
     """ Whether to freeze the batch norm statistics for the already learned generator """
     beta_1: float = 0.5
     beta_2: float = 0.999
-    residual_loss_factor: float = 5
+    residual_loss_factor: float = 0.0
     scale_loss_factor: float = 0
-    depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3, img_level=True)
+    depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=1, img_level=True, single_out=False)
     img_discriminator_factor: float = 0.0
-    phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3, img_level=True)
+    phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3, img_level=True, single_out=False)
     phong_discriminator_factor: float = 1.0
-    feature_level_discriminator: DiscriminatorConfig = DiscriminatorConfig(img_level=False)
+    feature_level_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=-1,
+                                                                           img_level=False,
+                                                                           single_out=False,
+                                                                           activation='layer')
+    """ in channels for features is reset in the code """
     feature_discriminator_factor: float = 1.0
     """ scaling factor for feature level discriminators """
     d_max_conf: float = 0.9

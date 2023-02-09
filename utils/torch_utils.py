@@ -26,7 +26,18 @@ def scale_median(predicted, gt):
     return scale_predicted.view(-1, 1, 1, 1)
 
 
-_normalizations = {"instance": nn.InstanceNorm2d, "batch": nn.BatchNorm2d, "layer": nn.LayerNorm}
+class OnDemandLayerNorm(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super(OnDemandLayerNorm, self).__init__()
+        self.norm: nn.LayerNorm = None
+
+    def forward(self, data, *args, **kwargs):
+        if self.norm is None:
+            self.norm = nn.LayerNorm(data.shape[1:])
+        return self.norm(data, *args, **kwargs)
+
+
+_normalizations = {"instance": nn.InstanceNorm2d, "batch": nn.BatchNorm2d, "layer": OnDemandLayerNorm}
 
 
 def convrelu(in_channels, out_channels, kernel, padding, stride=1, transpose=False, alpha=0.01, norm: str = "",

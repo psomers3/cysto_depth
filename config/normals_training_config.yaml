@@ -1,7 +1,6 @@
 log_directory: ./logs
 predict_normals: true
 print_config: true
-adaptive_gating: false
 mode: gan
 training_stage: train
 split_save_dir: ./splits
@@ -29,7 +28,7 @@ synthetic_config:
 gan_config:
   synthetic_base_model: /Users/peter/Desktop/epoch=198-step=10920.ckpt
   encoder:
-    backbone: resnet18
+    backbone: resnet34
     adaptive_gating: true
     residual_learning: true
   phong_discriminator_factor: 1.0

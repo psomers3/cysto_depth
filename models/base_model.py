@@ -10,7 +10,6 @@ class BaseModel(pl.LightningModule):
         self.rel_error = RelError()
         self.acc = Accuracy()
         self.silog = SILog()
-        self.gan = False
 
     def calculate_metrics(self, prefix, predicted, target):
         depth_mask = target > 0
