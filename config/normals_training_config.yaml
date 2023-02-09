@@ -7,10 +7,13 @@ training_stage: train
 split_save_dir: ./splits
 num_workers: 1
 synthetic_config:
+  encoder:
+    load_imagenet_weights: True
+    backbone: resnet18
   normals_extra_layers: 0
   decoder_calculate_norms: false
-  backbone: resnet18
   merged_decoder: true
+  accumulate_grad_batches: 1
   max_epochs: 300
   batch_size: 4
   data_roles:
@@ -24,11 +27,17 @@ synthetic_config:
   training_split: {'train': .8, 'validate': 0.18, 'test': .02}
 #  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_1/epoch=13-step=378.ckpt
 gan_config:
+  synthetic_base_model: /Users/peter/Desktop/epoch=198-step=10920.ckpt
+  encoder:
+    backbone: resnet18
+    adaptive_gating: true
+    residual_learning: true
   phong_discriminator_factor: 1.0
-  batch_size: 2
+  batch_size: 4
+  accumulate_grad_batches: 4
+  warmup_steps: 0
   source_images:
     - /Users/peter/isys/2023_01_29/color
-  synthetic_base_model: /Users/peter/Desktop/epoch=198-step=10920.ckpt
   synth_split: {'train': .8, 'validate': .1, 'test': .1}
   generate_data: False
   videos_folder:

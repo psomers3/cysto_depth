@@ -4,7 +4,6 @@ import os
 import glob
 from utils.exr_utils import get_exr_max_depth
 import torch
-import pandas as pd
 
 
 def scale_median(predicted, gt):
@@ -27,8 +26,11 @@ def scale_median(predicted, gt):
     return scale_predicted.view(-1, 1, 1, 1)
 
 
-def convrelu(in_channels, out_channels, kernel, padding, stride=1, transpose=False, alpha=0.01, norm=None, relu='relu',
-             init_zero=False):
+_normalizations = {"instance": nn.InstanceNorm2d, "batch": nn.BatchNorm2d, "layer": nn.LayerNorm}
+
+
+def convrelu(in_channels, out_channels, kernel, padding, stride=1, transpose=False, alpha=0.01, norm: str = "",
+             activation='relu', init_zero=False):
     layers = []
     if transpose:
         layers.append(nn.ConvTranspose2d(in_channels, out_channels, kernel, stride=stride, padding=padding))
@@ -38,15 +40,14 @@ def convrelu(in_channels, out_channels, kernel, padding, stride=1, transpose=Fal
         conv_layer = layers[0]
         for p in conv_layer.parameters():
             p.data.fill_(0)
-    if norm == "instance":
-        layers.append(nn.InstanceNorm2d(out_channels))
-    elif norm == "batch":
-        layers.append(nn.BatchNorm2d(out_channels))
-    if relu == "leaky":
+    if norm:
+        layers.append(_normalizations[norm](out_channels))
+
+    if activation == "leaky":
         layers.append(nn.LeakyReLU(inplace=True, negative_slope=alpha))
-    elif relu == "relu":
+    elif activation == "relu":
         layers.append(nn.ReLU(inplace=True))
-    elif relu == "tanh":
+    elif activation == "tanh":
         layers.append(nn.Tanh())
     return nn.Sequential(*layers)
 
@@ -84,21 +85,3 @@ def generateImageAnnotations(annotations_path, data_dir, test_dir):
                                 writer.writerow(["train", trainset_idx, filepath, depth])
                                 trainset_idx += 1
             writer.writerow(["Max_Depth", None, None, max_depth])
-
-
-def get_eigen_dataframe(annotations_path):
-    splits = ("val", "train", "test")
-    split_dfs = [pd.read_csv(os.path.join(annotations_path,
-                                          "eigen", "eigen_" + split + ".txt"), sep=" ", header=0,
-                             names=["scene", "image", "camera"], dtype=str) for split in splits]
-    for split, name in zip(split_dfs, splits):
-        split['set'] = name
-
-    df = pd.concat(split_dfs)
-
-    df['camera'] = df['camera'].replace(['l'], 'image_02')
-    df['camera'] = df['camera'].replace(['r'], 'image_03')
-    df['image'] = list(map(lambda x: x.zfill(10), df['image']))  # standardize with leading zeros like in kitti
-    df['image'] = df['image'].astype(str) + '.png'
-
-    return df

@@ -1,30 +1,23 @@
 from utils.loss import AvgTensorNorm
 from models.vanillaencoder import VanillaEncoder
 from utils.torch_utils import convrelu
-from torch import batch_norm, nn
+from torch import nn
 import torch
+from config.training_config import EncoderConfig
 
 
 class AdaptiveEncoder(VanillaEncoder):
-    def __init__(self,
-                 adaptive_gating: bool = False,
-                 residual_learning: bool = False,
-                 backbone: str = 'resnet18',
-                 use_image_net_weights: bool = False):
+    def __init__(self, config: EncoderConfig):
         """
 
-        :param adaptive_gating: whether to add the resnet blocks for adaptive transfer learning. If false,
-                                behaves as a normal vanilla encoder.
-        :param residual_learning: Whether to add residual blocks to the vanilla encoder and freeze the vanilla encoder.
-        :param backbone: base encoder structure to use.
-        :param use_image_net_weights: whether to initialize with imagenet weights
+        :param config: Config for the Encoder
         """
-        super().__init__(backbone=backbone, imagenet_weights=use_image_net_weights)
+        super().__init__(backbone=config.backbone, imagenet_weights=config.load_imagenet_weights)
         init_zero = False
-        activation = "leaky"
-        norm = 'batch'
-        self.adaptive_gating = adaptive_gating
-        self.residual_learning = residual_learning
+        activation = config.res_layer_activation
+        norm = config.res_layer_norm
+        self.adaptive_gating = config.adaptive_gating
+        self.residual_learning = config.residual_learning
 
         if not self.residual_learning:
             # pure vanilla case
@@ -36,28 +29,28 @@ class AdaptiveEncoder(VanillaEncoder):
         self.gate_coefficients = nn.Parameter(torch.zeros(5), requires_grad=self.adaptive_gating)
 
         self.res_layer0 = nn.Sequential(convrelu(3, self.feature_levels[0], 5, 2, 1,
-                                                 relu=activation, norm=norm, init_zero=init_zero),
+                                                 activation=activation, norm=norm, init_zero=init_zero),
                                         convrelu(self.feature_levels[0], 3, 5, 2, 1,
-                                                 relu=activation, init_zero=init_zero, norm=norm))
+                                                 activation=activation, init_zero=init_zero, norm=norm))
         self.res_layer1 = nn.Sequential(convrelu(self.feature_levels[0], self.feature_levels[1], 5, 2, 1,
-                                                 relu=activation, norm=norm, init_zero=init_zero),
+                                                 activation=activation, norm=norm, init_zero=init_zero),
                                         convrelu(self.feature_levels[1], self.feature_levels[0], 5, 2, 1,
-                                                 relu=activation, init_zero=init_zero, norm=norm))
+                                                 activation=activation, init_zero=init_zero, norm=norm))
         self.res_layer2 = nn.Sequential(convrelu(self.feature_levels[1], self.feature_levels[2], 5, 2, 1,
-                                                 relu=activation, norm=norm, init_zero=init_zero),
+                                                 activation=activation, norm=norm, init_zero=init_zero),
                                         convrelu(self.feature_levels[2], self.feature_levels[1], 5, 2, 1,
-                                                 relu=activation, init_zero=init_zero, norm=norm))
+                                                 activation=activation, init_zero=init_zero, norm=norm))
         self.res_layer3 = nn.Sequential(
             convrelu(self.feature_levels[2], self.feature_levels[3], 3, 1, 1,
-                     relu=activation, norm=norm, init_zero=init_zero),
+                     activation=activation, norm=norm, init_zero=init_zero),
             convrelu(self.feature_levels[3], self.feature_levels[2], 3, 1, 1,
-                     relu=activation, init_zero=init_zero, norm=norm)
+                     activation=activation, init_zero=init_zero, norm=norm)
         )
         self.res_layer4 = nn.Sequential(
             convrelu(self.feature_levels[3], self.feature_levels[4], 3, 1, 1,
-                     relu=activation, norm=norm, init_zero=init_zero),
+                     activation=activation, norm=norm, init_zero=init_zero),
             convrelu(self.feature_levels[4], self.feature_levels[3], 3, 1, 1,
-                     relu=activation, init_zero=init_zero, norm=norm)
+                     activation=activation, init_zero=init_zero, norm=norm)
         )
         self.criterion = AvgTensorNorm()
 

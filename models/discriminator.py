@@ -12,11 +12,11 @@ class Discriminator(nn.Module):
             # Shape N, 512, x.H/32, x.W/32
             convrelu(in_channels, 64, 4, 1, 2, alpha=0.2),
             torch.nn.Dropout(),
-            convrelu(64, 128, 4, 1, 2, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(64, 128, 4, 1, 2, norm="instance", activation="leaky", alpha=0.2),
             torch.nn.Dropout(),
-            convrelu(128, 256, 3, 1, 1, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(128, 256, 3, 1, 1, norm="instance", activation="leaky", alpha=0.2),
             torch.nn.Dropout(),
-            convrelu(256, 512, 3, 1, 1, norm="instance", relu="leaky", alpha=0.2),
+            convrelu(256, 512, 3, 1, 1, norm="instance", activation="leaky", alpha=0.2),
             nn.Conv2d(512, 1, 3, 1, 1),
             nn.Flatten()
         )

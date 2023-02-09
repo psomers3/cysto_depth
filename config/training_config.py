@@ -26,6 +26,24 @@ class TrainerDictConfig:
 
 
 @dataclass
+class EncoderConfig:
+    """ Configuration for encoder """
+
+    backbone: str = 'resnet18'
+    """ Base model to use for the encoder [resnet18, resnet34, resnet50] """
+    adaptive_gating: bool = False
+    """ Whether to turn on adaptive gating for domain adaptation """
+    load_imagenet_weights: bool = False
+    """ Whether to initialize the encoder with weights from ImageNet """
+    residual_learning: bool = False
+    """ Whether to use additional residual blocks for the adversarial learning """
+    res_layer_norm: str = 'batch'
+    """ Type of normalization to use if residual blocks are added [layer, batch, instance]"""
+    res_layer_activation: str = 'leaky'
+    """ activation function for the added residual layers [leaky, relu, tanh] """
+
+
+@dataclass
 class CallbackConfig:
     """ Configuration for callbacks to be added to the training """
 
@@ -81,6 +99,7 @@ class SyntheticTrainingConfig:
                                                           'test': .1})
     """ The entry to control generation of the data split for training. See split option for the FileLoadingDataModule 
     for valid entries """
+    encoder: EncoderConfig = EncoderConfig(adaptive_gating=False, residual_learning=False)
     training_split_file: str = ''
     """ An existing training split json file. If not empty, will be used instead of training_split """
     lr: float = 1e-3
@@ -123,20 +142,12 @@ class SyntheticTrainingConfig:
     """ Whether the network should predict normals """
     image_size: int = '${..image_size}'
     """ Final square size to make all images """
-    adaptive_gating: bool = '${..adaptive_gating}'
-    """ Whether to turn on adaptive gating for domain adaptation """
-    residual_learning: bool = '${..residual_learning}'
-    """ Whether to use additional residual blocks for the adversarial learning """
     min_depth: float = .5
     """ depth value used to mask normals to zero """
     merged_decoder: bool = True
     """ Whether to use a single decoder when predicting normals """
     inverse_depth: bool = "${..inverse_depth}"
     """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
-    load_imagenet_weights: bool = False
-    """ Whether to initialize the encoder with weights from ImageNet """
-    backbone: str = 'resnet18'
-    """ Base model to use for the encoder [resnet18, resnet34, resnet50] """
     add_mask_blur: bool = "${..add_mask_blur}"
     """ Whether to add random gaussian blur to the edge of the circular mask """
     depth_gradient_loss_epochs: List[int] = field(default_factory=lambda: [1, int(1e6)])
@@ -165,6 +176,7 @@ class GANTrainingConfig:
                                                        'validate': .1,
                                                        'test': .1})
     """ The entry to control generation of the data split for training. """
+    encoder: EncoderConfig = EncoderConfig(adaptive_gating=True, residual_learning=True, res_layer_norm='batch')
     training_split_file: str = ''
     """ An existing training split json file. If not empty, will be used instead of training_split """
     generator_lr: float = 5e-6

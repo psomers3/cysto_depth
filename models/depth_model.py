@@ -27,10 +27,7 @@ class DepthEstimationModel(BaseModel):
         # automatic learning rate finder sets lr to self.lr, else default
         self.save_hyperparameters(Namespace(**config))
         self.config = config
-        self.encoder = AdaptiveEncoder(adaptive_gating=config.adaptive_gating,
-                                       residual_learning=config.residual_learning,
-                                       use_image_net_weights=config.load_imagenet_weights,
-                                       backbone=config.backbone)
+        self.encoder = AdaptiveEncoder(config.encoder)
 
         num_output_layers = 4 if config.merged_decoder and config.predict_normals else 1
         self.decoder = Decoder(feature_levels=self.encoder.feature_levels[::-1],
@@ -40,7 +37,7 @@ class DepthEstimationModel(BaseModel):
                                phong_renderer=PhongRender(config=config.phong_config,
                                                           image_size=config.image_size,
                                                           device=self.device)
-                                              if config.decoder_calculate_norms else None)
+                               if config.decoder_calculate_norms else None)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(feature_levels=self.encoder.feature_levels,
                                            num_output_channels=3,
