@@ -373,15 +373,20 @@ class GAN(BaseModel):
         b1 = self.config.beta_1
         b2 = self.config.beta_2
 
-        opt_g = torch.optim.Adam(filter(lambda p: p.requires_grad, self.generator.parameters()), lr=lr_g,
-                                 betas=(b1, b2))
-        opt_d_feature = [torch.optim.Adam(filter(lambda p: p.requires_grad, discriminator.parameters()),
-                                          lr=lr_d,
-                                          betas=(b1, b2)) for discriminator in self.d_feat_modules]
-        opt_d_img = torch.optim.Adam(filter(lambda p: p.requires_grad, self.d_img.parameters()), lr=lr_d,
-                                     betas=(b1, b2))
-        up_steps = self.config.cyclic_step_period // 2
+        opts = {'adam': torch.optim.Adam, 'radam': torch.optim.RAdam, 'rmsprop': torch.optim.RMSprop}
+        opt = opts[self.config.optimizer.lower()]
+        if self.config.optimizer.lower() == 'rmsprop':
+            opt_g = opt(filter(lambda p: p.requires_grad, self.generator.parameters()), lr=lr_g)
+            opt_d_feature = [opt(filter(lambda p: p.requires_grad, discriminator.parameters()), lr=lr_d)
+                             for discriminator in self.d_feat_modules]
+            opt_d_img = opt(filter(lambda p: p.requires_grad, self.d_img.parameters()), lr=lr_d)
+        else:
+            opt_g = opt(filter(lambda p: p.requires_grad, self.generator.parameters()), lr=lr_g, betas=(b1, b2))
+            opt_d_feature = [opt(filter(lambda p: p.requires_grad, discriminator.parameters()), lr=lr_d,
+                                 betas=(b1, b2)) for discriminator in self.d_feat_modules]
+            opt_d_img = opt(filter(lambda p: p.requires_grad, self.d_img.parameters()), lr=lr_d, betas=(b1, b2))
 
+        up_steps = self.config.cyclic_step_period // 2
         lr_scheduler_g = torch.optim.lr_scheduler.CyclicLR(opt_g, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,
                                                            cycle_momentum=False, step_size_up=up_steps)
         lr_scheduler_d_img = torch.optim.lr_scheduler.CyclicLR(opt_d_img, base_lr=lr_g, max_lr=lr_g * 10, gamma=.1,

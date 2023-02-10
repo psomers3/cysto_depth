@@ -119,7 +119,7 @@ class SyntheticTrainingConfig:
     lr: float = 1e-3
     """ learning rate for optimizer """
     optimizer: str = 'radam'
-    """ Which torch optimizer to use. ['adam', 'radam'] """
+    """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
     lr_scheduler_patience: int = 10
     lr_scheduler_monitor: str = "val_rmse_log"
     reduce_lr_patience: int = 5

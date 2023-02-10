@@ -34,6 +34,7 @@ gan_config:
     residual_learning: true
     res_layer_norm: instance
   loss: wasserstein_gp
+  optimizer: rmsprop
   freeze_batch_norm: true
   phong_discriminator_factor: 1.0
   batch_size: 4
