@@ -10,6 +10,10 @@ import debugpy
 from collections import defaultdict
 import json
 import numpy as np
+import tempfile
+from config.blender_config import get_login
+
+_tempfolder = tempfile.gettempdir() if not get_login() else os.path.join(tempfile.gettempdir(), get_login())
 
 
 def start_debugger():
@@ -44,6 +48,7 @@ if __name__ == '__main__':
     bpy.ops.wm.open_mainfile(filepath=str(input_file))
     context = bpy.context
     scene = context.scene
+    scene.render.filepath = _tempfolder
     color_node = scene.node_tree.nodes['color_out']
     depth_node = scene.node_tree.nodes['depth_out']
     normals_node = scene.node_tree.nodes['normals_out']
