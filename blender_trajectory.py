@@ -63,7 +63,7 @@ if __name__ == '__main__':
     normals_node.base_path = os.path.join(str(output_dir), 'normals')
 
     camera_trajectory = defaultdict(dict)
-    number_of_frames = 2
+
     for frame_number in range(1, number_of_frames + 1):
         scene.frame_set(frame_number)
         print(frame_number)
