@@ -500,6 +500,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         links.new(rl.outputs[depth_label], depth_node.inputs['Image'])
         return_list[1] = depth_node
         depth_node.mute = True
+        depth_node.name = 'depth_out'
 
     if color:
         # create image output node
@@ -507,6 +508,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         img_node.format.file_format = "PNG"
         links.new(rl.outputs['Image'], img_node.inputs['Image'])  # link image to output
         return_list[0] = img_node
+        img_node.name = 'color_out'
 
     if normals:
         scene.view_layers[view_layer].use_pass_normal = True
@@ -522,6 +524,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         links.new(rl.outputs[normals_label], normal_node.inputs['Image'])
         return_list[2] = normal_node
         normal_node.mute = True
+        normal_node.name = ['normals_out']
 
     return return_list
 

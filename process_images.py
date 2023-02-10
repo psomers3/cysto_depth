@@ -23,6 +23,8 @@ def process_directory(directory: str, model_ckpt: str) -> Dict[str, np.ndarray]:
     :param model_ckpt: the model checkpoint to load
     :return: dictionary of depth maps with keys corresponding to the source image path
     """
+    checkpoint = torch.load(model_ckpt)
+
     model: GAN = GAN.load_from_checkpoint(model_ckpt, res_transfer=True, adaptive_gating=True)
     image_paths = [f for f in Path(directory).rglob('*') if imghdr.what(f) in image_types]
     depth_maps = {}
