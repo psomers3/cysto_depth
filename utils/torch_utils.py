@@ -31,9 +31,9 @@ class OnDemandLayerNorm(nn.Module):
         super(OnDemandLayerNorm, self).__init__()
         self.norm: nn.LayerNorm = None
 
-    def forward(self, data, *args, **kwargs):
+    def forward(self, data: torch.Tensor, *args, **kwargs):
         if self.norm is None:
-            self.norm = nn.LayerNorm(data.shape[1:])
+            self.norm = nn.LayerNorm(data.shape[1:]).to(data.device)
         return self.norm(data, *args, **kwargs)
 
 
