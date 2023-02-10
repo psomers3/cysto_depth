@@ -87,7 +87,7 @@ if __name__ == '__main__':
         normals_node.mute = False
         color_node.mute = True
         # switch to basic material and renderer for rendering normals and depth
-        scene.render.engine = 'BLENDER_EEVEE'
+        # scene.render.engine = 'BLENDER_EEVEE'
         bladder.material_slots[0].material = bpy.data.materials['Material']
         bpy.ops.render.render(write_still=True, scene=scene.name)
 
