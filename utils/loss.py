@@ -11,6 +11,11 @@ from typing import *
 
 class CosineSimilarity(nn.Module):
     def __init__(self, ignore_direction: bool = False, device: torch.device = None):
+        """
+        TODO: WARNING!!! ignore_direction may break gradient... needs to be looked into
+        :param ignore_direction:
+        :param device:
+        """
         super(CosineSimilarity, self).__init__()
         self.loss = torch.nn.CosineSimilarity(dim=1)
         self.device = device
@@ -20,8 +25,9 @@ class CosineSimilarity(nn.Module):
         predicted = F.normalize(predicted, dim=1)
         non_zero_norm = torch.linalg.norm(target, dim=1) > 0.0
         if self.ignore_direction:
-            return (1 - torch.where(non_zero_norm, self.loss(predicted, target),
-                                    torch.ones([1], device=self.device))).abs().mean()
+            epsilon = 1e-6
+            return (1 - torch.where(non_zero_norm, self.loss(predicted, target)+1+epsilon,
+                                    torch.ones([1], device=self.device)).abs()).mean()
         else:
             return (1 - torch.where(non_zero_norm, self.loss(predicted, target),
                                     torch.ones([1], device=self.device))).mean()
