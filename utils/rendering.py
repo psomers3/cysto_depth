@@ -357,7 +357,7 @@ def depth_to_3d(depth: Tensor, camera_matrix: Tensor, pixel_grid: torch.Tensor =
         points_2d: Tensor = pixel_grid
     else:
         points_2d: Tensor = create_meshgrid(height, width, normalized_coordinates=False)  # 1xHxWx2
-    points_2d = points_2d.to(depth.device).to(depth.dtype)
+    points_2d = points_2d.type(depth.dtype).to(depth.device)
 
     # depth should come in Bx1xHxW
     points_depth: Tensor = depth.permute(0, 2, 3, 1)  # 1xHxWx1

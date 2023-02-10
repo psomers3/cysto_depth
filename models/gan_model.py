@@ -49,7 +49,7 @@ class GAN(BaseModel):
         self.d_losses_log = {'d_loss': 0, 'd_loss_depth_img': 0, 'd_loss_phong': 0, 'd_loss_depth_phong': 0}
         self.d_losses_log.update({f'd_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.g_losses_log = {'g_loss': 0, 'g_loss_depth_img': 0, 'g_loss_phong': 0, 'g_feat_loss': 0, 'g_res_loss': 0,
-                             'g_loss_depth_phong': 0, 'g_cosine_sim': 0}
+                             'g_loss_depth_phong': 0}
         self.g_losses_log.update({f'g_loss_feature_{i}': 0 for i in range(len(d_feat_list))})
         self.generator_global_step = -1
         self.discriminators_global_step = -1
@@ -57,7 +57,7 @@ class GAN(BaseModel):
         self.unadapted_images_for_plotting = None
         self.discriminator_loss = GANDiscriminatorLoss[gan_config.loss]
         self.generator_loss = GANGeneratorLoss[gan_config.loss]
-        self.check_val_for_generator_step = self.config.wasserstein_critic_updates + 1 if \
+        self.check_for_generator_step = self.config.wasserstein_critic_updates + 1 if \
             self.config.loss != 'cross_entropy' else 2
 
     def forward(self, x, generator: bool = True) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
@@ -109,7 +109,7 @@ class GAN(BaseModel):
         if self.config.freeze_batch_norm:
             self.generator.apply(freeze_batchnorm)
 
-        generator_step = self.total_train_step_count % self.check_val_for_generator_step == 0
+        generator_step = self.total_train_step_count % self.check_for_generator_step == 0
         self.total_train_step_count += 1
         if generator_step and self.global_step >= self.config.warmup_steps:
             self.generator_train_step(batch, batch_idx)
@@ -140,7 +140,7 @@ class GAN(BaseModel):
         residual_loss: Tensor = 0
         if self.config.encoder.residual_learning:
             residual_loss = torch.mean(torch.stack(encoder_mare_outs_real)) * self.config.residual_loss_factor
-            self.g_losses_log['g_res_loss'] += residual_loss.detach()
+            self.g_losses_log['g_res_loss'] += residual_loss
 
         g_loss: Tensor = 0
         feat_outs = encoder_outs_real[::-1][:len(self.d_feat_modules)]
@@ -153,7 +153,6 @@ class GAN(BaseModel):
         g_loss += self._apply_generator_loss(valid_predicted_depth, 'depth_img',
                                              apply_uncertainty=False) * self.config.img_discriminator_factor
 
-        cosine_loss: Tensor = 0
         if self.config.predict_normals:
             synth_phong_rendering = self.phong_renderer((depth_out, normals_real))
             phong_discrimination = self.phong_discriminator(synth_phong_rendering)
@@ -166,13 +165,10 @@ class GAN(BaseModel):
             g_loss += self._apply_generator_loss(self.depth_phong_discriminator(depth_phong), 'depth_phong',
                                                  apply_uncertainty=False) * self.config.phong_discriminator_factor
 
-            cosine_loss = self.cosine_sim(calculated_norms, normals_real)
-            self.g_losses_log['g_cosine_sim'] += cosine_loss.detach()
-
-        g_loss += residual_loss + cosine_loss
+        g_loss += residual_loss
 
         self.manual_backward(g_loss)
-        self.g_losses_log['g_loss'] += g_loss.detach()
+        self.g_losses_log['g_loss'] += g_loss
         self.generator_global_step += 1
         step_optimizers = self.generator_global_step % self.config.accumulate_grad_batches == 0
         if step_optimizers:
@@ -257,7 +253,7 @@ class GAN(BaseModel):
             loss = self.generator_loss(discriminator_out, label * confidence)
         else:
             loss = self.generator_loss(discriminator_out)
-        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
+        self.g_losses_log[f'g_loss_{name}'] += loss
         return loss
 
     def _apply_discriminator_loss(self, real: Tensor, synth: Tensor, discriminator: torch.nn.Module,
@@ -284,7 +280,7 @@ class GAN(BaseModel):
                                              discriminator,
                                              self.config.wasserstein_lambda)
 
-        self.d_losses_log[f'd_loss_{name}'] += d_loss.detach()
+        self.d_losses_log[f'd_loss_{name}'] += d_loss
         return d_loss
 
     def validation_step(self, batch, batch_idx):
