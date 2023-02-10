@@ -8,7 +8,7 @@ num_workers: 1
 synthetic_config:
   encoder:
     load_imagenet_weights: True
-    backbone: resnet34
+    backbone: resnet18
     res_layer_norm: instance
   normals_extra_layers: 0
   decoder_calculate_norms: false
@@ -29,15 +29,15 @@ synthetic_config:
 gan_config:
   synthetic_base_model: /Users/peter/Desktop/epoch=198-step=10920.ckpt
   encoder:
-    backbone: resnet34
+    backbone: resnet18
     adaptive_gating: true
     residual_learning: true
     res_layer_norm: instance
-  loss: cross_entropy
+  loss: wasserstein_gp
   freeze_batch_norm: true
   phong_discriminator_factor: 1.0
   batch_size: 4
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 1
   warmup_steps: 0
   source_images:
     - /Users/peter/isys/2023_01_29/color
