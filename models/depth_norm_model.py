@@ -157,7 +157,8 @@ class DepthNormModel(pl.LightningModule):
                                    synth_normals[:self.max_num_image_samples].detach()
 
     def on_validation_epoch_end(self) -> None:
-        self.log('val_loss', self.val_loss/self.val_batch_count)
+        if self.val_batch_count > 0:
+            self.log('val_loss', self.val_loss/self.val_batch_count)
         self.val_loss = 0
         self.val_batch_count = 0
         if self._val_epoch_count % self.config.val_plot_interval == 0:
