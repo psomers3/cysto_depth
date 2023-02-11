@@ -23,7 +23,7 @@ class DepthNormModel(pl.LightningModule):
         self.config = config
         self.model = DepthNorm2Image(config.encoder, depth_scale=config.depth_scale, add_noise=config.add_noise)
         self.loss = torch.nn.L1Loss() if '1' in config.L_loss else torch.nn.MSELoss()
-        self.max_num_image_samples = 8
+        self.max_num_image_samples = 4
         if config.resume_from_checkpoint:
             path_to_ckpt = config.resume_from_checkpoint
             config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
@@ -82,21 +82,23 @@ class DepthNormModel(pl.LightningModule):
         else:
             self.critic_train_step(batch, batch_idx)
 
-    def generator_train_step(self, batch, batch_idx):
+    def generator_train_step(self, batch: dict, batch_idx: int):
         self.model.train()
         if self.config.use_critic:
             self.critic.eval()
-        synth_img, synth_depth, synth_normals = batch
-        out_images = self(synth_depth, synth_normals, source_id=0)
-        denormed_images = imagenet_denorm(synth_img)
-        img_loss = self.loss(out_images, denormed_images)
-        self.g_losses_log['g_img_loss'] += img_loss
-        loss = img_loss
-        if self.config.use_critic:
-            critic_out = self.critic(out_images)
-            critic_loss = self.generator_loss(critic_out)
-            self.g_losses_log['g_critic_loss'] += critic_loss
-            loss += critic_loss
+        loss = 0
+        for source_id in batch.keys():
+            synth_img, synth_depth, synth_normals = batch[source_id]
+            out_images = self(synth_depth, synth_normals, source_id=source_id)
+            denormed_images = imagenet_denorm(synth_img)
+            img_loss = self.loss(out_images, denormed_images)
+            self.g_losses_log['g_img_loss'] += img_loss
+            loss += img_loss
+            if self.config.use_critic:
+                critic_out = self.critic(out_images)
+                critic_loss = self.generator_loss(critic_out)
+                self.g_losses_log['g_critic_loss'] += critic_loss
+                loss += critic_loss
         self.g_losses_log['g_loss'] += loss
         self.manual_backward(loss)
         self.batches_accumulated += 1
@@ -113,16 +115,18 @@ class DepthNormModel(pl.LightningModule):
             self.log_dict(self.g_losses_log)
             self.g_losses_log.update({k: 0 for k in self.g_losses_log.keys()})
 
-    def critic_train_step(self, batch, batch_idx):
+    def critic_train_step(self, batch: dict, batch_idx):
         self.model.eval()
         self.critic.train()
-        with torch.no_grad():
-            synth_img, synth_depth, synth_normals = batch
-            denormed_images = imagenet_denorm(synth_img)
-            out_images = self(synth_depth, synth_normals, source_id=0)
+        critic_loss: Tensor = 0
+        for source_id in batch.keys():
+            with torch.no_grad():
+                synth_img, synth_depth, synth_normals = batch[source_id]
+                denormed_images = imagenet_denorm(synth_img)
+                out_images = self(synth_depth, synth_normals, source_id=source_id)
+            critic_loss += self.critic_loss(denormed_images, out_images, self.critic, 10)
+            self.d_losses_log['d_critic_loss'] += critic_loss
 
-        critic_loss = self.critic_loss(denormed_images, out_images, self.critic, 10)
-        self.d_losses_log['d_critic_loss'] += critic_loss
         self.manual_backward(critic_loss)
 
         self.batches_accumulated += 1
@@ -144,17 +148,29 @@ class DepthNormModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         self.eval()
-        synth_img, synth_depth, synth_normals = batch
-        out_images = self(synth_depth, synth_normals, source_id=0)
-        loss = self.loss(out_images, imagenet_denorm(synth_img))
-        self.val_loss += loss
+        loss = 0
+        for key in batch:
+            synth_img, synth_depth, synth_normals = batch[key]
+            out_images = self(synth_depth, synth_normals, source_id=0)
+            loss += self.loss(out_images, imagenet_denorm(synth_img))
+        self.val_loss += loss / len(batch)
         self.val_batch_count += 1
 
         if self.validation_data is None:
-            synth_img, synth_depth, synth_normals = batch
-            self.val_denorm_color_images = imagenet_denorm(synth_img[:self.max_num_image_samples]).detach().cpu()
-            self.validation_data = synth_depth[:self.max_num_image_samples].detach(), \
-                                   synth_normals[:self.max_num_image_samples].detach()
+            synth_images_all = []
+            synth_depths_all = []
+            synth_normals_all = []
+            for source_id in batch:
+                synth_img, synth_depth, synth_normals = batch[source_id]
+                synth_images_all.append(synth_img[:self.max_num_image_samples])
+                synth_depths_all.append(synth_depth[:self.max_num_image_samples])
+                synth_normals_all.append(synth_normals[:self.max_num_image_samples])
+            synth_img = torch.cat(synth_images_all, dim=0)
+            synth_depth = torch.cat(synth_depths_all, dim=0)
+            synth_normals = torch.cat(synth_normals_all, dim=0)
+
+            self.val_denorm_color_images = imagenet_denorm(synth_img).detach().cpu()
+            self.validation_data = synth_depth.detach(), synth_normals.detach()
 
     def on_validation_epoch_end(self) -> None:
         if self.val_batch_count > 0:

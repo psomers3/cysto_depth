@@ -2,8 +2,8 @@ log_directory: ./logs
 print_config: true
 mode: depthnorm
 training_stage: train
-split_save_dir: ./splits
-num_workers: 6
+split_save_dir: ''
+num_workers: 1
 val_check_interval: 100
 val_plot_interval: 1
 depth_norm_config:
@@ -15,13 +15,19 @@ depth_norm_config:
   max_epochs: 300
   batch_size: 4
   data_roles:
-    - color
-    - depth
-    - normals
+    - color_0
+    - color_1
+    - depth_0
+    - depth_1
+    - normals_0
+    - normals_1
   data_directories:
-    - /Users/peter/isys/2023_01_29/color
-    - /Users/peter/isys/2023_01_29/depth
-    - /Users/peter/isys/2023_01_29/normals
+    - /Users/peter/isys/2023_01_29/color/bladder_wall
+    - /Users/peter/isys/2023_01_29/color/bland_bladder_wall
+    - /Users/peter/isys/2023_01_29/depth/bladder_wall
+    - /Users/peter/isys/2023_01_29/depth/bland_bladder_wall
+    - /Users/peter/isys/2023_01_29/normals/bladder_wall
+    - /Users/peter/isys/2023_01_29/normals/bland_bladder_wall
   training_split: {'train': .75, 'validate': 0.225, 'test': .025}
 trainer_config:
   gpus: []

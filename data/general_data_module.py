@@ -2,6 +2,7 @@ import os.path
 from pathlib import Path
 import numpy as np
 import pytorch_lightning as pl
+from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.utils.data import DataLoader
 import re
 import json
@@ -149,3 +150,22 @@ class FileLoadingDataModule(pl.LightningDataModule):
                           num_workers=self.workers_per_loader,
                           shuffle=False,
                           pin_memory=True)
+
+
+class DictDataLoaderCombine(pl.LightningDataModule):
+    def __init__(self, dataloader_dict):
+        super(DictDataLoaderCombine, self).__init__()
+        self.data_loader_dict = dataloader_dict
+        [dm.setup('fit') for k, dm in self.data_loader_dict.items()]
+
+    def train_dataloader(self) -> CombinedLoader:
+        return CombinedLoader(loaders={k: self.data_loader_dict[k].train_dataloader() for k in self.data_loader_dict},
+                              mode='max_size_cycle')
+
+    def val_dataloader(self) -> CombinedLoader:
+        return CombinedLoader(loaders={k: self.data_loader_dict[k].val_dataloader() for k in self.data_loader_dict},
+                              mode='max_size_cycle')
+
+    def test_dataloader(self) -> CombinedLoader:
+        return CombinedLoader(loaders={k: self.data_loader_dict[k].test_dataloader() for k in self.data_loader_dict},
+                              mode='max_size_cycle')

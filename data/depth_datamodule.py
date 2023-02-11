@@ -105,10 +105,6 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.data_test = ImageDataset(files=list(zip(*self.split_files['test'].values())),
                                       transforms=self.get_transforms('test'))
 
-        if self.memorize_check:
-            dl = self.train_dataloader()
-            self.data_train = MemorizeCheck(next(iter(dl)), len(self.data_train))
-
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt

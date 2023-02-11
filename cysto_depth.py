@@ -14,6 +14,7 @@ from models.depth_model import DepthEstimationModel
 from models.depth_norm_model import DepthNormModel
 from data.depth_datamodule import EndoDepthDataModule
 from data.phong_datamodule import PhongDataModule
+from data.general_data_module import DictDataLoaderCombine
 from data.gan_datamodule import GANDataModule
 from models.gan_model import GAN
 
@@ -82,16 +83,26 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
     elif config.mode == 'depthnorm':
         split = config.depth_norm_config.training_split if not config.depth_norm_config.training_split_file else \
             config.depth_norm_config.training_split
-        data_module = EndoDepthDataModule(batch_size=config.depth_norm_config.batch_size,
-                                          data_roles=config.depth_norm_config.data_roles,
-                                          data_directories=config.depth_norm_config.data_directories,
-                                          split=split,
-                                          image_size=config.image_size,
-                                          workers_per_loader=config.num_workers,
-                                          depth_scale_factor=1e3,
-                                          inverse_depth=config.depth_norm_config.inverse_depth,
-                                          memorize_check=config.memorize_check,
-                                          add_random_blur=config.depth_norm_config.add_mask_blur)
+        dataload_dict = {}
+        for i in range(10):
+            data_dir = []
+            for j in range(len(config.depth_norm_config.data_roles)):
+                if str(i) in config.depth_norm_config.data_roles[j]:
+                    data_dir.append(config.depth_norm_config.data_directories[j])
+            if len(data_dir) == 0:
+                break
+            data_module = EndoDepthDataModule(batch_size=config.depth_norm_config.batch_size,
+                                              data_roles=['color', 'depth', 'normals'],
+                                              data_directories=data_dir,
+                                              split=split,
+                                              image_size=config.image_size,
+                                              workers_per_loader=config.num_workers,
+                                              depth_scale_factor=1e3,
+                                              inverse_depth=config.depth_norm_config.inverse_depth,
+                                              memorize_check=config.memorize_check,
+                                              add_random_blur=config.depth_norm_config.add_mask_blur)
+            dataload_dict[i] = data_module
+        data_module = DictDataLoaderCombine(dataload_dict)
         model = DepthNormModel(config.depth_norm_config)
         config.depth_norm_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.depth_norm_config.items() if key in trainer_dict]
