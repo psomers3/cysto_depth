@@ -35,7 +35,8 @@ class DepthNormModel(pl.LightningModule):
         self.val_denorm_color_images = None
         self.validation_data = None
         self._val_epoch_count = 0
-        self.critic = Discriminator(config.critic_discriminator_config) if config.use_critic else None
+        critics = {str(i): Discriminator(config.critic_discriminator_config) for i in [0, 1]} if config.use_critic else None
+        self.critics = torch.nn.ModuleDict(critics)
         self.generator_global_step = -1
         self.critic_global_step = -1
         self.total_train_step_count = -1
@@ -70,7 +71,7 @@ class DepthNormModel(pl.LightningModule):
         optimizers = [optimizer]
         if self.config.use_critic:
             optimizers.append(optim.RMSprop(filter(lambda p: p.requires_grad,
-                                                   self.critic.parameters()),
+                                                   self.critics.parameters()),
                                             lr=self.config.lr))
         return optimizers  # , [scheduler]
 
@@ -85,7 +86,7 @@ class DepthNormModel(pl.LightningModule):
     def generator_train_step(self, batch: dict, batch_idx: int):
         self.model.train()
         if self.config.use_critic:
-            self.critic.eval()
+            self.critics.eval()
         loss = 0
         for source_id in batch.keys():
             synth_img, synth_depth, synth_normals = batch[source_id]
@@ -95,7 +96,7 @@ class DepthNormModel(pl.LightningModule):
             self.g_losses_log['g_img_loss'] += img_loss
             loss += img_loss
             if self.config.use_critic:
-                critic_out = self.critic(out_images)
+                critic_out = self.critics[str(source_id)](out_images)
                 critic_loss = self.generator_loss(critic_out)
                 self.g_losses_log['g_critic_loss'] += critic_loss
                 loss += critic_loss
@@ -117,14 +118,14 @@ class DepthNormModel(pl.LightningModule):
 
     def critic_train_step(self, batch: dict, batch_idx):
         self.model.eval()
-        self.critic.train()
+        self.critics.train()
         critic_loss: Tensor = 0
         for source_id in batch.keys():
             with torch.no_grad():
                 synth_img, synth_depth, synth_normals = batch[source_id]
                 denormed_images = imagenet_denorm(synth_img)
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
-            critic_loss += self.critic_loss(denormed_images, out_images, self.critic, 10)
+            critic_loss += self.critic_loss(denormed_images, out_images, self.critics[str(source_id)], 10)
             self.d_losses_log['d_critic_loss'] += critic_loss
 
         self.manual_backward(critic_loss)
