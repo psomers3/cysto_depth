@@ -144,7 +144,7 @@ class DepthNorm2ImageConfig:
     """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
     add_mask_blur: bool = "${..add_mask_blur}"
     """ Whether to add random gaussian blur to the edge of the circular mask """
-    monitor_metric: str = 'loss'
+    monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
