@@ -19,7 +19,7 @@ class DepthNormModel(pl.LightningModule):
         self.config = config
         self.model = DepthNorm2Image(config.encoder, depth_scale=config.depth_scale)
         self.loss = torch.nn.L1Loss() if '1' in config.L_loss else torch.nn.MSELoss()
-        self.max_num_image_samples = 7
+        self.max_num_image_samples = 8
         if config.resume_from_checkpoint:
             path_to_ckpt = config.resume_from_checkpoint
             config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
@@ -63,8 +63,9 @@ class DepthNormModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         if self.validation_data is None:
             synth_img, synth_depth, synth_normals = batch
-            self.val_denorm_color_images = imagenet_denorm(synth_img).detach().cpu()
-            self.validation_data = synth_depth.detach(), synth_normals.detach()
+            self.val_denorm_color_images = imagenet_denorm(synth_img[:self.max_num_image_samples]).detach().cpu()
+            self.validation_data = synth_depth[:self.max_num_image_samples].detach(), \
+                                   synth_normals[:self.max_num_image_samples].detach()
 
     def on_validation_epoch_end(self) -> None:
         if self._val_epoch_count % self.config.val_plot_interval == 0:
