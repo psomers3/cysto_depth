@@ -7,9 +7,9 @@ from models.decoder import Decoder
 
 
 class DepthNorm2Image(nn.Module):
-    def __init__(self, encoder_config: EncoderConfig, depth_scale: float = 1e-3):
+    def __init__(self, encoder_config: EncoderConfig, depth_scale: float = 1e-3, add_noise: bool = False):
         super(DepthNorm2Image, self).__init__()
-        self.add_noise = False
+        self.add_noise = add_noise
         in_channels = 6 if self.add_noise else 5
         self.encoder = AdaptiveEncoder(encoder_config, num_input_channels=in_channels)
         self.decoder = Decoder(self.encoder.feature_levels[::-1], num_output_channels=3)

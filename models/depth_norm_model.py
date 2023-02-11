@@ -17,7 +17,7 @@ class DepthNormModel(pl.LightningModule):
         super(DepthNormModel, self).__init__()
         self.save_hyperparameters(Namespace(**config))
         self.config = config
-        self.model = DepthNorm2Image(config.encoder, depth_scale=config.depth_scale)
+        self.model = DepthNorm2Image(config.encoder, depth_scale=config.depth_scale, add_noise=config.add_noise)
         self.loss = torch.nn.L1Loss() if '1' in config.L_loss else torch.nn.MSELoss()
         self.max_num_image_samples = 8
         if config.resume_from_checkpoint:
@@ -56,7 +56,7 @@ class DepthNormModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         synth_img, synth_depth, synth_normals = batch
         out_images = self(synth_depth, synth_normals, source_id=0)
-        loss = self.loss(out_images, synth_img)
+        loss = self.loss(out_images, imagenet_denorm(synth_img))
         self.log('loss', loss)
         return loss
 

@@ -117,6 +117,7 @@ class DepthNorm2ImageConfig:
     """ learning rate for optimizer """
     max_epochs: int = 10
     depth_scale: float = 1e-3
+    add_noise: bool = True
     optimizer: str = 'adam'
     """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
     L_loss: str = 'L1'
