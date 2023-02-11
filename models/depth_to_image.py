@@ -9,11 +9,12 @@ from models.decoder import Decoder
 class DepthNorm2Image(nn.Module):
     def __init__(self, encoder_config: EncoderConfig, depth_scale: float = 1e-3):
         super(DepthNorm2Image, self).__init__()
-        self.encoder = AdaptiveEncoder(encoder_config, num_input_channels=6)
+        self.add_noise = False
+        in_channels = 6 if self.add_noise else 5
+        self.encoder = AdaptiveEncoder(encoder_config, num_input_channels=in_channels)
         self.decoder = Decoder(self.encoder.feature_levels[::-1], num_output_channels=3)
         self.sigmoid = torch.nn.Sigmoid()
         self.depth_scale = depth_scale
-        self.add_noise = False
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int) -> Tensor:
         """
