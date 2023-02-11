@@ -22,13 +22,16 @@ def _get_output_features(module: torch.nn.Sequential):
 
 
 class VanillaEncoder(torch.nn.Module):
-    def __init__(self, backbone: str = 'resnet18', imagenet_weights: bool = True):
+    def __init__(self, backbone: str = 'resnet18', imagenet_weights: bool = True, num_input_channels: int = 3):
         super().__init__()
         self.base_model = _base_model[backbone](weights=_image_net_weights[backbone] if imagenet_weights else None)
+        if num_input_channels != 3:
+           self.change_num_input_channels(num_input_channels)
+
         base_layers = list(self.base_model.children())
         self.feature_levels = []
 
-        self.conv_original_size0 = convrelu(3, 64, 3, 1)
+        self.conv_original_size0 = convrelu(num_input_channels, 64, 3, 1)
         self.conv_original_size1 = convrelu(64, 64, 3, 1)
 
         self.layer0 = torch.nn.Sequential(*base_layers[:3])  # shape=(N, num_feat, x.H/2, x.W/2)
@@ -69,6 +72,29 @@ class VanillaEncoder(torch.nn.Module):
 
     def __call__(self, *args, **kwargs) -> Tuple[List[torch.Tensor], List]:
         return super(VanillaEncoder, self).__call__(*args, **kwargs)
+
+    def change_num_input_channels(self, num_input_channels):
+        layer = self.base_model.conv1
+        new_layer = nn.Conv2d(in_channels=num_input_channels,
+                              out_channels=layer.out_channels,
+                              kernel_size=layer.kernel_size,
+                              stride=layer.stride,
+                              padding=layer.padding,
+                              bias=layer.bias)
+        # Copying the weights from the old to the new layer
+        new_layer.weight.requires_grad = False
+        layer.weight.requires_grad = False
+        new_layer.weight[:, :layer.in_channels, :, :] = layer.weight
+        copy_weights = 0  # initialize new channel with the red channel weights
+
+        # Copying the weights of the `copy_weights` channel of the old layer to the extra channels of the new layer
+        for i in range(num_input_channels - layer.in_channels):
+            channel = layer.in_channels + i
+            new_layer.weight[:, channel:channel + 1, :, :] = layer.weight[:, copy_weights:copy_weights + 1, ::].clone()
+        new_layer.weight = nn.Parameter(new_layer.weight)
+        new_layer.requires_grad = True
+        new_layer = new_layer.to(layer.weight.device)
+        self.base_model.conv1 = new_layer
 
 
 class CoordConv2dELU(nn.modules.conv.Conv2d):

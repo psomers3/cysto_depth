@@ -7,12 +7,14 @@ from config.training_config import EncoderConfig
 
 
 class AdaptiveEncoder(VanillaEncoder):
-    def __init__(self, config: EncoderConfig):
+    def __init__(self, config: EncoderConfig, num_input_channels: int = 3):
         """
 
         :param config: Config for the Encoder
         """
-        super().__init__(backbone=config.backbone, imagenet_weights=config.load_imagenet_weights)
+        super().__init__(backbone=config.backbone,
+                         imagenet_weights=config.load_imagenet_weights,
+                         num_input_channels=num_input_channels)
         init_zero = False
         activation = config.res_layer_activation
         norm = config.res_layer_norm

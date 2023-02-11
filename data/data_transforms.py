@@ -227,8 +227,7 @@ class PhongAffine:
                  degrees: Tuple[float, float],
                  translate: Tuple[float, float],
                  use_corner_as_fill: bool = None,
-                 image_size: int = 256,
-                 device: torch.device = None):
+                 image_size: int = 256):
         """
         TODO: implement translation properly... for now DO NOT TRANSLATE
         :param degrees:
@@ -240,7 +239,6 @@ class PhongAffine:
         self.translate = translate
         self.use_corner_as_fill = use_corner_as_fill
         self.image_size = (image_size, image_size)
-        self.device = device
 
     def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False, is_normals: bool = False) -> torch.Tensor:
         border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)

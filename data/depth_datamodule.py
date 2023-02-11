@@ -4,6 +4,7 @@ from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
 from data.memorize import MemorizeCheck
+from scipy.spatial.transform import Rotation
 
 
 class EndoDepthDataModule(FileLoadingDataModule):
@@ -42,13 +43,14 @@ class EndoDepthDataModule(FileLoadingDataModule):
         self.invert_depth = inverse_depth
         self.memorize_check = memorize_check
         self.add_random_blur = add_random_blur
+        self.data_roles = data_roles
 
     def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
         """ get the list of transforms for each data channel (i.e. image, label)
 
             :param stage: one of 'train', 'val', 'test'
         """
-        num_synchros = 2
+        num_synchros = len(self.data_roles)
 
         normalize = d_transforms.ImageNetNormalization()
         img_squarify = d_transforms.Squarify(image_size=self.image_size, clamp_values=True)
@@ -58,10 +60,13 @@ class EndoDepthDataModule(FileLoadingDataModule):
                                                   additional_args=[[None, self.add_random_blur],
                                                                    [0],
                                                                    [0]])
-        affine_transform = d_transforms.SynchronizedTransform(transform=d_transforms.RandomAffine(degrees=(0, 360),
-                                                                                                  translate=(.1, .1)),
-                                                              num_synchros=num_synchros, additional_args=[[True],
-                                                                                                          [False]])
+        affine_transform = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
+                                                                                       translate=(0, 0),
+                                                                                       image_size=self.image_size),
+                                                              num_synchros=num_synchros,
+                                                              additional_args=[[True],
+                                                                               [False],
+                                                                               [False, True]])
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         to_mm = d_transforms.ElementWiseScale(self.scale_factor)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
@@ -76,10 +81,20 @@ class EndoDepthDataModule(FileLoadingDataModule):
             color_transforms.insert(0, color_jitter)
             color_transforms.append(affine_transform)
         color_transforms.append(normalize)
-
         composed_color_transforms = torch_transforms.Compose(color_transforms)
         composed_depth_transforms = torch_transforms.Compose(depth_transforms)
         transforms = [composed_color_transforms, composed_depth_transforms]
+
+        if 'normals' in self.data_roles:
+            normals_squarify = d_transforms.Squarify(image_size=self.image_size,
+                                                     interpolation=torch_transforms.InterpolationMode.BICUBIC)
+            normals_rotation = d_transforms.MatrixRotation(
+                Rotation.from_euler('XYZ', [0, 180, 0], degrees=True).as_matrix())
+            normals_transforms = [d_transforms.FlipBRGRGB(), normals_rotation, normals_squarify, mask]
+            if stage.lower() == 'train':
+                normals_transforms.append(affine_transform)
+            composed_normals_transforms = torch_transforms.Compose(normals_transforms)
+            transforms.append(composed_normals_transforms)
         return transforms
 
     def setup(self, stage: str = None):

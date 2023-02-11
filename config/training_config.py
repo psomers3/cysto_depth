@@ -101,6 +101,52 @@ class PhongConfig:
 
 
 @dataclass
+class DepthNorm2ImageConfig:
+
+    encoder: EncoderConfig = EncoderConfig(adaptive_gating=False, residual_learning=False)
+    data_roles: List[str] = field(default_factory=lambda: ['color', 'depth', 'normals'])
+    """ The names to use for each type of data to be loaded """
+    data_directories: List[str] = MISSING
+    """ The directories corresponding to the data for each data role in  data_roles """
+    training_split: dict = field(default_factory=lambda: {'train': .6,
+                                                          'validate': .3,
+                                                          'test': .1})
+    training_split_file: str = ''
+    """ An existing training split json file. If not empty, will be used instead of training_split """
+    lr: float = 1e-3
+    """ learning rate for optimizer """
+    max_epochs: int = 10
+    depth_scale: float = 1e-3
+    optimizer: str = 'adam'
+    """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
+    L_loss: str = 'L1'
+    """ L1 or L2 loss for image comparison """
+    val_check_interval: int = '${..val_check_interval}'
+    """ how many steps before checking validation """
+    val_plot_interval: int = '${..val_plot_interval}'
+    """ how many validation epochs between plotting validation images """
+    train_plot_interval: int = '${..train_plot_interval}'
+    """ how many steps before plotting train images """
+    accumulate_grad_batches: int = 4
+    """ how many batches to include before gradient update """
+    batch_size: int = 32
+    resume_from_checkpoint: Union[str, None] = ""
+    """ checkpoint to load weights from """
+    image_size: int = '${..image_size}'
+    """ Final square size to make all images """
+    inverse_depth: bool = "${..inverse_depth}"
+    """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
+    add_mask_blur: bool = "${..add_mask_blur}"
+    """ Whether to add random gaussian blur to the edge of the circular mask """
+    monitor_metric: str = 'loss'
+    """ main metric to track for performance """
+    callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
+                                               ckpt_save_top_k=1,
+                                               model_ckpt_save_k=None,
+                                               save_weights_only=False)
+
+
+@dataclass
 class SyntheticTrainingConfig:
     """ Hyperparameter settings for the supervised synthetic depth training """
 
@@ -269,7 +315,7 @@ class CystoDepthConfig:
     """ Configuration for training synthetic depth and/or domain transfer for real cystoscopic videos"""
 
     mode: str = 'synthetic'
-    """ Mode can be one of ['synthetic', 'gan'] """
+    """ Mode can be one of ['synthetic', 'gan', 'depthnorm'] """
     training_stage: str = 'train'
     """ Training_stage can be one of ['train', 'test'] """
     log_directory: str = './logs'
@@ -285,6 +331,7 @@ class CystoDepthConfig:
     synthetic_config: SyntheticTrainingConfig = SyntheticTrainingConfig()
     gan_config: GANTrainingConfig = GANTrainingConfig()
     trainer_config: TrainerDictConfig = TrainerDictConfig()
+    depth_norm_config: DepthNorm2ImageConfig = DepthNorm2ImageConfig()
     phong_config: PhongConfig = PhongConfig()
     """ The config for the phong dataloader """
     predict_normals: bool = False

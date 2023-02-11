@@ -11,6 +11,7 @@ from utils.general import get_default_args, get_callbacks
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from models.depth_model import DepthEstimationModel
+from models.depth_norm_model import DepthNormModel
 from data.depth_datamodule import EndoDepthDataModule
 from data.phong_datamodule import PhongDataModule
 from data.gan_datamodule import GANDataModule
@@ -24,7 +25,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         print(OmegaConf.to_yaml(config))
 
     assert config.training_stage.lower() in ['train', 'validate', 'test']
-    assert config.mode.lower() in ['synthetic', 'gan']
+    assert config.mode.lower() in ['synthetic', 'gan', 'depthnorm']
 
     if not os.path.exists(config.log_directory):
         os.makedirs(config.log_directory)
@@ -47,7 +48,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           workers_per_loader=config.num_workers,
                                           phong_config=config.phong_config,
                                           memorize_check=config.memorize_check,
-                                          add_random_blur=config.add_mask_blur)
+                                          add_random_blur=config.synthetic_config.add_mask_blur)
         else:
             data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
                                               data_roles=config.synthetic_config.data_roles,
@@ -58,11 +59,11 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               depth_scale_factor=1e3,
                                               inverse_depth=config.inverse_depth,
                                               memorize_check=config.memorize_check,
-                                              add_random_blur=config.add_mask_blur)
+                                              add_random_blur=config.synthetic_config.add_mask_blur)
         model = DepthEstimationModel(config.synthetic_config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
-    else:
+    elif config.mode == 'gan':
         split = config.gan_config.synth_split if not config.gan_config.training_split_file else \
             config.gan_config.synth_split
         data_module = GANDataModule(batch_size=config.gan_config.batch_size,
@@ -78,6 +79,22 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})
+    elif config.mode == 'depthnorm':
+        split = config.depth_norm_config.training_split if not config.depth_norm_config.training_split_file else \
+            config.depth_norm_config.training_split
+        data_module = EndoDepthDataModule(batch_size=config.depth_norm_config.batch_size,
+                                          data_roles=config.depth_norm_config.data_roles,
+                                          data_directories=config.depth_norm_config.data_directories,
+                                          split=split,
+                                          image_size=config.image_size,
+                                          workers_per_loader=config.num_workers,
+                                          depth_scale_factor=1e3,
+                                          inverse_depth=config.depth_norm_config.inverse_depth,
+                                          memorize_check=config.memorize_check,
+                                          add_random_blur=config.depth_norm_config.add_mask_blur)
+        model = DepthNormModel(config.depth_norm_config)
+        [trainer_dict.update({key: val}) for key, val in config.depth_norm_config.items() if key in trainer_dict]
+        trainer_dict.update({'callbacks': get_callbacks(config.depth_norm_config.callbacks)})
 
     logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
     trainer_dict.update({'logger': logger})

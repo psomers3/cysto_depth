@@ -1,0 +1,30 @@
+log_directory: ./logs
+print_config: true
+mode: depthnorm
+training_stage: train
+split_save_dir: ./splits
+num_workers: 6
+val_check_interval: 100
+val_plot_interval: 1
+depth_norm_config:
+  encoder:
+    load_imagenet_weights: True
+    backbone: resnet18
+  accumulate_grad_batches: 4
+  L_loss: L2
+  max_epochs: 300
+  batch_size: 16
+  data_roles:
+    - color
+    - depth
+    - normals
+  data_directories:
+    - /Users/peter/isys/2023_01_29/color
+    - /Users/peter/isys/2023_01_29/depth
+    - /Users/peter/isys/2023_01_29/normals
+  training_split: {'train': .95, 'validate': 0.025, 'test': .025}
+trainer_config:
+  gpus: []
+  strategy: null
+  accelerator: mps
+  log_every_n_steps: 2
