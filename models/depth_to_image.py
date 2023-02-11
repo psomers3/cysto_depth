@@ -13,6 +13,7 @@ class DepthNorm2Image(nn.Module):
         self.decoder = Decoder(self.encoder.feature_levels[::-1], num_output_channels=3)
         self.sigmoid = torch.nn.Sigmoid()
         self.depth_scale = depth_scale
+        self.add_noise = False
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int) -> Tensor:
         """
@@ -26,9 +27,11 @@ class DepthNorm2Image(nn.Module):
                                        fill_value=source_id,
                                        device=depth.device,
                                        dtype=depth.dtype)
-        noise = torch.rand_like(depth, device=depth.device, dtype=depth.dtype)
-
-        stacked = torch.cat([depth*self.depth_scale, normals, source_layer, noise], dim=1)
+        inputs = [depth*self.depth_scale, normals, source_layer]
+        if self.add_noise:
+            noise = torch.rand_like(depth, device=depth.device, dtype=depth.dtype)
+            inputs.append(noise)
+        stacked = torch.cat(inputs, dim=1)
         skip_outs, _ = self.encoder(stacked)
         return self.sigmoid(self.decoder(skip_outs))
 
