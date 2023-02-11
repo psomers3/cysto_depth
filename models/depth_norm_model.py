@@ -69,7 +69,8 @@ class DepthNormModel(pl.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         if self._val_epoch_count % self.config.val_plot_interval == 0:
-            self.plot()
+            if self.validation_data is not None:
+                self.plot()
         self._val_epoch_count += 1
         return super().on_validation_epoch_end()
 
