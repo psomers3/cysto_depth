@@ -118,6 +118,11 @@ class DepthNorm2ImageConfig:
     max_epochs: int = 10
     depth_scale: float = 1e-3
     add_noise: bool = True
+    use_critic: bool = True
+    critic_discriminator_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                                           img_level=True,
+                                                                           normalization='instance')
+    wasserstein_critic_updates: int = 5
     optimizer: str = 'adam'
     """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
     L_loss: str = 'L1'

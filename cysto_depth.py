@@ -93,6 +93,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           memorize_check=config.memorize_check,
                                           add_random_blur=config.depth_norm_config.add_mask_blur)
         model = DepthNormModel(config.depth_norm_config)
+        config.depth_norm_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.depth_norm_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.depth_norm_config.callbacks)})
 

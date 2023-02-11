@@ -10,10 +10,10 @@ depth_norm_config:
   encoder:
     load_imagenet_weights: True
     backbone: resnet18
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 1
   L_loss: L2
   max_epochs: 300
-  batch_size: 16
+  batch_size: 4
   data_roles:
     - color
     - depth
@@ -22,7 +22,7 @@ depth_norm_config:
     - /Users/peter/isys/2023_01_29/color
     - /Users/peter/isys/2023_01_29/depth
     - /Users/peter/isys/2023_01_29/normals
-  training_split: {'train': .95, 'validate': 0.025, 'test': .025}
+  training_split: {'train': .75, 'validate': 0.225, 'test': .025}
 trainer_config:
   gpus: []
   strategy: null
