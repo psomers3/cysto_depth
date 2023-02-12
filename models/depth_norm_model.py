@@ -210,12 +210,13 @@ class DepthNormModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         self.eval()
         loss = 0
-        for source_id in batch:
-            synth_img, synth_depth, synth_normals = batch[source_id]
-            out_images = self(synth_depth, synth_normals, source_id=source_id)
-            loss += self.L_loss(out_images, imagenet_denorm(synth_img))
-        self.val_loss += loss / len(batch)
-        self.val_batch_count += 1
+        if self.L_loss is not None:
+            for source_id in batch:
+                synth_img, synth_depth, synth_normals = batch[source_id]
+                out_images = self(synth_depth, synth_normals, source_id=source_id)
+                loss += self.L_loss(out_images, imagenet_denorm(synth_img))
+            self.val_loss += loss / len(batch)
+            self.val_batch_count += 1
 
         if self.validation_data is None:
             synth_images_all = []
