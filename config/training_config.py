@@ -113,8 +113,12 @@ class DepthNorm2ImageConfig:
                                                           'test': .1})
     training_split_file: str = ''
     """ An existing training split json file. If not empty, will be used instead of training_split """
-    lr: float = 1e-3
-    """ learning rate for optimizer """
+    generator_lr: float = 5e-4
+    """ learning rate for generator """
+    discriminator_lr: float = 5e-5
+    """ learning rate for discriminators """
+    critic_lr: float = 5e-5
+    """ learning rate for critics """
     max_epochs: int = 10
     depth_scale: float = 1e-3
     add_noise: bool = True
@@ -124,9 +128,9 @@ class DepthNorm2ImageConfig:
                                                                            normalization='instance')
     wasserstein_critic_updates: int = 5
     optimizer: str = 'adam'
-    """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
-    L_loss: str = 'L1'
-    """ L1 or L2 loss for image comparison """
+    """ Which generator optimizer to use. ['adam', 'radam', 'rmsprop'] """
+    L_loss: str = ''
+    """ L1 or L2 loss for image comparison. empty means don't use. """
     val_check_interval: int = '${..val_check_interval}'
     """ how many steps before checking validation """
     val_plot_interval: int = '${..val_plot_interval}'

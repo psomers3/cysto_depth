@@ -111,7 +111,9 @@ class AvgTensorNorm(nn.Module):
         return avg_norm
 
 
-def binary_cross_entropy_loss(predicted: Tensor, ground_truth: Tensor, *args, **kwargs) -> Tensor:
+def binary_cross_entropy_loss(predicted: Tensor, ground_truth: Union[Tensor, float], *args, **kwargs) -> Tensor:
+    if isinstance(ground_truth, float):
+        ground_truth = torch.ones_like(predicted, device=predicted.device)
     return F.binary_cross_entropy(predicted, ground_truth)
 
 

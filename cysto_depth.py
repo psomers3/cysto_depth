@@ -76,7 +76,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     image_size=config.image_size,
                                     workers_per_loader=config.num_workers,
                                     add_random_blur=config.add_mask_blur)
-        model = GAN(synth_config=config.synthetic_config, gan_config=config.gan_config)
+        model = GAN(synth_config=config.synthetic_config.copy(), gan_config=config.gan_config.copy())
         config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})
@@ -103,7 +103,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               add_random_blur=config.depth_norm_config.add_mask_blur)
             dataload_dict[i] = data_module
         data_module = DictDataLoaderCombine(dataload_dict)
-        model = DepthNormModel(config.depth_norm_config)
+        model = DepthNormModel(config.depth_norm_config.copy())
         config.depth_norm_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.depth_norm_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.depth_norm_config.callbacks)})
