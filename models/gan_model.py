@@ -54,6 +54,8 @@ class GAN(BaseModel):
         self.generator_global_step = -1
         self.discriminators_global_step = -1
         self.total_train_step_count = -1
+        self.batches_accumulated = 0
+        self._generator_training = False
         self.unadapted_images_for_plotting = None
         self.discriminator_loss = GANDiscriminatorLoss[gan_config.loss]
         self.generator_loss = GANGeneratorLoss[gan_config.loss]
@@ -109,12 +111,13 @@ class GAN(BaseModel):
         if self.config.freeze_batch_norm:
             self.generator.apply(freeze_batchnorm)
 
-        generator_step = self.total_train_step_count % self.check_for_generator_step == 0
         self.total_train_step_count += 1
-        if generator_step and self.global_step >= self.config.warmup_steps:
+        if self._generator_training:
+            # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
-            self.discriminators_train_step(batch, batch_idx)
+            # print('critic')
+            self.critic_train_step(batch, batch_idx)
 
     def generator_train_step(self, batch, batch_idx) -> None:
         # x = synthetic image, z = real image
@@ -169,8 +172,13 @@ class GAN(BaseModel):
 
         self.manual_backward(g_loss)
         self.g_losses_log['g_loss'] += g_loss
-        self.generator_global_step += 1
-        step_optimizers = self.generator_global_step % self.config.accumulate_grad_batches == 0
+        self.batches_accumulated += 1
+        step_optimizers = False
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
+            self.generator_global_step += 1
+            self.batches_accumulated = 0
+            self._generator_training = not self._generator_training
+            step_optimizers = True
         if step_optimizers:
             generator_opt.step()
             generator_sched.step()
@@ -178,7 +186,7 @@ class GAN(BaseModel):
             self.log_dict(self.g_losses_log)
             self.g_losses_log.update({k: 0 for k in self.g_losses_log.keys()})
 
-    def discriminators_train_step(self, batch, batch_idx) -> None:
+    def critic_train_step(self, batch, batch_idx) -> None:
         # x = synthetic image, z = real image
         x, z = batch
         self.generator.eval()
@@ -234,15 +242,21 @@ class GAN(BaseModel):
 
         self.manual_backward(d_loss)
         self.d_losses_log['d_loss'] += d_loss
+        self.batches_accumulated += 1
+        step_optimizers = False
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
+            self.discriminators_global_step += 1
+            self.batches_accumulated = 0
+            step_optimizers = True
+            if self.discriminators_global_step % self.config.wasserstein_critic_updates == 0:
+                self._generator_training = not self._generator_training
+                self.log_dict(self.d_losses_log)
+                self.d_losses_log.update({k: 0.0 for k in self.d_losses_log.keys()})
 
-        self.discriminators_global_step += 1
-        step_optimizers = self.discriminators_global_step % self.config.accumulate_grad_batches == 0
         if step_optimizers:
             [d_opt.step() for d_opt in discriminator_opts]
             [d_opt.zero_grad() for d_opt in discriminator_opts]
             [d_sched.step() for d_sched in discriminator_sched]
-            self.log_dict(self.d_losses_log)
-            self.d_losses_log.update({k: 0 for k in self.d_losses_log.keys()})
 
     def _apply_generator_loss(self, discriminator_out: Tensor, name: str, label_as_good: bool = True,
                               apply_uncertainty: bool = True) -> Tensor:
