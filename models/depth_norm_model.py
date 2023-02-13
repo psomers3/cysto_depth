@@ -26,10 +26,15 @@ class DepthNormModel(pl.LightningModule):
         self.val_denorm_color_images = None
         self.validation_data = None
         self._val_epoch_count = 0
-        critics = {str(i): Discriminator(config.critic_discriminator_config) for i in [0, 1]} if config.use_critic else None
-        self.critics = torch.nn.ModuleDict(critics)
-        discriminators = {str(i): Discriminator(config.critic_discriminator_config) for i in [0, 1]} if config.use_critic else None
-        self.discriminators = torch.nn.ModuleDict(discriminators)
+        self.critic_opt_idx = 0
+        if config.use_critic:
+            critics = {str(i): Discriminator(config.critic_config) for i in [0, 1]} if config.use_critic else None
+            self.critics = torch.nn.ModuleDict(critics)
+            self.critic_opt_idx += 1
+        if config.use_discriminator:
+            discriminators = {str(i): Discriminator(config.discriminator_config) for i in [0, 1]} if config.use_critic else None
+            self.discriminators = torch.nn.ModuleDict(discriminators)
+            self.discriminators_opt_idx = self.critic_opt_idx + 1
         self.generator_global_step = -1
         self.critic_global_step = 0
         self.total_train_step_count = -1
@@ -52,7 +57,7 @@ class DepthNormModel(pl.LightningModule):
         self.val_loss = 0
         self.val_batch_count = 0
         self.batches_accumulated = 0
-        self._generator_training = False
+        self._generator_training = not (self.config.use_critic or self.config.use_discriminator)
         if config.resume_from_checkpoint:
             path_to_ckpt = config.resume_from_checkpoint
             config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
@@ -84,6 +89,7 @@ class DepthNormModel(pl.LightningModule):
             optimizers.append(optim.RMSprop(filter(lambda p: p.requires_grad,
                                                    self.critics.parameters()),
                                             lr=self.config.critic_lr))
+        if self.config.use_discriminator:
             optimizers.append(optim.Adam(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
                                          lr=self.config.discriminator_lr))
         return optimizers  # , [scheduler]
@@ -95,11 +101,12 @@ class DepthNormModel(pl.LightningModule):
             # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
-            if self.critic_global_step % self.config.wasserstein_critic_updates == 0:
+            if self.critic_global_step % self.config.wasserstein_critic_updates == 0 and self.config.use_discriminator:
                 # print('discriminator')
                 self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
             # print('critic')
-            self.critic_train_step(batch, batch_idx)
+            if self.config.use_critic:
+                self.critic_train_step(batch, batch_idx)
 
     def generator_train_step(self, batch: dict, batch_idx: int):
         self.model.train()
@@ -120,9 +127,11 @@ class DepthNormModel(pl.LightningModule):
                 discriminator_out = self.discriminators[str(source_id)](out_images)
                 critic_loss = self.generator_critic_loss(critic_out)
                 self.g_losses_log[f'g_critic_loss-{source_id}'] += critic_loss
+                loss += critic_loss
+            if self.config.use_discriminator:
                 discriminator_loss = self.generator_discriminator_loss(discriminator_out, 1.0)
                 self.g_losses_log[f'g_discriminator_loss-{source_id}'] += discriminator_loss
-                loss += critic_loss + discriminator_loss
+                loss += discriminator_loss
         self.g_losses_log['g_loss'] += loss
         self.manual_backward(loss)
         self.batches_accumulated += 1
@@ -130,7 +139,7 @@ class DepthNormModel(pl.LightningModule):
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
             self.batches_accumulated = 0
-            self._generator_training = not self._generator_training
+            self._generator_training = False if self.config.use_critic or self.config.use_discriminator else True
             step_optimizers = True
         opt = self.optimizers(use_pl_optimizer=True)[0]
         if step_optimizers:
@@ -166,7 +175,7 @@ class DepthNormModel(pl.LightningModule):
         # +1 because they are stepped in critic update
         if self.batches_accumulated + 1 == self.config.accumulate_grad_batches:
             # print('step discriminators')
-            discriminator_opt = self.optimizers(True)[2]
+            discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
             discriminator_opts = [discriminator_opt] if not isinstance(discriminator_opt, list) else discriminator_opt
             [d_opt.step() for d_opt in discriminator_opts]
             [d_opt.zero_grad() for d_opt in discriminator_opts]
@@ -201,7 +210,7 @@ class DepthNormModel(pl.LightningModule):
 
         if step_optimizers:
             # print('step critics')
-            critic_opts = self.optimizers(True)[1]
+            critic_opts = self.optimizers(True)[self.critic_opt_idx]
             critic_opts = [critic_opts] if not isinstance(critic_opts, list) else critic_opts
             [d_opt.step() for d_opt in critic_opts]
             [d_opt.zero_grad() for d_opt in critic_opts]

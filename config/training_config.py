@@ -104,7 +104,6 @@ class PhongConfig:
 
 @dataclass
 class DepthNorm2ImageConfig:
-
     encoder: EncoderConfig = EncoderConfig(adaptive_gating=False, residual_learning=False)
     data_roles: List[str] = field(default_factory=lambda: ['color', 'depth', 'normals'])
     """ The names to use for each type of data to be loaded """
@@ -125,10 +124,15 @@ class DepthNorm2ImageConfig:
     depth_scale: float = 1e-3
     add_noise: bool = True
     use_critic: bool = True
-    critic_discriminator_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
-                                                                           img_level=True,
-                                                                           normalization='instance',
-                                                                           use_sigmoid=False)
+    use_discriminator: bool = True
+    critic_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                             img_level=True,
+                                                             normalization='instance',
+                                                             use_sigmoid=False)
+    discriminator_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                                    img_level=True,
+                                                                    normalization='instance',
+                                                                    use_sigmoid=True)
     wasserstein_critic_updates: int = 5
     optimizer: str = 'adam'
     """ Which generator optimizer to use. ['adam', 'radam', 'rmsprop'] """
