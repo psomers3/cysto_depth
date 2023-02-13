@@ -451,7 +451,8 @@ class GAN(BaseModel):
         if step is None:
             step = self.current_epoch
         # iterating through all parameters
-        for name, params in self.generator.named_parameters():
-            if 'gate_coefficients' in name:
-                scalars = {str(i): params[i] for i in range(len(params))}
-                self.logger.experiment.add_scalars(name, scalars, step)
+        if self.config.encoder.adaptive_gating and self.config.encoder.residual_learning:
+            for name, params in self.generator.named_parameters():
+                if 'gate_coefficients' in name:
+                    scalars = {str(i): params[i] for i in range(len(params))}
+                    self.logger.experiment.add_scalars(name, scalars, step)
