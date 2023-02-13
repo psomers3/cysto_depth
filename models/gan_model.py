@@ -296,7 +296,8 @@ class GAN(BaseModel):
             d_loss = self.discriminator_loss(synth,
                                              real,
                                              discriminator,
-                                             self.config.wasserstein_lambda)
+                                             self.config.wasserstein_lambda,
+                                             self.config.critic_use_variance)
 
         self.d_losses_log[f'd_loss_{name}'] += d_loss
         return d_loss

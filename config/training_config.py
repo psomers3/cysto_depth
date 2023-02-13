@@ -270,6 +270,8 @@ class GANTrainingConfig:
     """ lambda factor for wasserstein gradient penalty """
     wasserstein_critic_updates: int = 5
     """ How many batches to updated the critics before updating the generator """
+    critic_use_variance: bool = False
+    """ whether to use the variance of the distributions for wasserstein distance """
     max_epochs: int = 10
     optimizer: str = 'radam'
     """ Which torch optimizer to use. ['adam', 'radam'] """
