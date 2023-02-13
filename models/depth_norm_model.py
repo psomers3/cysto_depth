@@ -33,6 +33,7 @@ class DepthNormModel(pl.LightningModule):
             critics = {str(i): Discriminator(config.critic_config) for i in [0, 1]}
             self.critics = torch.nn.ModuleDict(critics)
             self.critic_opt_idx += 1
+            self.d_losses_log[f'd_critic_loss'] = 0.0
             self.g_losses_log.update({f'g_critic_loss-{i}': 0.0 for i in range(len(config.data_roles) // 3)})
             self.d_losses_log.update({f'd_critic_loss-{i}': 0.0 for i in range(len(config.data_roles) // 3)})
 
