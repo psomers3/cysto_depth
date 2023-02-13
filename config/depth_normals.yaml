@@ -11,7 +11,9 @@ depth_norm_config:
     load_imagenet_weights: True
     backbone: resnet18
   accumulate_grad_batches: 2
-  L_loss: L2
+  L_loss: L1
+  use_critic: true
+  use_discriminator: true
   max_epochs: 300
   batch_size: 4
   data_roles:

@@ -26,15 +26,23 @@ class DepthNormModel(pl.LightningModule):
         self.val_denorm_color_images = None
         self.validation_data = None
         self._val_epoch_count = 0
+        self.g_losses_log = {'g_loss': 0}
+        self.d_losses_log = {}
         self.critic_opt_idx = 0
         if config.use_critic:
             critics = {str(i): Discriminator(config.critic_config) for i in [0, 1]} if config.use_critic else None
             self.critics = torch.nn.ModuleDict(critics)
             self.critic_opt_idx += 1
+            self.g_losses_log.update({f'g_critic_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
+            self.d_losses_log.update({f'd_critic_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
+
         if config.use_discriminator:
             discriminators = {str(i): Discriminator(config.discriminator_config) for i in [0, 1]} if config.use_critic else None
             self.discriminators = torch.nn.ModuleDict(discriminators)
             self.discriminators_opt_idx = self.critic_opt_idx + 1
+            self.g_losses_log.update({f'g_discriminator_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
+            self.d_losses_log.update({f'd_discriminator_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
+
         self.generator_global_step = -1
         self.critic_global_step = 0
         self.total_train_step_count = -1
@@ -43,13 +51,7 @@ class DepthNormModel(pl.LightningModule):
         self.generator_critic_loss = GANGeneratorLoss['wasserstein_gp']
         self.generator_discriminator_loss = GANGeneratorLoss['cross_entropy']
         self.check_for_generator_step = self.config.wasserstein_critic_updates + 1
-        self.g_losses_log = {'g_loss': 0}
-        self.g_losses_log.update({f'g_discriminator_loss-{i}': 0 for i in range(len(config.data_roles)//3)})
-        self.g_losses_log.update({f'g_critic_loss-{i}': 0 for i in range(len(config.data_roles)//3)})
 
-        self.d_losses_log = {'d_critic_loss': 0, 'd_discriminator_loss': 0}
-        self.d_losses_log.update({f'd_discriminator_loss-{i}': 0 for i in range(len(config.data_roles)//3)})
-        self.d_losses_log.update({f'd_critic_loss-{i}': 0 for i in range(len(config.data_roles)//3)})
         self.L_loss = None
         if config.L_loss:
             self.L_loss = torch.nn.L1Loss() if '1' in config.L_loss else torch.nn.MSELoss()
