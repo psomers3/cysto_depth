@@ -128,11 +128,11 @@ class DepthNormModel(pl.LightningModule):
                 loss += img_loss
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
-                discriminator_out = self.discriminators[str(source_id)](out_images)
                 critic_loss = self.generator_critic_loss(critic_out)
                 self.g_losses_log[f'g_critic_loss-{source_id}'] += critic_loss
                 loss += critic_loss
             if self.config.use_discriminator:
+                discriminator_out = self.discriminators[str(source_id)](out_images)
                 discriminator_loss = self.generator_discriminator_loss(discriminator_out, 1.0)
                 self.g_losses_log[f'g_discriminator_loss-{source_id}'] += discriminator_loss
                 loss += discriminator_loss
