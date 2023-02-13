@@ -194,7 +194,11 @@ class DepthNormModel(pl.LightningModule):
                 synth_img, synth_depth, synth_normals = batch[source_id]
                 denormed_images = imagenet_denorm(synth_img)
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
-            critic_loss = self.discriminator_critic_loss(denormed_images, out_images, self.critics[str(source_id)], 10)
+            critic_loss = self.discriminator_critic_loss(denormed_images,
+                                                         out_images,
+                                                         self.critics[str(source_id)],
+                                                         10,
+                                                         self.config.critic_use_variance)
             self.d_losses_log[f'd_critic_loss-{source_id}'] += critic_loss
             loss += critic_loss
         self.d_losses_log[f'd_critic_loss'] += loss

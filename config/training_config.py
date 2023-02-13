@@ -120,9 +120,10 @@ class DepthNorm2ImageConfig:
     """ learning rate for discriminators """
     critic_lr: float = 5e-5
     """ learning rate for critics """
-    max_epochs: int = 10
+    max_epochs: int = 5000
     depth_scale: float = 1e-3
-    add_noise: bool = True
+    add_noise: bool = False
+    """ Add a layer of noise to input of the generator """
     use_critic: bool = True
     use_discriminator: bool = True
     critic_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
@@ -134,6 +135,9 @@ class DepthNorm2ImageConfig:
                                                                     normalization='instance',
                                                                     use_sigmoid=True)
     wasserstein_critic_updates: int = 5
+    """ how many gradient updates for critics before another generator update """
+    critic_use_variance: bool = False
+    """ whether to use the variance of the distributions for wasserstein distance """
     optimizer: str = 'adam'
     """ Which generator optimizer to use. ['adam', 'radam', 'rmsprop'] """
     L_loss: str = ''
