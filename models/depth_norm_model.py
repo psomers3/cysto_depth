@@ -30,18 +30,19 @@ class DepthNormModel(pl.LightningModule):
         self.d_losses_log = {}
         self.critic_opt_idx = 0
         if config.use_critic:
-            critics = {str(i): Discriminator(config.critic_config) for i in [0, 1]} if config.use_critic else None
+            critics = {str(i): Discriminator(config.critic_config) for i in [0, 1]}
             self.critics = torch.nn.ModuleDict(critics)
             self.critic_opt_idx += 1
-            self.g_losses_log.update({f'g_critic_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
-            self.d_losses_log.update({f'd_critic_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
+            self.g_losses_log.update({f'g_critic_loss-{i}': 0.0 for i in range(len(config.data_roles) // 3)})
+            self.d_losses_log.update({f'd_critic_loss-{i}': 0.0 for i in range(len(config.data_roles) // 3)})
 
         if config.use_discriminator:
-            discriminators = {str(i): Discriminator(config.discriminator_config) for i in [0, 1]} if config.use_critic else None
+            discriminators = {str(i): Discriminator(config.discriminator_config) for i in [0, 1]}
             self.discriminators = torch.nn.ModuleDict(discriminators)
             self.discriminators_opt_idx = self.critic_opt_idx + 1
-            self.g_losses_log.update({f'g_discriminator_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
-            self.d_losses_log.update({f'd_discriminator_loss-{i}': 0 for i in range(len(config.data_roles) // 3)})
+            self.d_losses_log['d_discriminator_loss'] = 0.0
+            self.g_losses_log.update({f'g_discriminator_loss-{i}': 0.0 for i in range(len(config.data_roles) // 3)})
+            self.d_losses_log.update({f'd_discriminator_loss-{i}': 0.0 for i in range(len(config.data_roles) // 3)})
 
         self.generator_global_step = -1
         self.critic_global_step = 0
