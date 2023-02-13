@@ -23,14 +23,6 @@ class DepthNormModel(pl.LightningModule):
         self.config = config
         self.model = DepthNorm2Image(config.encoder, depth_scale=config.depth_scale, add_noise=config.add_noise)
         self.max_num_image_samples = 4
-        if config.resume_from_checkpoint:
-            path_to_ckpt = config.resume_from_checkpoint
-            config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-            ckpt = self.load_from_checkpoint(path_to_ckpt,
-                                             strict=False,
-                                             config=config)
-            self.load_state_dict(ckpt.state_dict())
-
         self.val_denorm_color_images = None
         self.validation_data = None
         self._val_epoch_count = 0
@@ -61,6 +53,13 @@ class DepthNormModel(pl.LightningModule):
         self.val_batch_count = 0
         self.batches_accumulated = 0
         self._generator_training = False
+        if config.resume_from_checkpoint:
+            path_to_ckpt = config.resume_from_checkpoint
+            config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
+            ckpt = self.load_from_checkpoint(path_to_ckpt,
+                                             strict=False,
+                                             config=config)
+            self.load_state_dict(ckpt.state_dict())
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int, **kwargs: Any, ) -> Tensor:
         """
