@@ -152,11 +152,11 @@ class DepthNormModel(pl.LightningModule):
                 synth_img, synth_depth, synth_normals = batch[source_id]
                 denormed_images = imagenet_denorm(synth_img)
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
-            discriminator_out_fake = self.discriminators[str(source_id)](out_images)
-            discriminator_out_real = self.discriminators[str(source_id)](denormed_images)
-            loss_fake = self.discriminator_loss(discriminator_out_fake, 0.0)
-            loss_real = self.discriminator_loss(discriminator_out_real, 1.0)
-            combined = loss_real + loss_fake
+            discriminator_out_generated = self.discriminators[str(source_id)](out_images)
+            discriminator_out_original = self.discriminators[str(source_id)](denormed_images)
+            loss_generated = self.discriminator_loss(discriminator_out_generated, 0.0)
+            loss_original = self.discriminator_loss(discriminator_out_original, 1.0)
+            combined = loss_original + loss_generated
             discriminator_loss += combined
 
             self.d_losses_log[f'd_discriminator_loss-{source_id}'] += combined

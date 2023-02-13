@@ -10,6 +10,7 @@ from typing import *
 from utils.general import get_default_args, get_callbacks
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.plugins.environments import SLURMEnvironment
 from models.depth_model import DepthEstimationModel
 from models.depth_norm_model import DepthNormModel
 from data.depth_datamodule import EndoDepthDataModule
@@ -17,6 +18,7 @@ from data.phong_datamodule import PhongDataModule
 from data.general_data_module import DictDataLoaderCombine
 from data.gan_datamodule import GANDataModule
 from models.gan_model import GAN
+import signal
 
 
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
@@ -34,6 +36,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         torch.set_float32_matmul_precision(config.torch_float_precision)
 
     trainer_dict = get_default_args(pl.Trainer.__init__)
+    if config.slurm_requeue:
+        trainer_dict['plugins'] = [SLURMEnvironment(requeue_signal=signal.SIGHUP)]
     [trainer_dict.update({key: val}) for key, val in config.trainer_config.items() if key in trainer_dict]
 
     if config.mode == "synthetic":

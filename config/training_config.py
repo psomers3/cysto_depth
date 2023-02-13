@@ -364,3 +364,5 @@ class CystoDepthConfig:
     """ how many validation epochs between plotting validation images """
     train_plot_interval: int = 500
     """ how many steps before plotting train images """
+    slurm_requeue: bool = False
+    """ Whether to automatically requeue the training with a checkpoint """
