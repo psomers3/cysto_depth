@@ -37,7 +37,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
     trainer_dict = get_default_args(pl.Trainer.__init__)
     if config.slurm_requeue:
-        trainer_dict['plugins'] = [SLURMEnvironment(requeue_signal=signal.SIGHUP)]
+        trainer_dict['plugins'] = [SLURMEnvironment(requeue_signal=signal.SIGUSR1)]
     [trainer_dict.update({key: val}) for key, val in config.trainer_config.items() if key in trainer_dict]
 
     if config.mode == "synthetic":
