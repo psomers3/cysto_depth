@@ -117,11 +117,15 @@ def binary_cross_entropy_loss(predicted: Tensor, ground_truth: Union[Tensor, flo
     return F.binary_cross_entropy(predicted, ground_truth)
 
 
-def wasserstein_discriminator_loss(original: Tensor, generated: Tensor, *args, **kwargs) -> Tensor:
+def wasserstein_discriminator_loss(original: Tensor, generated: Tensor, use_variance: bool = False, *args, **kwargs) -> Tensor:
     """ Discriminator outputs from data originating from the original domain and
         from the generator's attempt (generated)
     """
-    return generated.mean() - original.mean()
+    if use_variance:
+        return generated.mean() - original.mean() + \
+               generated.var(dim=None, unbiased=True) - original.var(dim=None, unbiased=True)
+    else:
+        return generated.mean() - original.mean()
 
 
 def wasserstein_generator_loss(generated: Tensor, *args, **kwargs) -> Tensor:

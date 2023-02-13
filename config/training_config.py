@@ -55,6 +55,8 @@ class DiscriminatorConfig:
     """ Whether this discriminator uses the padding/stride for image level discrimination """
     single_out: bool = False
     """ Whether to return just the max of the output """
+    use_sigmoid: bool = True
+    """ Whether to use a sigmoid output activation """
 
 
 @dataclass
@@ -125,7 +127,8 @@ class DepthNorm2ImageConfig:
     use_critic: bool = True
     critic_discriminator_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                                            img_level=True,
-                                                                           normalization='instance')
+                                                                           normalization='instance',
+                                                                           use_sigmoid=False)
     wasserstein_critic_updates: int = 5
     optimizer: str = 'adam'
     """ Which generator optimizer to use. ['adam', 'radam', 'rmsprop'] """

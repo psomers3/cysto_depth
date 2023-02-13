@@ -32,11 +32,15 @@ class GAN(BaseModel):
 
         d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
+        use_sigmoid = gan_config.loss != 'cross_entropy'
         for d_in_shape in d_in_shapes[:-1]:
             d_config: DiscriminatorConfig = gan_config.feature_level_discriminator.copy()
             d_config.in_channels = d_in_shape
+            d_config.use_sigmoid = use_sigmoid
             d = Discriminator(d_config)
             d_feat_list.append(d)
+        gan_config.depth_discriminator.use_sigmoid = use_sigmoid
+        gan_config.phong_discriminator.use_sigmoid = use_sigmoid
         self.d_img = Discriminator(gan_config.depth_discriminator)
         self.d_feat_modules = torch.nn.ModuleList(modules=d_feat_list)
         self.imagenet_denorm = ImageNetNormalization(inverse=True)

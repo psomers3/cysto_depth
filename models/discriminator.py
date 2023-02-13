@@ -11,6 +11,7 @@ class Discriminator(nn.Module):
         activation = config.activation
         norm = config.normalization
         in_channels = config.in_channels
+        self.use_sigmoid = config.use_sigmoid
 
         if config.img_level:
             self.conv = nn.Sequential(
@@ -40,7 +41,7 @@ class Discriminator(nn.Module):
                 nn.Conv2d(512, 1, 3, 1, 1),
                 nn.Flatten()
             )
-        self.out = nn.Sequential(
+        self.sigmoid = nn.Sequential(
             nn.Sigmoid()
         )
 
@@ -48,5 +49,6 @@ class Discriminator(nn.Module):
         validity = self.conv(_input)
         if self.single_out:
             validity = validity.max()
-        validity = self.out(validity)
+        if self.use_sigmoid:
+            validity = self.sigmoid(validity)
         return validity
