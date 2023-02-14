@@ -160,7 +160,7 @@ def wasserstein_gp_discriminator_loss(original_input: Tensor,
     generated_input.requires_grad = True
 
     return (wasserstein_discriminator_loss(critic(original_input), critic(generated_input), use_variance) \
-           + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda)) * 1e-3
+           + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda))
 
 
 GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {
