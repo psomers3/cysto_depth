@@ -116,6 +116,7 @@ class DepthNormModel(pl.LightningModule):
         self.model.train()
         if self.config.use_critic:
             self.critics.eval()
+        if self.config.use_discriminator:
             self.discriminators.eval()
         loss = 0
         for source_id in batch.keys():
@@ -155,7 +156,8 @@ class DepthNormModel(pl.LightningModule):
 
     def discriminator_train_step(self, batch: dict, batch_idx):
         self.model.eval()
-        self.critics.eval()
+        if self.config.use_critic:
+            self.critics.eval()
         self.discriminators.train()
 
         discriminator_loss: Tensor = 0
@@ -187,7 +189,8 @@ class DepthNormModel(pl.LightningModule):
     def critic_train_step(self, batch: dict, batch_idx):
         self.model.eval()
         self.critics.train()
-        self.discriminators.eval()
+        if self.config.use_discriminator:
+            self.discriminators.eval()
 
         loss: Tensor = 0
         for source_id in batch.keys():
