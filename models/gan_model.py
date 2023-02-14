@@ -178,7 +178,6 @@ class GAN(BaseModel):
 
         self.total_train_step_count += 1
         if self._generator_training:
-            print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             self.discriminator_critic_train_step(batch, batch_idx)
@@ -266,7 +265,6 @@ class GAN(BaseModel):
             if self.config.use_critic else True
 
         if self.config.use_discriminator and first_of_mini_batches:
-            print('discriminators')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
             self.d_losses_log['d_discriminators_loss'] += discriminator_loss
@@ -277,7 +275,6 @@ class GAN(BaseModel):
                 discriminator_opt.zero_grad()
 
         if self.config.use_critic:
-            print('critics')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
             self.d_losses_log['d_critics_loss'] += critic_loss
