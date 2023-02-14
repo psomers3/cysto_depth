@@ -223,7 +223,7 @@ class GAN(BaseModel):
             feat_outs = encoder_outs_real[::-1][:len(self.critics['features'])]
             for idx, feature_out in enumerate(feat_outs):
                 real_predicted = self.critics['features'][idx](feature_out).type_as(feature_out)
-                g_loss += self._apply_generator_critic_loss(real_predicted, f'discriminator_feature_{idx}') \
+                g_loss += self._apply_generator_critic_loss(real_predicted, f'critic_feature_{idx}') \
                           * self.config.feature_discriminator_factor
             valid_predicted_depth = self.critics['depth_image'](depth_out)
             g_loss += self._apply_generator_critic_loss(valid_predicted_depth, 'critic_depth_img') \
