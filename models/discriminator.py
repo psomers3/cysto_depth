@@ -54,7 +54,7 @@ class Discriminator(nn.Module):
         if self.single_out:
             validity = self.reduction(validity)
         if self.use_sigmoid:
-            validity = torch.nn.functional.sigmoid(validity)
+            validity = torch.sigmoid(validity)
         return validity
 
     def __call__(self, *args, **kwargs) -> torch.Tensor:

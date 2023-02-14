@@ -262,12 +262,16 @@ class GANTrainingConfig:
     encoder: EncoderConfig = EncoderConfig(adaptive_gating=True, residual_learning=True, res_layer_norm='batch')
     training_split_file: str = ''
     """ An existing training split json file. If not empty, will be used instead of training_split """
-    generator_lr: float = 5e-6
-    """ base learning rate for generator """
+    generator_lr: float = 5e-4
+    """ learning rate for generator """
     discriminator_lr: float = 5e-5
-    """ base learning rate for discriminator """
-    loss: str = 'wasserstein_gp'
-    """ Which loss to use for training the generator and discriminators [wasserstein_gp, wasserstein, cross_entropy] """
+    """ learning rate for discriminators """
+    critic_lr: float = 5e-5
+    """ learning rate for critics """
+    critic_loss: str = 'wasserstein_gp'
+    """ Which loss to use for training the critics [wasserstein_gp, wasserstein] """
+    discriminator_loss: str = 'cross_entropy'
+    """ Which loss to use for training the discriminators [cross_entropy] """
     wasserstein_lambda: float = 10.0
     """ lambda factor for wasserstein gradient penalty """
     wasserstein_critic_updates: int = 5
@@ -275,10 +279,14 @@ class GANTrainingConfig:
     critic_use_variance: bool = False
     """ whether to use the variance of the distributions for wasserstein distance """
     max_epochs: int = 10
-    optimizer: str = 'radam'
-    """ Which torch optimizer to use. ['adam', 'radam'] """
-    cyclic_step_period: int = 1000
-    """ How many steps for a full cycle (up and down) of learning rate changes """
+    generator_optimizer: str = 'adam'
+    """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
+    critic_optimizer: str = 'rmsprop'
+    """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
+    discriminator_optimizer: str = 'adam'
+    """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
+    # cyclic_step_period: int = 1000
+    # """ How many steps for a full cycle (up and down) of learning rate changes """
     monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
     val_check_interval: int = '${..val_check_interval}'
@@ -316,15 +324,34 @@ class GANTrainingConfig:
     beta_2: float = 0.999
     residual_loss_factor: float = 0.0
     scale_loss_factor: float = 0
-    depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=1, img_level=True, single_out=False)
-    img_discriminator_factor: float = 0.0
-    phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3, img_level=True, single_out=False)
-    phong_discriminator_factor: float = 1.0
+    use_critic: bool = True
+    use_discriminator: bool = True
+    depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=1,
+                                                                   img_level=True,
+                                                                   single_out=False,
+                                                                   use_sigmoid=True)
+    depth_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=1,
+                                                            img_level=True,
+                                                            single_out=False,
+                                                            use_sigmoid=False)
+    phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                                   img_level=True,
+                                                                   single_out=False,
+                                                                   use_sigmoid=True)
+    phong_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                            img_level=True,
+                                                            single_out=False,
+                                                            use_sigmoid=False)
     feature_level_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=-1,
                                                                            img_level=False,
                                                                            single_out=False,
-                                                                           activation='layer')
-    """ in channels for features is reset in the code """
+                                                                           use_sigmoid=True)
+    feature_level_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=-1,
+                                                                    img_level=False,
+                                                                    single_out=False,
+                                                                    use_sigmoid=True)
+    img_discriminator_factor: float = 0.0
+    phong_discriminator_factor: float = 1.0
     feature_discriminator_factor: float = 1.0
     """ scaling factor for feature level discriminators """
     d_max_conf: float = 0.9
