@@ -57,6 +57,8 @@ class DiscriminatorConfig:
     """ Whether to return just the max of the output """
     use_sigmoid: bool = True
     """ Whether to use a sigmoid output activation """
+    single_out_reduction: str = 'max'
+    """ How to combine outputs to single output [max, min, mean, sum] """
 
 
 @dataclass

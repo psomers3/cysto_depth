@@ -4,6 +4,12 @@ from utils.torch_utils import convrelu
 from config.training_config import DiscriminatorConfig
 
 
+_reductions = {'sum': torch.sum,
+               'min': torch.min,
+               'max': torch.max,
+               'mean': torch.mean}
+
+
 class Discriminator(nn.Module):
     def __init__(self, config: DiscriminatorConfig):
         super().__init__()
@@ -12,6 +18,7 @@ class Discriminator(nn.Module):
         norm = config.normalization
         in_channels = config.in_channels
         self.use_sigmoid = config.use_sigmoid
+        self.reduction = _reductions[config.single_out_reduction.lower()]
 
         if config.img_level:
             self.conv = nn.Sequential(
@@ -48,7 +55,7 @@ class Discriminator(nn.Module):
     def forward(self, _input):
         validity = self.conv(_input)
         if self.single_out:
-            validity = validity.max()
+            validity = self.reduction(validity)
         if self.use_sigmoid:
             validity = self.sigmoid(validity)
         return validity
