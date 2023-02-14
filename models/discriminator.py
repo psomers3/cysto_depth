@@ -48,14 +48,14 @@ class Discriminator(nn.Module):
                 nn.Conv2d(512, 1, 3, 1, 1),
                 nn.Flatten()
             )
-        self.sigmoid = nn.Sequential(
-            nn.Sigmoid()
-        )
 
     def forward(self, _input):
         validity = self.conv(_input)
         if self.single_out:
             validity = self.reduction(validity)
         if self.use_sigmoid:
-            validity = self.sigmoid(validity)
+            validity = torch.nn.functional.sigmoid(validity)
         return validity
+
+    def __call__(self, *args, **kwargs) -> torch.Tensor:
+        return super(Discriminator, self).__call__(*args, **kwargs)
