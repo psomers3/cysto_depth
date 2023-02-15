@@ -249,7 +249,7 @@ class DepthNormModel(pl.LightningModule):
                 self.validation_data[source_id]['synth_depth'] = synth_depth[:self.max_num_image_samples].detach()
                 self.validation_data[source_id]['synth_normals'] = synth_normals[:self.max_num_image_samples].detach()
                 self.validation_data[source_id]['denormed_image'] = imagenet_denorm(
-                    synth_img[:self.max_num_image_samples]).detach.cpu()
+                    synth_img[:self.max_num_image_samples]).detach().cpu()
             self.val_denorm_color_images = torch.cat([self.validation_data[i]['denormed_image'] for i in self.validation_data], dim=0)
 
     def on_validation_epoch_end(self) -> None:
