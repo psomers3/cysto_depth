@@ -11,7 +11,6 @@ from torch import Tensor, optim
 import torch
 from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss
 
-
 imagenet_denorm = ImageNetNormalization(inverse=True)
 
 
@@ -172,7 +171,6 @@ class DepthNormModel(pl.LightningModule):
             loss_original = self.discriminator_loss(discriminator_out_original, 1.0)
             combined = loss_original + loss_generated
             discriminator_loss += combined
-
             self.d_losses_log[f'd_discriminator_loss-{source_id}'] += combined
 
         self.manual_backward(discriminator_loss)
@@ -238,6 +236,7 @@ class DepthNormModel(pl.LightningModule):
             self.val_batch_count += 1
 
         if self.validation_data is None:
+            self.validation_data = {}
             synth_images_all = []
             synth_depths_all = []
             synth_normals_all = []
@@ -246,16 +245,16 @@ class DepthNormModel(pl.LightningModule):
                 synth_images_all.append(synth_img[:self.max_num_image_samples])
                 synth_depths_all.append(synth_depth[:self.max_num_image_samples])
                 synth_normals_all.append(synth_normals[:self.max_num_image_samples])
-            synth_img = torch.cat(synth_images_all, dim=0)
-            synth_depth = torch.cat(synth_depths_all, dim=0)
-            synth_normals = torch.cat(synth_normals_all, dim=0)
-
-            self.val_denorm_color_images = imagenet_denorm(synth_img).detach().cpu()
-            self.validation_data = synth_depth.detach(), synth_normals.detach()
+                self.validation_data[source_id] = {}
+                self.validation_data[source_id]['synth_depth'] = synth_depth[:self.max_num_image_samples].detach()
+                self.validation_data[source_id]['synth_normals'] = synth_normals[:self.max_num_image_samples].detach()
+                self.validation_data[source_id]['denormed_image'] = imagenet_denorm(
+                    synth_img[:self.max_num_image_samples]).detach.cpu()
+            self.val_denorm_color_images = torch.cat([self.validation_data[i]['denormed_image'] for i in self.validation_data], dim=0)
 
     def on_validation_epoch_end(self) -> None:
         if self.val_batch_count > 0:
-            self.log('val_loss', self.val_loss/self.val_batch_count)
+            self.log('val_loss', self.val_loss / self.val_batch_count)
         self.val_loss = 0
         self.val_batch_count = 0
         if self._val_epoch_count % self.config.val_plot_interval == 0:
@@ -266,10 +265,15 @@ class DepthNormModel(pl.LightningModule):
 
     def plot(self):
         with torch.no_grad():
-            generated_img = self(*self.validation_data, source_id=0).detach().cpu()
+            generated_imgs = []
+            for source_id in self.validation_data:
+                generated_imgs.append(self(self.validation_data[source_id]['synth_depth'],
+                                           self.validation_data[source_id]['synth_normals'],
+                                           source_id=source_id).detach().cpu())
         labels = ["Source Image", "Generated"]
+        generated_imgs = torch.cat(generated_imgs, dim=0)
 
-        for idx, img_set in enumerate(zip(self.val_denorm_color_images, generated_img)):
+        for idx, img_set in enumerate(zip(self.val_denorm_color_images, generated_imgs)):
             fig = generate_img_fig(img_set, labels)
             self.logger.experiment.add_figure(f'generated-image-{idx}', fig, self.global_step)
             plt.close(fig)
