@@ -45,6 +45,7 @@ class GAN(BaseModel):
         if self.config.use_discriminator:
             self.setup_discriminators()
 
+        self.validation_epoch = 0
         self.generator_global_step = -1
         self.critic_global_step = 0
         self.total_train_step_count = -1
@@ -419,7 +420,7 @@ class GAN(BaseModel):
         :return:
         """
         self.eval()
-        if batch_idx != 0:
+        if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
             # just plot one batch worth of images. In case there are a lot...
             return
         x, z = batch
@@ -504,6 +505,7 @@ class GAN(BaseModel):
             self.log("discriminator_lr", self.lr_schedulers()[1].get_last_lr()[0])
 
     def on_validation_epoch_end(self) -> None:
+        self.validation_epoch += 1
         self._on_epoch_end()
 
     def on_train_epoch_end(self) -> None:
