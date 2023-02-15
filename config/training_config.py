@@ -320,10 +320,6 @@ class GANTrainingConfig:
     """ Final square size to make all images """
     freeze_batch_norm: bool = True
     """ Whether to freeze the batch norm statistics for the already learned generator """
-    beta_1: float = 0.5
-    beta_2: float = 0.999
-    residual_loss_factor: float = 0.0
-    scale_loss_factor: float = 0
     use_critic: bool = True
     use_discriminator: bool = True
     depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=1,

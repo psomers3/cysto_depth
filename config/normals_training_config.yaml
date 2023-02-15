@@ -34,7 +34,7 @@ gan_config:
     residual_learning: true
     res_layer_norm: instance
   use_critic: true
-  use_discriminator: true
+  use_discriminator: false
   generator_lr: 5e-4
   discriminator_lr: 5e-5
   critic_lr: 5e-5

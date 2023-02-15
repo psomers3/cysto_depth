@@ -10,7 +10,7 @@ from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_f
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig, DiscriminatorConfig
 from argparse import Namespace
 from utils.rendering import PhongRender, depth_to_normals
-from utils.loss import CosineSimilarity, GANDiscriminatorLoss, GANGeneratorLoss
+from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss
 from typing import *
 
 opts = {'adam': torch.optim.Adam, 'radam': torch.optim.RAdam, 'rmsprop': torch.optim.RMSprop}
@@ -32,12 +32,10 @@ class GAN(BaseModel):
         self.depth_model.requires_grad = False
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
-        self.cosine_sim: CosineSimilarity = None
-        self.d_losses_log = {'d_loss': 0.0}
+        self.d_losses_log = {}
         self.g_losses_log = {'g_loss': 0.0}
         self.discriminators: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critics: torch.nn.ModuleDict = torch.nn.ModuleDict()
-        self.feat_idx_start: int = 0
         self.critic_opt_idx = 0
         self.discriminators_opt_idx = 0
         self._unwrapped_optimizers = []
@@ -57,8 +55,6 @@ class GAN(BaseModel):
         self.critic_loss = GANDiscriminatorLoss[gan_config.critic_loss]
         self.generator_critic_loss = GANGeneratorLoss[gan_config.critic_loss]
         self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss]
-        self.check_for_generator_step = self.config.wasserstein_critic_updates + 1
-
         if gan_config.resume_from_checkpoint:
             path_to_ckpt = gan_config.resume_from_checkpoint
             gan_config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
@@ -138,7 +134,6 @@ class GAN(BaseModel):
             self.phong_renderer = PhongRender(config=self.config.phong_config,
                                               image_size=self.config.image_size,
                                               device=self.device)
-            self.cosine_sim = CosineSimilarity(ignore_direction=True, device=self.device)
 
     def get_predictions(self, x: torch.Tensor, generator: bool) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
         """ helper function to clean up the training_step function.
@@ -178,6 +173,7 @@ class GAN(BaseModel):
 
         self.total_train_step_count += 1
         if self._generator_training:
+            # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             self.discriminator_critic_train_step(batch, batch_idx)
@@ -251,7 +247,6 @@ class GAN(BaseModel):
 
     def discriminator_critic_train_step(self, batch, batch_idx) -> None:
         self.generator.eval()
-        # set discriminators to train because idk if they were set back after generator step
         self.critics.train()
         self.discriminators.train()
 
@@ -265,20 +260,24 @@ class GAN(BaseModel):
             if self.config.use_critic else True
 
         if self.config.use_discriminator and first_of_mini_batches:
+            # print('discriminator')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
             self.d_losses_log['d_discriminators_loss'] += discriminator_loss
             # +1 because they are stepped after critic update
             if full_batch:
+                # print('discriminator step')
                 discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
                 discriminator_opt.step()
                 discriminator_opt.zero_grad()
 
         if self.config.use_critic:
+            # print('critic')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
             self.d_losses_log['d_critics_loss'] += critic_loss
             if full_batch:
+                # print('critic step')
                 critic_opt = self.optimizers(True)[self.critic_opt_idx]
                 critic_opt.step()
                 critic_opt.zero_grad()
