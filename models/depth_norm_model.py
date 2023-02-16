@@ -21,7 +21,10 @@ class DepthNormModel(pl.LightningModule):
         self.automatic_optimization = False
         self.save_hyperparameters(Namespace(**config))
         self.config = config
-        self.model = DepthNorm2Image(config.encoder, depth_scale=config.depth_scale, add_noise=config.add_noise)
+        self.model = DepthNorm2Image(config.encoder,
+                                     depth_scale=config.depth_scale,
+                                     add_noise=config.add_noise,
+                                     sigmoid=not config.imagenet_norm_output)
         self.max_num_image_samples = 4
         self.val_denorm_color_images = None
         self.validation_data = None
