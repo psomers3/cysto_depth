@@ -386,7 +386,7 @@ class CystoDepthConfig:
     """ Whether the network should predict normals """
     optimizer: str = 'adam'
     """ What optimizer to use. one of ['adam', 'radam'] """
-    inverse_depth: bool = True
+    inverse_depth: bool = False
     """ Whether to predict the inverse of the depth """
     add_mask_blur: bool = False
     """ Whether to add random gaussian blur to the edge of the circular mask """

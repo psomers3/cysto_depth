@@ -77,9 +77,10 @@ class EndoDepthDataModule(FileLoadingDataModule):
         color_transforms = [mask, img_squarify]
 
         if stage.lower() == 'train':
-            depth_transforms.append(affine_transform)
             color_transforms.insert(0, color_jitter)
             color_transforms.append(affine_transform)
+            depth_transforms.append(affine_transform)
+
         color_transforms.append(normalize)
         composed_color_transforms = torch_transforms.Compose(color_transforms)
         composed_depth_transforms = torch_transforms.Compose(depth_transforms)
@@ -112,12 +113,13 @@ if __name__ == '__main__':
     from data_transforms import ImageNetNormalization
 
     denorm = ImageNetNormalization(inverse=True)
-    color_dir = r'/Users/peter/isys/2023_01_25/color'
-    depth_dir = r'/Users/peter/isys/2023_01_25/depth'
+    color_dir = r'/Users/peter/isys/2023_01_29/color'
+    depth_dir = r'/Users/peter/isys/2023_01_29/depth'
+    normals_dir = r'/Users/peter/isys/2023_01_29/normals'
     dm = EndoDepthDataModule(batch_size=3,
-                             data_roles=['color', 'depth'],
-                             data_directories=[color_dir, depth_dir],
-                             split={'train': .6, 'validate': 0.4, 'test': ".*00015.*"},
+                             data_roles=['color', 'depth', 'normals'],
+                             data_directories=[color_dir, depth_dir, normals_dir],
+                             split={'train': .6, 'validate': 0.3, 'test': .1},
                              inverse_depth=True,
                              memorize_check=False)
     dm.setup('fit')

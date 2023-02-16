@@ -24,12 +24,18 @@ depth_norm_config:
     - normals_0
     - normals_1
   data_directories:
-    - /Users/peter/isys/2023_01_29/color/bladder_wall
-    - /Users/peter/isys/2023_01_29/color/bland_bladder_wall
-    - /Users/peter/isys/2023_01_29/depth/bladder_wall
-    - /Users/peter/isys/2023_01_29/depth/bland_bladder_wall
-    - /Users/peter/isys/2023_01_29/normals/bladder_wall
-    - /Users/peter/isys/2023_01_29/normals/bland_bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/color/bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/color/bland_bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/depth/bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/depth/bland_bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/normals/bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/normals/bland_bladder_wall
   training_split: {'train': .75, 'validate': 0.225, 'test': .025}
 trainer_config:
   gpus: []
