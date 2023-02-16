@@ -140,6 +140,7 @@ def wasserstein_gradient_penalty(original_input: Tensor,
     epsilon = torch.rand(batch_size, *[1] * (original_input.ndim - 1), device=original_input.device)
 
     interpolated_img = epsilon * original_input + (1 - epsilon) * generated_input
+    interpolated_img.requires_grad = True
     interpolated_out = critic(interpolated_img)
 
     grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
@@ -156,9 +157,6 @@ def wasserstein_gp_discriminator_loss(original_input: Tensor,
                                       wasserstein_lambda: float = 10,
                                       use_variance: bool = False) -> Tensor:
     """ https://arxiv.org/abs/1704.00028 """
-    original_input.requires_grad = True
-    generated_input.requires_grad = True
-
     return (wasserstein_discriminator_loss(critic(original_input), critic(generated_input), use_variance) \
            + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda))
 

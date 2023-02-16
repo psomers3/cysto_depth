@@ -23,6 +23,8 @@ class TrainerDictConfig:
     """ type of gradient clipping to do. Either 'value' or 'norm' """
     num_nodes: int = 1
     """ Number of nodes (for SLURM or whatever). Leave this as 1 and specify the nodes in the SLURM script. """
+    overfit_batches: int = 0
+    """ Run training on a set number of batches to check a network can learn the task """
 
 
 @dataclass
@@ -161,12 +163,14 @@ class DepthNorm2ImageConfig:
     """ Whether to predict the inverse of the depth. NOT IMPLEMENTED YET """
     add_mask_blur: bool = "${..add_mask_blur}"
     """ Whether to add random gaussian blur to the edge of the circular mask """
-    monitor_metric: str = 'g_loss'
+    monitor_metric: str = 'val_loss'
     """ main metric to track for performance """
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=None,
                                                save_weights_only=False)
+    imagenet_norm_output: bool = False
+    """ whether to predict normalized images or actual final color values """
 
 
 @dataclass

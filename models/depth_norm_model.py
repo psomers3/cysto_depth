@@ -12,6 +12,7 @@ import torch
 from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss
 
 imagenet_denorm = ImageNetNormalization(inverse=True)
+imagenet_norm = ImageNetNormalization()
 
 
 class DepthNormModel(pl.LightningModule):
@@ -38,7 +39,7 @@ class DepthNormModel(pl.LightningModule):
             self.d_losses_log.update({f'd_critic_loss-{i}': 0.0 for i in sources})
 
         if config.use_discriminator:
-            discriminators = {str(i): Discriminator(config.discriminator_config) for i in [0, 1]}
+            discriminators = {str(i): Discriminator(config.discriminator_config) for i in sources}
             self.discriminators = torch.nn.ModuleDict(discriminators)
             self.discriminators_opt_idx = self.critic_opt_idx + 1
             self.d_losses_log['d_discriminator_loss'] = 0.0
@@ -88,8 +89,7 @@ class DepthNormModel(pl.LightningModule):
         optimizer = opt(filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.config.generator_lr)
         optimizers = [optimizer]
         if self.config.use_critic:
-            optimizers.append(optim.RMSprop(filter(lambda p: p.requires_grad,
-                                                   self.critics.parameters()),
+            optimizers.append(optim.RMSprop(filter(lambda p: p.requires_grad, self.critics.parameters()),
                                             lr=self.config.critic_lr))
         if self.config.use_discriminator:
             optimizers.append(optim.Adam(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
@@ -120,7 +120,7 @@ class DepthNormModel(pl.LightningModule):
         for source_id in batch.keys():
             synth_img, synth_depth, synth_normals = batch[source_id]
             out_images = self(synth_depth, synth_normals, source_id=source_id)
-            denormed_images = imagenet_denorm(synth_img)
+            denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
             if self.L_loss is not None:
                 img_loss = self.L_loss(out_images, denormed_images)
                 self.g_losses_log['g_img_loss'] += img_loss
@@ -162,7 +162,7 @@ class DepthNormModel(pl.LightningModule):
         for source_id in batch.keys():
             with torch.no_grad():
                 synth_img, synth_depth, synth_normals = batch[source_id]
-                denormed_images = imagenet_denorm(synth_img)
+                denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
             discriminator_out_generated = self.discriminators[str(source_id)](out_images)
             discriminator_out_original = self.discriminators[str(source_id)](denormed_images)
@@ -193,7 +193,7 @@ class DepthNormModel(pl.LightningModule):
         for source_id in batch.keys():
             with torch.no_grad():
                 synth_img, synth_depth, synth_normals = batch[source_id]
-                denormed_images = imagenet_denorm(synth_img)
+                denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
             critic_loss = self.discriminator_critic_loss(denormed_images,
                                                          out_images,
@@ -230,7 +230,8 @@ class DepthNormModel(pl.LightningModule):
             for source_id in batch:
                 synth_img, synth_depth, synth_normals = batch[source_id]
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
-                loss += self.L_loss(out_images, imagenet_denorm(synth_img))
+                denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
+                loss += self.L_loss(out_images, denormed_images)
             self.val_loss += loss / len(batch)
             self.val_batch_count += 1
 
@@ -271,6 +272,7 @@ class DepthNormModel(pl.LightningModule):
                                            source_id=source_id).detach().cpu())
         labels = ["Source Image", "Generated"]
         generated_imgs = torch.cat(generated_imgs, dim=0)
+        generated_imgs = imagenet_denorm(generated_imgs) if self.config.imagenet_norm_output else generated_imgs
 
         for idx, img_set in enumerate(zip(self.val_denorm_color_images, generated_imgs)):
             fig = generate_img_fig(img_set, labels)
