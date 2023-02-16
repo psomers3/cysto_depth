@@ -46,7 +46,8 @@ class GANDataModule(pl.LightningDataModule):
                  synth_split: dict = None,
                  image_size: int = 256,
                  workers_per_loader: int = 6,
-                 add_random_blur: bool = False
+                 add_random_blur: bool = False,
+                 real_only: bool = False
                  ):
         """ A Data Module for loading rendered endoscopic images and real images. The rendered images will be made
          square and a circular mask applied to simulate actual endoscopic images. The real images are generated
@@ -86,6 +87,7 @@ class GANDataModule(pl.LightningDataModule):
         self.video_directories = video_directories
         self.generate_data = generate_data
         self.add_random_blur = add_random_blur
+        self.real_only = real_only
         self.data_train: Dataset = None
         self.data_val: Dataset = None
         self.data_test: Dataset = None
@@ -148,22 +150,29 @@ class GANDataModule(pl.LightningDataModule):
 
         real_split = FileLoadingDataModule.create_file_split({'real': self.directories['real']},
                                                              exclusion_regex=_failed_exclusion)
-        synth_split = FileLoadingDataModule.create_file_split({'synth': self.directories['synth']},
-                                                              split=self.synth_split,
-                                                              exclusion_regex=_failed_exclusion)
+        if not self.real_only:
+            synth_split = FileLoadingDataModule.create_file_split({'synth': self.directories['synth']},
+                                                                  split=self.synth_split,
+                                                                  exclusion_regex=_failed_exclusion)
         keys = ['train', 'validate', 'test']
         real, synth = [], []
         for key in keys:
             real.append(ImageDataset(files=real_split[key]['real'],
                                      transforms=real_transforms if key == 'train' else imagenet_norm,
                                      randomize=True))
-            synth.append(ImageDataset(files=synth_split[key]['synth'],
-                                      transforms=synth_transforms if key == 'train' else imagenet_norm,
-                                      randomize=True))
+            if not self.real_only:
+                synth.append(ImageDataset(files=synth_split[key]['synth'],
+                                          transforms=synth_transforms if key == 'train' else imagenet_norm,
+                                          randomize=True))
 
-        self.data_train = ConcatDataset([synth[0], real[0]])
-        self.data_val = ConcatDataset([synth[1], real[1]])
-        self.data_test = ConcatDataset([synth[2], real[2]])
+        if self.real_only:
+            self.data_train = real[0]
+            self.data_val = real[1]
+            self.data_test = real[2]
+        else:
+            self.data_train = ConcatDataset([synth[0], real[0]])
+            self.data_val = ConcatDataset([synth[1], real[1]])
+            self.data_test = ConcatDataset([synth[2], real[2]])
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.data_train,

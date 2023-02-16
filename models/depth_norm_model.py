@@ -33,6 +33,7 @@ class DepthNormModel(pl.LightningModule):
         self.d_losses_log = {}
         self.critic_opt_idx = 0
         sources = list(range(len(config.data_roles) // 3))
+        self.sources = sources
         if config.use_critic:
             critics = {str(i): Discriminator(config.critic_config) for i in sources}
             self.critics = torch.nn.ModuleDict(critics)
@@ -113,17 +114,17 @@ class DepthNormModel(pl.LightningModule):
             if self.config.use_critic:
                 self.critic_train_step(batch, batch_idx)
 
-    def generator_train_step(self, batch: dict, batch_idx: int):
+    def calculate_generator_loss(self, batch) -> Tensor:
         self.model.train()
         if self.config.use_critic:
             self.critics.eval()
         if self.config.use_discriminator:
             self.discriminators.eval()
-        loss = 0
+        loss: Tensor = 0.0
         for source_id in batch.keys():
-            synth_img, synth_depth, synth_normals = batch[source_id]
-            out_images = self(synth_depth, synth_normals, source_id=source_id)
-            denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
+            img, depth, normals = batch[source_id]
+            out_images = self(depth, normals, source_id=source_id)
+            denormed_images = imagenet_denorm(img) if self.config.imagenet_norm_output else img
             if self.L_loss is not None:
                 img_loss = self.L_loss(out_images, denormed_images)
                 self.g_losses_log['g_img_loss'] += img_loss
@@ -139,6 +140,10 @@ class DepthNormModel(pl.LightningModule):
                 self.g_losses_log[f'g_discriminator_loss-{source_id}'] += discriminator_loss
                 loss += discriminator_loss
         self.g_losses_log['g_loss'] += loss
+        return loss
+
+    def generator_train_step(self, batch: dict, batch_idx: int):
+        loss = self.calculate_generator_loss(batch)
         self.manual_backward(loss)
         self.batches_accumulated += 1
         step_optimizers = False
@@ -155,7 +160,7 @@ class DepthNormModel(pl.LightningModule):
             self.log_dict(self.g_losses_log)
             self.g_losses_log.update({k: 0 for k in self.g_losses_log.keys()})
 
-    def discriminator_train_step(self, batch: dict, batch_idx):
+    def calculate_discriminator_loss(self, batch) -> Tensor:
         self.model.eval()
         if self.config.use_critic:
             self.critics.eval()
@@ -174,6 +179,10 @@ class DepthNormModel(pl.LightningModule):
             combined = loss_original + loss_generated
             discriminator_loss += combined
             self.d_losses_log[f'd_discriminator_loss-{source_id}'] += combined
+        return discriminator_loss
+
+    def discriminator_train_step(self, batch: dict, batch_idx):
+        discriminator_loss = self.calculate_discriminator_loss(batch)
 
         self.manual_backward(discriminator_loss)
         self.d_losses_log['d_discriminator_loss'] += discriminator_loss
@@ -186,7 +195,7 @@ class DepthNormModel(pl.LightningModule):
             [d_opt.step() for d_opt in discriminator_opts]
             [d_opt.zero_grad() for d_opt in discriminator_opts]
 
-    def critic_train_step(self, batch: dict, batch_idx):
+    def calculate_critic_loss(self, batch) -> Tensor:
         self.model.eval()
         self.critics.train()
         if self.config.use_discriminator:
@@ -206,6 +215,10 @@ class DepthNormModel(pl.LightningModule):
             self.d_losses_log[f'd_critic_loss-{source_id}'] += critic_loss
             loss += critic_loss
         self.d_losses_log[f'd_critic_loss'] += loss
+        return loss
+
+    def critic_train_step(self, batch: dict, batch_idx):
+        loss = self.calculate_critic_loss(batch)
         self.manual_backward(loss)
 
         self.batches_accumulated += 1
@@ -248,12 +261,12 @@ class DepthNormModel(pl.LightningModule):
                 synth_images_all.append(synth_img[:self.max_num_image_samples])
                 synth_depths_all.append(synth_depth[:self.max_num_image_samples])
                 synth_normals_all.append(synth_normals[:self.max_num_image_samples])
-                self.validation_data[source_id] = {}
-                self.validation_data[source_id]['synth_depth'] = synth_depth[:self.max_num_image_samples].detach()
-                self.validation_data[source_id]['synth_normals'] = synth_normals[:self.max_num_image_samples].detach()
-                self.validation_data[source_id]['denormed_image'] = imagenet_denorm(
-                    synth_img[:self.max_num_image_samples]).detach().cpu()
-            self.val_denorm_color_images = torch.cat([self.validation_data[i]['denormed_image'] for i in self.validation_data], dim=0)
+                self.validation_data[source_id] = []
+                self.validation_data[source_id].append(imagenet_denorm(
+                    synth_img[:self.max_num_image_samples]).detach().cpu())
+                self.validation_data[source_id].append(synth_depth[:self.max_num_image_samples].detach())
+                self.validation_data[source_id].append(synth_normals[:self.max_num_image_samples].detach())
+            self.val_denorm_color_images = torch.cat([self.validation_data[i][0] for i in self.validation_data], dim=0)
 
     def on_validation_epoch_end(self) -> None:
         if self.val_batch_count > 0:
@@ -266,18 +279,18 @@ class DepthNormModel(pl.LightningModule):
         self._val_epoch_count += 1
         return super().on_validation_epoch_end()
 
-    def plot(self):
+    def plot(self, step: int = None):
         with torch.no_grad():
             generated_imgs = []
             for source_id in self.validation_data:
-                generated_imgs.append(self(self.validation_data[source_id]['synth_depth'],
-                                           self.validation_data[source_id]['synth_normals'],
+                generated_imgs.append(self(self.validation_data[source_id][1],
+                                           self.validation_data[source_id][2],
                                            source_id=source_id).detach().cpu())
         labels = ["Source Image", "Generated"]
         generated_imgs = torch.cat(generated_imgs, dim=0)
         generated_imgs = imagenet_denorm(generated_imgs) if self.config.imagenet_norm_output else generated_imgs
-
+        step = self.global_step if step is None else step
         for idx, img_set in enumerate(zip(self.val_denorm_color_images, generated_imgs)):
             fig = generate_img_fig(img_set, labels)
-            self.logger.experiment.add_figure(f'generated-image-{idx}', fig, self.global_step)
+            self.logger.experiment.add_figure(f'generated-image-{idx}', fig, step)
             plt.close(fig)

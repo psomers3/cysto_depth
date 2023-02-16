@@ -14,6 +14,7 @@ from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.plugins.environments import SLURMEnvironment
 from models.depth_model import DepthEstimationModel
 from models.depth_norm_model import DepthNormModel
+from models.hail_mary import HailMary
 from data.depth_datamodule import EndoDepthDataModule
 from data.phong_datamodule import PhongDataModule
 from data.general_data_module import DictDataLoaderCombine
@@ -24,12 +25,12 @@ import signal
 
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
 def cysto_depth(cfg: CystoDepthConfig) -> None:
-    config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg,)
+    config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
     if config.print_config:
         print(OmegaConf.to_yaml(config))
 
     assert config.training_stage.lower() in ['train', 'validate', 'test']
-    assert config.mode.lower() in ['synthetic', 'gan', 'depthnorm']
+    assert config.mode.lower() in ['synthetic', 'gan', 'depthnorm', 'hail_mary']
 
     if not os.path.exists(config.log_directory):
         os.makedirs(config.log_directory)
@@ -112,7 +113,48 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         config.depth_norm_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.depth_norm_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.depth_norm_config.callbacks)})
-
+    elif config.mode == 'hail_mary':
+        split = config.depth_norm_config.training_split if not config.depth_norm_config.training_split_file else \
+            config.depth_norm_config.training_split
+        dataload_dict = {}
+        for i in range(10):
+            data_dir = []
+            for j in range(len(config.depth_norm_config.data_roles)):
+                if str(i) in config.depth_norm_config.data_roles[j]:
+                    data_dir.append(config.depth_norm_config.data_directories[j])
+            if len(data_dir) == 0:
+                break
+            synth_data_module = EndoDepthDataModule(batch_size=config.depth_norm_config.batch_size,
+                                                    data_roles=['color', 'depth', 'normals'],
+                                                    data_directories=data_dir,
+                                                    split=split,
+                                                    image_size=config.image_size,
+                                                    workers_per_loader=config.num_workers,
+                                                    depth_scale_factor=1e3,
+                                                    inverse_depth=config.depth_norm_config.inverse_depth,
+                                                    memorize_check=config.memorize_check,
+                                                    add_random_blur=config.depth_norm_config.add_mask_blur)
+            dataload_dict[i] = synth_data_module
+        real_data_module = GANDataModule(batch_size=config.synthetic_config.batch_size * len(dataload_dict),
+                                         color_image_directories=config.gan_config.source_images,
+                                         video_directories=config.gan_config.videos_folder,
+                                         generate_output_directory=config.gan_config.image_output_folder,
+                                         generate_data=config.gan_config.generate_data,
+                                         synth_split=split,
+                                         image_size=config.image_size,
+                                         workers_per_loader=config.num_workers,
+                                         add_random_blur=config.add_mask_blur,
+                                         real_only=True)
+        dataload_dict[len(dataload_dict)] = real_data_module
+        data_module = DictDataLoaderCombine(dataload_dict)
+        # TODO: remove synthetic_base_model from config class
+        config.gan_config.synthetic_base_model = config.synthetic_config.resume_from_checkpoint
+        model = HailMary(depth_norm_config=config.depth_norm_config.copy(),
+                         gan_config=config.gan_config.copy(),
+                         synth_config=config.synthetic_config.copy())
+        config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
+        [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
+        trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})
     logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
     trainer_dict.update({'logger': logger})
     trainer_dict.pop('resume_from_checkpoint')

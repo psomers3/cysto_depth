@@ -1,0 +1,94 @@
+log_directory: ./logs
+print_config: true
+predict_normals: true
+mode: hail_mary
+training_stage: train
+split_save_dir: ''
+num_workers: 1
+val_check_interval: 10
+val_plot_interval: 1
+trainer_config:
+  gpus: []
+  strategy: null
+  accelerator: cpu
+  log_every_n_steps: 2
+  overfit_batches: 0
+depth_norm_config:
+  encoder:
+    load_imagenet_weights: True
+    backbone: resnet18
+  accumulate_grad_batches: 2
+  L_loss: L1
+  use_critic: true
+  use_discriminator: true
+  max_epochs: 300
+  batch_size: 4
+  data_roles:
+    - color_0
+    - color_1
+    - depth_0
+    - depth_1
+    - normals_0
+    - normals_1
+  data_directories:
+    -
+      - /Users/peter/isys/2023_01_29/color/bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/color/bland_bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/depth/bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/depth/bland_bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/normals/bladder_wall
+    -
+      - /Users/peter/isys/2023_01_29/normals/bland_bladder_wall
+  training_split: {'train': .75, 'validate': 0.225, 'test': .025}
+synthetic_config:
+  encoder:
+    load_imagenet_weights: True
+    backbone: resnet34
+    res_layer_norm: instance
+  normals_extra_layers: 0
+  decoder_calculate_norms: false
+  merged_decoder: true
+  accumulate_grad_batches: 1
+  max_epochs: 300
+  batch_size: 4
+  data_roles:
+    - color
+    - depth
+    - normals
+  data_directories:
+    - /Users/peter/isys/2023_01_29/color
+    - /Users/peter/isys/2023_01_29/depth
+    - /Users/peter/isys/2023_01_29/normals
+  training_split: {'train': .8, 'validate': 0.18, 'test': .02}
+  resume_from_checkpoint: /Users/peter/Desktop/epoch=198-step=10920.ckpt
+gan_config:
+  encoder:
+    backbone: resnet18
+    adaptive_gating: true
+    residual_learning: true
+    res_layer_norm: instance
+  use_critic: true
+  use_discriminator: true
+  generator_lr: 5e-4
+  discriminator_lr: 5e-5
+  critic_lr: 5e-5
+  critic_loss: wasserstein_gp
+  wasserstein_critic_updates: 2
+  discriminator_loss: cross_entropy
+  wasserstein_lambda: 10.0
+  freeze_batch_norm: true
+  phong_discriminator_factor: 1.0
+  batch_size: 4
+  accumulate_grad_batches: 1
+  warmup_steps: 0
+  source_images:
+    - /Users/peter/isys/2023_01_29/color
+  synth_split: {'train': .8, 'validate': .1, 'test': .1}
+  generate_data: False
+  videos_folder:
+    - /Users/peter/isys/videos
+  image_output_folder: ./gan_data
