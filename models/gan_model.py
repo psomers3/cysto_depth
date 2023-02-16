@@ -451,7 +451,7 @@ class GAN(BaseModel):
         self.log_gate_coefficients(step=self.global_step)
         for idx, imgs in enumerate(zip(*plot_tensors)):
             fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
-                                       align_scales=False)
+                                       align_scales=True)
             self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
             plt.close(fig)
 
