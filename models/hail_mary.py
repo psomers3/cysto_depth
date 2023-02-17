@@ -533,6 +533,7 @@ class HailMary(BaseModel):
         self.texture_generator.validation_data = self.validation_data
         self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].cpu() for i in self.validation_data], dim=0)
         self.texture_generator.plot(self.global_step)
+        self.validation_data[self.real_source_id] = z
 
         if self.unadapted_images_for_plotting is None:
             _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
