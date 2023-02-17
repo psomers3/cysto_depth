@@ -1,3 +1,4 @@
+import pytorch_lightning as pl
 from matplotlib import pyplot as plt
 import torch
 from torch import Tensor
@@ -264,7 +265,9 @@ class HailMary(BaseModel):
             [o.step() for o in optimizers]
             [o.zero_grad() for o in optimizers]
             self.log_dict(self.g_losses_log)
+            self.log_dict(self.texture_generator.g_losses_log)
             self.reset_log_dict(self.g_losses_log)
+            self.reset_log_dict(self.texture_generator.g_losses_log)
 
     def discriminator_critic_train_step(self, batch: Dict[int, List[Tensor]], batch_idx) -> None:
         self.generator.eval()
@@ -329,6 +332,8 @@ class HailMary(BaseModel):
             self._generator_training = True
             self.log_dict(self.d_losses_log)
             self.reset_log_dict(self.d_losses_log)
+            self.log_dict(self.texture_generator.d_losses_log)
+            self.reset_log_dict(self.texture_generator.d_losses_log)
 
     def get_discriminator_critic_inputs(self, batch, batch_idx) -> Dict[int, Dict[str, Tensor]]:
         """

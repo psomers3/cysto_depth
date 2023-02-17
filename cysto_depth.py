@@ -2,7 +2,6 @@
 
 import os
 import hydra
-import pytorch_lightning.plugins.environments
 import torch
 from omegaconf import OmegaConf
 from config.training_config import CystoDepthConfig
