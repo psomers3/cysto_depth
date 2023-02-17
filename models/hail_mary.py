@@ -540,7 +540,7 @@ class HailMary(BaseModel):
             depth_unadapted = decoder_outs_unadapted[-1].detach()
             phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
 
-            self.unadapted_images_for_plotting = (depth_unadapted, normals_unadapted.detach(), phong_unadapted.detach())
+            self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted.detach().cpu())
 
         depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
 
