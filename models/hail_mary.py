@@ -26,7 +26,6 @@ class HailMary(BaseModel):
         super().__init__()
         self.automatic_optimization = False
         self.save_hyperparameters(Namespace(**gan_config))
-        synth_config.resume_from_checkpoint = ''
         self.depth_model = DepthEstimationModel(synth_config)
         self.config = gan_config
         self.generator = AdaptiveEncoder(gan_config.encoder)
