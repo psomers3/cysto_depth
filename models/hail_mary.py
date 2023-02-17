@@ -51,6 +51,11 @@ class HailMary(BaseModel):
         self.texture_generator_opt_idx = len(self._unwrapped_optimizers)
         self.texture_critic_opt_idx = self.texture_generator_opt_idx + 1 if \
             self.texture_generator.config.use_critic else self.texture_generator_opt_idx
+
+        self._unwrapped_optimizers.extend(self.texture_generator.configure_optimizers())
+        self.depth_model.requires_grad = True
+        self.generator.requires_grad = True
+        self.texture_generator.requires_grad =True
         self.texture_discriminator_opt_idx = self.texture_critic_opt_idx + 1
         self.validation_epoch = 0
         self.generator_global_step = -1
@@ -501,7 +506,6 @@ class HailMary(BaseModel):
         pass
 
     def configure_optimizers(self):
-        self._unwrapped_optimizers.extend(self.texture_generator.configure_optimizers())
         return self._unwrapped_optimizers
 
     def _on_epoch_end(self):
