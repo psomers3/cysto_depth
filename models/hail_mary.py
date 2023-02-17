@@ -529,7 +529,7 @@ class HailMary(BaseModel):
         z = self.validation_data[self.real_source_id]
         _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
         depth_adapted = decoder_outs_adapted[-1]
-        denormed_images = self.imagenet_denorm(z).cpu()
+        denormed_images = self.imagenet_denorm(z)
         self.validation_data[self.real_source_id] = [denormed_images, depth_adapted, normals_adapted]
         self.texture_generator.validation_data = self.validation_data
         self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0] for i in self.validation_data], dim=0)
@@ -544,7 +544,7 @@ class HailMary(BaseModel):
 
         depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
 
-        plot_tensors = [denormed_images]
+        plot_tensors = [denormed_images.cpu()]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
         minmax = []
