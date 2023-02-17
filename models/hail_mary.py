@@ -543,8 +543,8 @@ class HailMary(BaseModel):
             self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted.detach().cpu())
 
         depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
-
-        plot_tensors = [denormed_images.cpu()]
+        denormed_images = denormed_images.cpu()
+        plot_tensors = [denormed_images]
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
         centers = [None, None, None, 0]
         minmax = []
