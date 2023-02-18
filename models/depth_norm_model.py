@@ -103,13 +103,13 @@ class DepthNormModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         self.total_train_step_count += 1
         if self._generator_training:
-            print('generator')
+            # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             if self.critic_global_step % self.config.wasserstein_critic_updates == 0 and self.config.use_discriminator:
-                print('discriminator')
+                # print('discriminator')
                 self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
-            print('critic')
+            # print('critic')
             if self.config.use_critic:
                 self.critic_train_step(batch, batch_idx)
 
@@ -153,7 +153,7 @@ class DepthNormModel(pl.LightningModule):
             step_optimizers = True
         opt = self.optimizers(use_pl_optimizer=True)[0]
         if step_optimizers:
-            print('step generator')
+            # print('step generator')
             opt.step()
             opt.zero_grad()
             self.log_dict(self.g_losses_log)
@@ -189,7 +189,7 @@ class DepthNormModel(pl.LightningModule):
 
         # +1 because they are stepped in critic update
         if self.batches_accumulated + 1 == self.config.accumulate_grad_batches:
-            print('step discriminators')
+            # print('step discriminators')
             discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
             discriminator_opts = [discriminator_opt] if not isinstance(discriminator_opt, list) else discriminator_opt
             [d_opt.step() for d_opt in discriminator_opts]
@@ -233,7 +233,7 @@ class DepthNormModel(pl.LightningModule):
                 self.d_losses_log.update({k: 0.0 for k in self.d_losses_log.keys()})
 
         if step_optimizers:
-            print('step critics')
+            # print('step critics')
             critic_opts = self.optimizers(True)[self.critic_opt_idx]
             critic_opts = [critic_opts] if not isinstance(critic_opts, list) else critic_opts
             [d_opt.step() for d_opt in critic_opts]
