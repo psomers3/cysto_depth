@@ -105,7 +105,6 @@ class DepthNormModel(pl.LightningModule):
         self.total_train_step_count += 1
         if self._generator_training:
             # print('generator')
-            self.zero_grad()
             self.generator_train_step(batch, batch_idx)
         else:
             if self.critic_global_step % self.config.wasserstein_critic_updates == 0 and self.config.use_discriminator:
@@ -132,14 +131,12 @@ class DepthNormModel(pl.LightningModule):
                 loss += img_loss
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
-                with torch.no_grad():
-                    critic_loss = self.generator_critic_loss(critic_out)
+                critic_loss = self.generator_critic_loss(critic_out)
                 self.g_losses_log[f'g_critic_loss-{source_id}'] += critic_loss
                 loss += critic_loss
             if self.config.use_discriminator:
                 discriminator_out = self.discriminators[str(source_id)](out_images)
-                with torch.no_grad():
-                    discriminator_loss = self.generator_discriminator_loss(discriminator_out, 1.0)
+                discriminator_loss = self.generator_discriminator_loss(discriminator_out, 1.0)
                 self.g_losses_log[f'g_discriminator_loss-{source_id}'] += discriminator_loss
                 loss += discriminator_loss
         self.g_losses_log['g_loss'] += loss
@@ -162,6 +159,7 @@ class DepthNormModel(pl.LightningModule):
             opt.zero_grad()
             self.log_dict(self.g_losses_log)
             self.g_losses_log.update({k: 0 for k in self.g_losses_log.keys()})
+            self.zero_grad()
 
     def calculate_discriminator_loss(self, batch) -> Tensor:
         self.model.eval()
