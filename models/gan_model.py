@@ -420,81 +420,53 @@ class GAN(BaseModel):
         :return:
         """
         self.eval()
-        if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
-            # just plot one batch worth of images. In case there are a lot...
-            return
-        x, z = batch
-        # predictions with real images through generator
-        self.generator.apply(freeze_batchnorm)
-        _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
-        depth_adapted = decoder_outs_adapted[-1]
+        with torch.no_grad():
+            if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
+                # just plot one batch worth of images. In case there are a lot...
+                return
+            x, z = batch
+            # predictions with real images through generator
+            self.generator.apply(freeze_batchnorm)
+            _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
+            depth_adapted = decoder_outs_adapted[-1]
 
-        if self.unadapted_images_for_plotting is None:
-            _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
-            depth_unadapted = decoder_outs_unadapted[-1].detach()
-            if normals_unadapted is not None:
-                phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
-            else:
-                phong_unadapted = None
-            self.unadapted_images_for_plotting = (depth_unadapted, normals_unadapted.detach(), phong_unadapted.detach())
+            if self.unadapted_images_for_plotting is None:
+                _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
+                depth_unadapted = decoder_outs_unadapted[-1].detach()
+                if normals_unadapted is not None:
+                    phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
+                else:
+                    phong_unadapted = None
+                self.unadapted_images_for_plotting = (depth_unadapted, normals_unadapted.detach(), phong_unadapted.detach())
 
-        depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
-        denormed_images = self.imagenet_denorm(z).cpu()
-        plot_tensors = [denormed_images]
-        labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
-        centers = [None, None, None, 0]
-        minmax = []
-        plot_tensors.append(depth_adapted)
-        plot_tensors.append(depth_unadapted.cpu())
-        plot_tensors.append((depth_adapted - depth_unadapted).cpu())
+            depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
+            denormed_images = self.imagenet_denorm(z).cpu()
+            plot_tensors = [denormed_images]
+            labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
+            centers = [None, None, None, 0]
+            minmax = []
+            plot_tensors.append(depth_adapted)
+            plot_tensors.append(depth_unadapted.cpu())
+            plot_tensors.append((depth_adapted - depth_unadapted).cpu())
 
-        self.log_gate_coefficients(step=self.global_step)
-        for idx, imgs in enumerate(zip(*plot_tensors)):
-            fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
-                                       align_scales=True)
-            self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
-            plt.close(fig)
-
-        if normals_adapted is not None:
-            phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).cpu()
-
-            labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
-            for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
-                fig = generate_img_fig(img_set, labels)
-                self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
+            self.log_gate_coefficients(step=self.global_step)
+            for idx, imgs in enumerate(zip(*plot_tensors)):
+                fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
+                                           align_scales=True)
+                self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
                 plt.close(fig)
 
+            if normals_adapted is not None:
+                phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).cpu()
+
+                labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
+                for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
+                    fig = generate_img_fig(img_set, labels)
+                    self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
+                    plt.close(fig)
+
     def test_step(self, batch, batch_idx):
-        x, z = batch
-        y_hat = self.depth_model.decoder(self.generator(z)[0])
-        img_unapdated = self.depth_model(z)[-1][:, 0, ...].unsqueeze(1)
-        img_adapted = y_hat[-1][:, 0, ...].unsqueeze(1)
-        plot_tensors = [self.imagenet_denorm(z)]
-        # no labels for test step
-        labels = ["", "", "", ""]
-        centers = [None, None, None, 0]
-        minmax = []
-
-        plot_tensors.append(img_adapted)
-        plot_tensors.append(img_unapdated)
-        plot_tensors.append(img_adapted - img_unapdated)
-
-        for idx, imgs in enumerate(zip(*plot_tensors)):
-            fig = generate_final_imgs(imgs,
-                                      labels=labels,
-                                      centers=centers,
-                                      minmax=minmax,
-                                      colorbars=[False, False, False, True, True],
-                                      align_scales=True,
-                                      savefigs=True,
-                                      figname=str(batch_idx) + str(idx))
-            self.logger.experiment.add_figure("GAN Test Result-{}-{}".format(batch_idx, idx), fig, self.global_step)
-            plt.close(fig)
-            fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
-                                       align_scales=True)
-            self.logger.experiment.add_figure("GAN Prediction Result-{}-{}".format(batch_idx, idx), fig,
-                                              self.global_step)
-            plt.close(fig)
+        pass
 
     def configure_optimizers(self):
         return self._unwrapped_optimizers
