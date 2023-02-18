@@ -105,6 +105,7 @@ class DepthNormModel(pl.LightningModule):
         self.total_train_step_count += 1
         if self._generator_training:
             # print('generator')
+            self.zero_grad()
             self.generator_train_step(batch, batch_idx)
         else:
             if self.critic_global_step % self.config.wasserstein_critic_updates == 0 and self.config.use_discriminator:
@@ -131,12 +132,14 @@ class DepthNormModel(pl.LightningModule):
                 loss += img_loss
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
-                critic_loss = self.generator_critic_loss(critic_out)
+                with torch.no_grad():
+                    critic_loss = self.generator_critic_loss(critic_out)
                 self.g_losses_log[f'g_critic_loss-{source_id}'] += critic_loss
                 loss += critic_loss
             if self.config.use_discriminator:
                 discriminator_out = self.discriminators[str(source_id)](out_images)
-                discriminator_loss = self.generator_discriminator_loss(discriminator_out, 1.0)
+                with torch.no_grad():
+                    discriminator_loss = self.generator_discriminator_loss(discriminator_out, 1.0)
                 self.g_losses_log[f'g_discriminator_loss-{source_id}'] += discriminator_loss
                 loss += discriminator_loss
         self.g_losses_log['g_loss'] += loss
@@ -172,8 +175,8 @@ class DepthNormModel(pl.LightningModule):
                 synth_img, synth_depth, synth_normals = batch[source_id]
                 denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
-            discriminator_out_generated = self.discriminators[str(source_id)](out_images)
-            discriminator_out_original = self.discriminators[str(source_id)](denormed_images)
+            discriminator_out_generated = self.discriminators[str(source_id)](out_images.detach())
+            discriminator_out_original = self.discriminators[str(source_id)](denormed_images.detach())
             loss_generated = self.discriminator_loss(discriminator_out_generated, 0.0)
             loss_original = self.discriminator_loss(discriminator_out_original, 1.0)
             combined = loss_original + loss_generated
@@ -208,7 +211,7 @@ class DepthNormModel(pl.LightningModule):
                 denormed_images = imagenet_denorm(synth_img) if self.config.imagenet_norm_output else synth_img
                 out_images = self(synth_depth, synth_normals, source_id=source_id)
             critic_loss = self.discriminator_critic_loss(denormed_images,
-                                                         out_images,
+                                                         out_images.detach(),
                                                          self.critics[str(source_id)],
                                                          10,
                                                          self.config.critic_use_variance)
