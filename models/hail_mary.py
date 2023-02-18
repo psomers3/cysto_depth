@@ -487,20 +487,21 @@ class HailMary(BaseModel):
         :return:
         """
         self.eval()
-        if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
-            # just plot one batch worth of images. In case there are a lot...
-            return
+        with torch.no_grad():
+            if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
+                # just plot one batch worth of images. In case there are a lot...
+                return
 
-        if self.validation_data is None:
-            self.validation_data = {}
-            for source_id in batch:
-                if source_id < self.real_source_id:
-                    self.validation_data[source_id] = [x[:2] for x in batch[source_id]]
-                    self.validation_data[source_id][0] = self.imagenet_denorm(self.validation_data[source_id][0])
-                else:
-                    self.validation_data[source_id] = batch[source_id][0][:2]
-        self.plot()
-        self.log_gate_coefficients(step=self.global_step)
+            if self.validation_data is None:
+                self.validation_data = {}
+                for source_id in batch:
+                    if source_id < self.real_source_id:
+                        self.validation_data[source_id] = [x[:2] for x in batch[source_id]]
+                        self.validation_data[source_id][0] = self.imagenet_denorm(self.validation_data[source_id][0])
+                    else:
+                        self.validation_data[source_id] = batch[source_id][0][:2]
+            self.plot()
+            self.log_gate_coefficients(step=self.global_step)
 
     def test_step(self, *args: Any, **kwargs: Any):
         pass
@@ -534,22 +535,23 @@ class HailMary(BaseModel):
                     self.logger.experiment.add_scalars(name, scalars, step)
 
     def plot(self):
-        z = self.validation_data[self.real_source_id]
-        _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
-        depth_adapted = decoder_outs_adapted[-1]
-        denormed_images = self.imagenet_denorm(z)
-        self.validation_data[self.real_source_id] = [denormed_images, depth_adapted, normals_adapted]
-        self.texture_generator.validation_data = self.validation_data
-        self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].cpu() for i in self.validation_data], dim=0)
-        self.texture_generator.plot(self.global_step)
-        self.validation_data[self.real_source_id] = z
+        with torch.no_grad():
+            z = self.validation_data[self.real_source_id]
+            _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
+            depth_adapted = decoder_outs_adapted[-1]
+            denormed_images = self.imagenet_denorm(z)
+            self.validation_data[self.real_source_id] = [denormed_images, depth_adapted, normals_adapted]
+            self.texture_generator.validation_data = self.validation_data
+            self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].cpu() for i in self.validation_data], dim=0)
+            self.texture_generator.plot(self.global_step)
+            self.validation_data[self.real_source_id] = z
 
-        if self.unadapted_images_for_plotting is None:
-            _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
-            depth_unadapted = decoder_outs_unadapted[-1].detach()
-            phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
+            if self.unadapted_images_for_plotting is None:
+                _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
+                depth_unadapted = decoder_outs_unadapted[-1].detach()
+                phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
 
-            self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted.detach().cpu())
+                self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted.detach().cpu())
 
         depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
         denormed_images = denormed_images.cpu()
