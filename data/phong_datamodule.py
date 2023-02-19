@@ -74,7 +74,8 @@ class PhongDataModule(FileLoadingDataModule):
                  workers_per_loader: int = 6,
                  phong_config: PhongConfig = PhongConfig(),
                  add_random_blur: bool = False,
-                 memorize_check: bool = False):
+                 memorize_check: bool = False,
+                 pin_memory: bool = True):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -96,7 +97,7 @@ class PhongDataModule(FileLoadingDataModule):
                        'depth': depth_image_directory,
                        'normals': normals_image_directory}
 
-        super().__init__(batch_size, directories, split, workers_per_loader)
+        super().__init__(batch_size, directories, split, workers_per_loader, pin_memory=pin_memory)
         self.phong_config = phong_config
         self.save_hyperparameters()
         self.image_size = image_size

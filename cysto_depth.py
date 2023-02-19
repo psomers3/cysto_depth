@@ -54,7 +54,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           workers_per_loader=config.num_workers,
                                           phong_config=config.phong_config,
                                           memorize_check=config.memorize_check,
-                                          add_random_blur=config.synthetic_config.add_mask_blur)
+                                          add_random_blur=config.synthetic_config.add_mask_blur,
+                                          pin_memory=config.pin_dataloader_memory)
         else:
             data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
                                               data_roles=config.synthetic_config.data_roles,
@@ -65,7 +66,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               depth_scale_factor=1e3,
                                               inverse_depth=config.inverse_depth,
                                               memorize_check=config.memorize_check,
-                                              add_random_blur=config.synthetic_config.add_mask_blur)
+                                              add_random_blur=config.synthetic_config.add_mask_blur,
+                                              pin_memory=config.pin_dataloader_memory)
         model = DepthEstimationModel(config.synthetic_config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
@@ -80,7 +82,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     synth_split=split,
                                     image_size=config.image_size,
                                     workers_per_loader=config.num_workers,
-                                    add_random_blur=config.add_mask_blur)
+                                    add_random_blur=config.add_mask_blur,
+                                    pin_memory=config.pin_dataloader_memory)
         model = GAN(synth_config=config.synthetic_config.copy(), gan_config=config.gan_config.copy())
         config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
@@ -105,7 +108,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               depth_scale_factor=1e3,
                                               inverse_depth=config.depth_norm_config.inverse_depth,
                                               memorize_check=config.memorize_check,
-                                              add_random_blur=config.depth_norm_config.add_mask_blur)
+                                              add_random_blur=config.depth_norm_config.add_mask_blur,
+                                              pin_memory=config.pin_dataloader_memory)
             dataload_dict[i] = data_module
         data_module = DictDataLoaderCombine(dataload_dict)
         model = DepthNormModel(config.depth_norm_config.copy())
@@ -132,7 +136,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                                     depth_scale_factor=1e3,
                                                     inverse_depth=config.depth_norm_config.inverse_depth,
                                                     memorize_check=config.memorize_check,
-                                                    add_random_blur=config.depth_norm_config.add_mask_blur)
+                                                    add_random_blur=config.depth_norm_config.add_mask_blur,
+                                                    pin_memory=config.pin_dataloader_memory)
             dataload_dict[i] = synth_data_module
         real_data_module = GANDataModule(batch_size=config.synthetic_config.batch_size * len(dataload_dict),
                                          color_image_directories=config.gan_config.source_images,
@@ -143,7 +148,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                          image_size=config.image_size,
                                          workers_per_loader=config.num_workers,
                                          add_random_blur=config.add_mask_blur,
-                                         real_only=True)
+                                         real_only=True,
+                                         pin_memory=config.pin_dataloader_memory)
         dataload_dict[len(dataload_dict)] = real_data_module
         data_module = DictDataLoaderCombine(dataload_dict)
         # TODO: remove synthetic_base_model from config class

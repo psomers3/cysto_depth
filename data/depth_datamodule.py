@@ -18,7 +18,8 @@ class EndoDepthDataModule(FileLoadingDataModule):
                  depth_scale_factor: float = 1e3,
                  inverse_depth: bool = False,
                  memorize_check: bool = False,
-                 add_random_blur: bool = False):
+                 add_random_blur: bool = False,
+                 pin_memory: bool = False):
         """ A Data Module for loading rendered endoscopic images with corresponding depth maps. The color images should
         be stored in a different directory as the depth images. See the split parameter for thoughts on how best to
         set up your data structure for use with this module. The images will be made square and a circular mask applied
@@ -36,7 +37,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         """
 
         directories = dict(zip(data_roles, data_directories))
-        super().__init__(batch_size, directories, split, workers_per_loader)
+        super().__init__(batch_size, directories, split, workers_per_loader, pin_memory=pin_memory)
         self.save_hyperparameters("batch_size")
         self.image_size = image_size
         self.scale_factor = depth_scale_factor

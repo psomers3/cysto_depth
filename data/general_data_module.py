@@ -21,7 +21,8 @@ class FileLoadingDataModule(pl.LightningDataModule):
                  directories: Dict[str, Union[List[str], str]],
                  split: dict = None,
                  workers_per_loader: int = 6,
-                 exclude_regex: str = None):
+                 exclude_regex: str = None,
+                 pin_memory: bool = True):
         """
          A Data Module for loading paired files located in different directories. See the split parameter for
          thoughts on how best to set up your data structure for use with this module.
@@ -51,7 +52,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
         super().__init__()
         self.workers_per_loader = workers_per_loader
         self.batch_size = batch_size
-
+        self.pin_memory = pin_memory
         if isinstance(split, str):
             with open(split, 'r') as f:
                 self.split_files = json.load(f)
@@ -135,21 +136,21 @@ class FileLoadingDataModule(pl.LightningDataModule):
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
                           shuffle=True,
-                          pin_memory=True)
+                          pin_memory=self.pin_memory)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.data_val,
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
                           shuffle=False,
-                          pin_memory=True)
+                          pin_memory=self.pin_memory)
 
     def test_dataloader(self) -> DataLoader:
         return DataLoader(self.data_test,
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
                           shuffle=False,
-                          pin_memory=True)
+                          pin_memory=self.pin_memory)
 
 
 class DictDataLoaderCombine(pl.LightningDataModule):

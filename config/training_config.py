@@ -408,3 +408,5 @@ class CystoDepthConfig:
     """ how many steps before plotting train images """
     slurm_requeue: bool = False
     """ Whether to automatically requeue the training with a checkpoint """
+    pin_dataloader_memory: bool = False
+    """ Whether to pin_memory when getting the dataloaders """

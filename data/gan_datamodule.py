@@ -47,7 +47,8 @@ class GANDataModule(pl.LightningDataModule):
                  image_size: int = 256,
                  workers_per_loader: int = 6,
                  add_random_blur: bool = False,
-                 real_only: bool = False
+                 real_only: bool = False,
+                 pin_memory: bool = True,
                  ):
         """ A Data Module for loading rendered endoscopic images and real images. The rendered images will be made
          square and a circular mask applied to simulate actual endoscopic images. The real images are generated
@@ -88,6 +89,7 @@ class GANDataModule(pl.LightningDataModule):
         self.generate_data = generate_data
         self.add_random_blur = add_random_blur
         self.real_only = real_only
+        self.pin_memory = pin_memory
         self.data_train: Dataset = None
         self.data_val: Dataset = None
         self.data_test: Dataset = None
@@ -179,21 +181,21 @@ class GANDataModule(pl.LightningDataModule):
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
                           shuffle=True,
-                          pin_memory=True)
+                          pin_memory=self.pin_memory)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.data_val,
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
                           shuffle=False,
-                          pin_memory=True)
+                          pin_memory=self.pin_memory)
 
     def test_dataloader(self) -> DataLoader:
         return DataLoader(self.data_test,
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
                           shuffle=False,
-                          pin_memory=True)
+                          pin_memory=self.pin_memory)
 
 
 if __name__ == '__main__':
