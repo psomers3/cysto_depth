@@ -171,6 +171,7 @@ class DepthNorm2ImageConfig:
                                                save_weights_only=False)
     imagenet_norm_output: bool = False
     """ whether to predict normalized images or actual final color values """
+    ckpt_metric: Union[str, None] = None
 
 
 @dataclass
