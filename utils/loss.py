@@ -111,13 +111,15 @@ class AvgTensorNorm(nn.Module):
         return avg_norm
 
 
-def compute_grad(interpolated_out, interpolated_img):
+def compute_grad_squared(interpolated_out, interpolated_img) -> Tensor:
     batch_size = interpolated_img.shape[0]
     grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
                                 grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
                                 create_graph=True, retain_graph=True)[0]
-    grads = grads.reshape([batch_size, -1])
-    return grads.norm(2, dim=1)
+    grad_dout2 = grads ** 2
+    assert (grad_dout2.size() == interpolated_img.size())
+    reg = grad_dout2.view(batch_size, -1).sum(1)
+    return reg
 
 
 def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, float], discriminator: nn.Module, *args,
@@ -135,7 +137,7 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
                                  *args, **kwargs) -> Tensor:
     predicted = discriminator(critic_input)
     loss = binary_cross_entropy_loss(predicted, ground_truth, discriminator)
-    regularization = factor * (compute_grad(predicted, critic_input) ** 2).mean()
+    regularization = factor * compute_grad_squared(predicted, critic_input).mean()
     return loss + regularization
 
 
@@ -165,7 +167,7 @@ def wasserstein_gradient_penalty(original_input: Tensor,
     interpolated_img = epsilon * original_input + (1 - epsilon) * generated_input
     interpolated_img.requires_grad = True
     interpolated_out = critic(interpolated_img)
-    grad_penalty = wasserstein_lambda * ((compute_grad(interpolated_out, interpolated_img) - 1) ** 2).mean()
+    grad_penalty = wasserstein_lambda * ((compute_grad_squared(interpolated_out, interpolated_img).sqrt() - 1) ** 2).mean()
     return grad_penalty
 
 
