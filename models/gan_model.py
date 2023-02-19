@@ -397,12 +397,9 @@ class GAN(BaseModel):
 
     def _apply_discriminator_loss(self, generated: Tensor, original: Tensor, discriminator: torch.nn.Module,
                                   name: str) -> Tensor:
-        original_depth_discriminated = discriminator(original)
-        generated_depth_discriminated = discriminator(generated)
-
-        loss_generated = self.discriminator_loss(generated_depth_discriminated, 0.0)
-        loss_original = self.discriminator_loss(original_depth_discriminated, 1.0)
-        combined = (loss_original + loss_generated) / 2
+        loss_generated = self.discriminator_loss(original, 0.0, discriminator)
+        loss_original = self.discriminator_loss(generated, 1.0, discriminator)
+        combined = loss_original + loss_generated
         self.d_losses_log[f'd_loss_{name}'] += combined
         return combined
 

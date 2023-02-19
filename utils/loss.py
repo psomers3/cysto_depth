@@ -26,7 +26,7 @@ class CosineSimilarity(nn.Module):
         non_zero_norm = torch.linalg.norm(target, dim=1) > 0.0
         if self.ignore_direction:
             epsilon = 1e-6
-            return (1 - torch.where(non_zero_norm, self.loss(predicted, target)+1+epsilon,
+            return (1 - torch.where(non_zero_norm, self.loss(predicted, target) + 1 + epsilon,
                                     torch.ones([1], device=self.device)).abs()).mean()
         else:
             return (1 - torch.where(non_zero_norm, self.loss(predicted, target),
@@ -111,13 +111,36 @@ class AvgTensorNorm(nn.Module):
         return avg_norm
 
 
-def binary_cross_entropy_loss(predicted: Tensor, ground_truth: Union[Tensor, float], *args, **kwargs) -> Tensor:
+def compute_grad(interpolated_out, interpolated_img):
+    batch_size = interpolated_img.shape[0]
+    grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
+                                grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
+                                create_graph=True, retain_graph=True)[0]
+    grads = grads.reshape([batch_size, -1])
+    return grads.norm(2, dim=1)
+
+
+def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, float], discriminator: nn.Module, *args,
+                              **kwargs) -> Tensor:
+    discriminated = discriminator(input_data)
     if isinstance(ground_truth, float):
-        ground_truth = torch.ones_like(predicted, device=predicted.device)
-    return F.binary_cross_entropy(predicted, ground_truth)
+        ground_truth = torch.ones_like(discriminated, device=discriminated.device)
+    return F.binary_cross_entropy(discriminated, ground_truth)
 
 
-def wasserstein_discriminator_loss(original: Tensor, generated: Tensor, use_variance: bool = False, *args, **kwargs) -> Tensor:
+def binary_cross_entropy_loss_R1(critic_input: Tensor,
+                                 ground_truth: Union[Tensor, float],
+                                 discriminator: torch.nn.Module,
+                                 factor: float = 2.0,
+                                 *args, **kwargs) -> Tensor:
+    predicted = discriminator(critic_input)
+    loss = binary_cross_entropy_loss(predicted, ground_truth, discriminator)
+    regularization = factor * (compute_grad(predicted, critic_input) ** 2).mean()
+    return loss + regularization
+
+
+def wasserstein_discriminator_loss(original: Tensor, generated: Tensor, use_variance: bool = False, *args,
+                                   **kwargs) -> Tensor:
     """ Discriminator outputs from data originating from the original domain and
         from the generator's attempt (generated)
     """
@@ -142,12 +165,7 @@ def wasserstein_gradient_penalty(original_input: Tensor,
     interpolated_img = epsilon * original_input + (1 - epsilon) * generated_input
     interpolated_img.requires_grad = True
     interpolated_out = critic(interpolated_img)
-
-    grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
-                                grad_outputs=torch.ones_like(interpolated_out, device=original_input.device),
-                                create_graph=True, retain_graph=True)[0]
-    grads = grads.reshape([batch_size, -1])
-    grad_penalty = wasserstein_lambda * ((grads.norm(2, dim=1) - 1) ** 2).mean()  # take norm per batch
+    grad_penalty = wasserstein_lambda * ((compute_grad(interpolated_out, interpolated_img) - 1) ** 2).mean()
     return grad_penalty
 
 
@@ -158,14 +176,16 @@ def wasserstein_gp_discriminator_loss(original_input: Tensor,
                                       use_variance: bool = False) -> Tensor:
     """ https://arxiv.org/abs/1704.00028 """
     return (wasserstein_discriminator_loss(critic(original_input), critic(generated_input), use_variance) \
-           + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda))
+            + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda))
 
 
 GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {
     'wasserstein_gp': wasserstein_gp_discriminator_loss,
     'cross_entropy': binary_cross_entropy_loss,
+    'cross_entropy_R1': binary_cross_entropy_loss_R1,
     'wasserstein': wasserstein_discriminator_loss}
 GANGeneratorLoss: Dict[str, Callable[..., Tensor]] = {
     'wasserstein': wasserstein_generator_loss,
     'cross_entropy': binary_cross_entropy_loss,
+    'cross_entropy_R1': binary_cross_entropy_loss,
     'wasserstein_gp': wasserstein_generator_loss}
