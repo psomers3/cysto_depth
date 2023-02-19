@@ -33,14 +33,14 @@ gan_config:
     adaptive_gating: true
     residual_learning: true
     res_layer_norm: instance
-  use_critic: true
-  use_discriminator: false
+  use_critic: false
+  use_discriminator: true
   generator_lr: 5e-4
   discriminator_lr: 5e-5
   critic_lr: 5e-5
   critic_loss: wasserstein_gp
   wasserstein_critic_updates: 2
-  discriminator_loss: cross_entropy
+  discriminator_loss: cross_entropy_R1
   wasserstein_lambda: 10.0
   freeze_batch_norm: true
   phong_discriminator_factor: 1.0

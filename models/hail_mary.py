@@ -224,16 +224,13 @@ class HailMary(BaseModel):
         if self.config.use_discriminator:
             feat_outs = encoder_outs_real[::-1][:len(self.discriminators['features'])]
             for idx, feature_out in enumerate(feat_outs):
-                real_predicted = self.discriminators['features'][idx](feature_out).type_as(feature_out)
-                g_loss += self._apply_generator_discriminator_loss(real_predicted, f'discriminator_feature_{idx}') \
+                g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx], f'discriminator_feature_{idx}') \
                           * self.config.feature_discriminator_factor
-            valid_predicted_depth = self.discriminators['depth_image'](depth_out)
-            g_loss += self._apply_generator_discriminator_loss(valid_predicted_depth, 'discriminator_depth_img') \
+            g_loss += self._apply_generator_discriminator_loss(depth_out, self.discriminators['depth_image'], 'discriminator_depth_img') \
                       * self.config.img_discriminator_factor
-            phong_discrimination = self.discriminators['phong'](synth_phong_rendering)
-            g_loss += self._apply_generator_discriminator_loss(phong_discrimination, 'discriminator_phong') \
+            g_loss += self._apply_generator_discriminator_loss(synth_phong_rendering, self.discriminators['phong'], 'discriminator_phong') \
                       * self.config.phong_discriminator_factor
-            g_loss += self._apply_generator_discriminator_loss(self.discriminators['depth_phong'](depth_phong),
+            g_loss += self._apply_generator_discriminator_loss(depth_phong, self.discriminators['depth_phong'],
                                                                'discriminator_depth_phong') * self.config.phong_discriminator_factor
 
         if self.config.use_critic:
@@ -452,8 +449,9 @@ class HailMary(BaseModel):
                                         self.config.wasserstein_lambda, 'critic_depth_phong')
         return loss
 
-    def _apply_generator_discriminator_loss(self, discriminator_out: Tensor, name: str, label: float = 1.0) -> Tensor:
-        loss = self.generator_discriminator_loss(discriminator_out, label)
+    def _apply_generator_discriminator_loss(self, discriminator_in: Tensor, discriminator: torch.nn.Module, name: str,
+                                            label: float = 1.0) -> Tensor:
+        loss = self.generator_discriminator_loss(discriminator_in, label, discriminator)
         self.g_losses_log[f'g_loss_{name}'] += loss
         return loss
 

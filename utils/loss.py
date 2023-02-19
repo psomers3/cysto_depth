@@ -111,15 +111,13 @@ class AvgTensorNorm(nn.Module):
         return avg_norm
 
 
-def compute_grad_squared(interpolated_out, interpolated_img) -> Tensor:
+def compute_grad_norm(interpolated_out, interpolated_img) -> Tensor:
     batch_size = interpolated_img.shape[0]
-    grads = torch.autograd.grad(outputs=interpolated_out.sum(), inputs=interpolated_img,
+    grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
                                 grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
-                                create_graph=True, retain_graph=True, only_inputs=True)[0]
-    grad_dout2 = grads ** 2
-    assert (grad_dout2.size() == interpolated_img.size())
-    reg = grad_dout2.view(batch_size, -1).sum(1)
-    return reg
+                                create_graph=True, retain_graph=True)[0]
+    grads = grads.reshape([batch_size, -1])
+    return grads.norm(2, dim=1)
 
 
 def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, float], discriminator: nn.Module, *args,
@@ -135,11 +133,12 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
                                  discriminator: torch.nn.Module,
                                  factor: float = 2.0,
                                  *args, **kwargs) -> Tensor:
+    critic_input.requires_grad = True
     discriminated = discriminator(critic_input)
     if isinstance(ground_truth, float):
         ground_truth = torch.ones_like(discriminated, device=discriminated.device)
     loss = F.binary_cross_entropy(discriminated, ground_truth)
-    regularization = factor * compute_grad_squared(discriminated, critic_input).mean()
+    regularization = factor * (compute_grad_norm(discriminated, critic_input)**2).mean()
     return loss + regularization
 
 
@@ -169,7 +168,7 @@ def wasserstein_gradient_penalty(original_input: Tensor,
     interpolated_img = epsilon * original_input + (1 - epsilon) * generated_input
     interpolated_img.requires_grad = True
     interpolated_out = critic(interpolated_img)
-    grad_penalty = wasserstein_lambda * ((compute_grad_squared(interpolated_out, interpolated_img).sqrt() - 1) ** 2).mean()
+    grad_penalty = wasserstein_lambda * ((compute_grad_norm(interpolated_out, interpolated_img) - 1) ** 2).mean()
     return grad_penalty
 
 

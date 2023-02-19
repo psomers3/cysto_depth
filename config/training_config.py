@@ -276,7 +276,7 @@ class GANTrainingConfig:
     critic_loss: str = 'wasserstein_gp'
     """ Which loss to use for training the critics [wasserstein_gp, wasserstein] """
     discriminator_loss: str = 'cross_entropy'
-    """ Which loss to use for training the discriminators [cross_entropy] """
+    """ Which loss to use for training the discriminators [cross_entropy, cross_entropy_R1] """
     wasserstein_lambda: float = 10.0
     """ lambda factor for wasserstein gradient penalty """
     wasserstein_critic_updates: int = 5

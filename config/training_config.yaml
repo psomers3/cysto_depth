@@ -30,6 +30,6 @@ gan_config:
 trainer_config:
   gpus: []
   strategy: null
-  accelerator: cpu
+  accelerator: mps
   log_every_n_steps: 1
   gradient_clip_val: 0.3

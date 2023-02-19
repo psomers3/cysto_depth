@@ -4,14 +4,14 @@ mode: depthnorm
 training_stage: train
 split_save_dir: ''
 num_workers: 1
-val_check_interval: 1
+val_check_interval: 10
 val_plot_interval: 1
 trainer_config:
   gpus: []
   strategy: null
   accelerator: mps
   log_every_n_steps: 2
-  overfit_batches: 1
+  overfit_batches: 0
 depth_norm_config:
   encoder:
     load_imagenet_weights: True
@@ -42,4 +42,4 @@ depth_norm_config:
       - /Users/peter/isys/2023_01_29/normals/bladder_wall
     -
       - /Users/peter/isys/2023_01_29/normals/bland_bladder_wall
-  training_split: {'train': .75, 'validate': 0.225, 'test': .025}
+  training_split: {'train': .98, 'validate': 0.01, 'test': .01}
