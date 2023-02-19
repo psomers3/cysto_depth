@@ -113,9 +113,9 @@ class AvgTensorNorm(nn.Module):
 
 def compute_grad_squared(interpolated_out, interpolated_img) -> Tensor:
     batch_size = interpolated_img.shape[0]
-    grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
+    grads = torch.autograd.grad(outputs=interpolated_out.sum(), inputs=interpolated_img,
                                 grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
-                                create_graph=True, retain_graph=True)[0]
+                                create_graph=True, retain_graph=True, only_inputs=True)[0]
     grad_dout2 = grads ** 2
     assert (grad_dout2.size() == interpolated_img.size())
     reg = grad_dout2.view(batch_size, -1).sum(1)
@@ -135,9 +135,11 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
                                  discriminator: torch.nn.Module,
                                  factor: float = 2.0,
                                  *args, **kwargs) -> Tensor:
-    predicted = discriminator(critic_input)
-    loss = binary_cross_entropy_loss(predicted, ground_truth, discriminator)
-    regularization = factor * compute_grad_squared(predicted, critic_input).mean()
+    discriminated = discriminator(critic_input)
+    if isinstance(ground_truth, float):
+        ground_truth = torch.ones_like(discriminated, device=discriminated.device)
+    loss = F.binary_cross_entropy(discriminated, ground_truth)
+    regularization = factor * compute_grad_squared(discriminated, critic_input).mean()
     return loss + regularization
 
 
