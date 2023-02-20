@@ -54,9 +54,9 @@ class DepthNormModel(pl.LightningModule):
         self.critic_global_step = 0
         self.total_train_step_count = -1
         self.discriminator_critic_loss = GANDiscriminatorLoss['wasserstein_gp']
-        self.discriminator_loss = GANDiscriminatorLoss['cross_entropy']
+        self.discriminator_loss = GANDiscriminatorLoss['cross_entropy_R1']
         self.generator_critic_loss = GANGeneratorLoss['wasserstein_gp']
-        self.generator_discriminator_loss = GANGeneratorLoss['cross_entropy']
+        self.generator_discriminator_loss = GANGeneratorLoss['cross_entropy_R1']
         self.L_loss = None
         if config.L_loss:
             self.L_loss = torch.nn.L1Loss() if '1' in config.L_loss else torch.nn.MSELoss()
