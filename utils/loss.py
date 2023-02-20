@@ -113,11 +113,11 @@ class AvgTensorNorm(nn.Module):
 
 def compute_grad_norm(interpolated_out, interpolated_img) -> Tensor:
     batch_size = interpolated_img.shape[0]
-    grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
-                                grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
-                                create_graph=False, retain_graph=True, is_grads_batched=False)[0]
+    grads: Tensor = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
+                                        grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
+                                        create_graph=False, retain_graph=True, is_grads_batched=False)[0]
     grads = grads.reshape([batch_size, -1])
-    return grads.norm(2, dim=1)
+    return torch.linalg.norm(grads, dim=1, ord=2)
 
 
 def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, float], discriminator: nn.Module, *args,
@@ -138,7 +138,7 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
     if isinstance(ground_truth, float):
         ground_truth = torch.full_like(discriminated, device=discriminated.device, fill_value=ground_truth)
     loss = F.binary_cross_entropy(discriminated, ground_truth)
-    regularization = factor * (compute_grad_norm(discriminated, critic_input)**2).mean()
+    regularization = factor * (compute_grad_norm(discriminated, critic_input) ** 2).mean()
     return loss + regularization
 
 
@@ -155,7 +155,7 @@ def wasserstein_discriminator_loss(generated: Tensor, original: Tensor, use_vari
 
 
 def wasserstein_generator_loss(generated: Tensor, *args, **kwargs) -> Tensor:
-    return -generated.mean()
+    return generated.mean()
 
 
 def wasserstein_gradient_penalty(generated_input: Tensor,
