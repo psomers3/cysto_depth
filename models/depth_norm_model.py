@@ -74,13 +74,16 @@ class DepthNormModel(pl.LightningModule):
         ckpt = self.load_from_checkpoint(path_to_ckpt,
                                          strict=False,
                                          config=config)
-        # run some data through the network to initial dense layers in discriminators if needed
-        temp_out = self(torch.ones(1, 1, config.image_size, config.image_size),
-                        torch.ones(1, 3, config.image_size, config.image_size))
-        for d in self.discriminators:
-            self.discriminators[d](temp_out)
-        for c in self.critics:
-            self.critics[c](temp_out)
+        with torch.no_grad():
+            # run some data through the network to initial dense layers in discriminators if needed
+            # TODO: see if this actually works
+            temp_out = self(torch.ones(1, 1, config.image_size, config.image_size),
+                            torch.ones(1, 3, config.image_size, config.image_size),
+                            source_id=0)
+            for d in self.discriminators:
+                self.discriminators[d](temp_out)
+            for c in self.critics:
+                self.critics[c](temp_out)
         self.load_state_dict(ckpt.state_dict())
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int, **kwargs: Any, ) -> Tensor:
