@@ -255,7 +255,7 @@ class GAN(BaseModel):
                           * self.config.normals_discriminator_factor
 
         self.manual_backward(g_loss)
-        self.g_losses_log['g_loss'] += g_loss
+        self.g_losses_log['g_loss'] += g_loss.detach()
         self.batches_accumulated += 1
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
@@ -286,7 +286,7 @@ class GAN(BaseModel):
             # print('discriminator')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
-            self.d_losses_log['d_discriminators_loss'] += discriminator_loss
+            self.d_losses_log['d_discriminators_loss'] += discriminator_loss.detach()
             # +1 because they are stepped after critic update
             if full_batch:
                 # print('discriminator step')
@@ -298,7 +298,7 @@ class GAN(BaseModel):
             # print('critic')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
-            self.d_losses_log['d_critics_loss'] += critic_loss
+            self.d_losses_log['d_critics_loss'] += critic_loss.detach()
             if full_batch:
                 # print('critic step')
                 critic_opt = self.optimizers(True)[self.critic_opt_idx]
@@ -349,8 +349,8 @@ class GAN(BaseModel):
                 results['phong_generated'] = phong_generated.detach()
                 results['calculated_phong_original'] = calculated_phong_original.detach()
                 results['calculated_phong_generated'] = calculated_phong_generated.detach()
-                results['normals_generated'] = normals_generated
-                results['normals_original'] = normals_original
+                results['normals_generated'] = normals_generated.detach()
+                results['normals_original'] = normals_original.detach()
 
         return results
 
@@ -424,14 +424,14 @@ class GAN(BaseModel):
                                             name: str,
                                             label: float = 1.0) -> Tensor:
         loss = self.generator_discriminator_loss(discriminator_in, label, discriminator)
-        self.g_losses_log[f'g_loss_{name}'] += loss
+        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_generator_critic_loss(self,
                                      discriminator_out: Tensor,
                                      name: str,) -> Tensor:
         loss = self.generator_critic_loss(discriminator_out)
-        self.g_losses_log[f'g_loss_{name}'] += loss
+        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_discriminator_loss(self,
@@ -442,13 +442,13 @@ class GAN(BaseModel):
         loss_generated = self.discriminator_loss(generated, 0.0, discriminator)
         loss_original = self.discriminator_loss(original, 1.0, discriminator)
         combined = loss_original + loss_generated
-        self.d_losses_log[f'd_loss_{name}'] += combined
+        self.d_losses_log[f'd_loss_{name}'] += combined.detach()
         return combined
 
     def _apply_critic_loss(self, generated: Tensor, original: Tensor, critic: torch.nn.Module,
                            wasserstein_lambda: float, name: str):
         critic_loss = self.critic_loss(original, generated, critic, wasserstein_lambda)
-        self.d_losses_log[f'd_loss_{name}'] += critic_loss
+        self.d_losses_log[f'd_loss_{name}'] += critic_loss.detach()
         return critic_loss
 
     def validation_step(self, batch, batch_idx):
