@@ -152,8 +152,6 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                          pin_memory=config.pin_dataloader_memory)
         dataload_dict[len(dataload_dict)] = real_data_module
         data_module = DictDataLoaderCombine(dataload_dict)
-        # TODO: remove synthetic_base_model from config class
-        config.gan_config.synthetic_base_model = config.synthetic_config.resume_from_checkpoint
         model = HailMary(depth_norm_config=config.depth_norm_config.copy(),
                          gan_config=config.gan_config.copy(),
                          synth_config=config.synthetic_config.copy())
