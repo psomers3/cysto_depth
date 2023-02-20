@@ -26,6 +26,8 @@ class Predictions(TypedDict):
     phong_generated: Tensor
     calculated_phong_original: Tensor
     calculated_phong_generated: Tensor
+    normals_generated: Tensor
+    normals_original: Tensor
 
 
 class GAN(BaseModel):
@@ -317,7 +319,7 @@ class GAN(BaseModel):
         :return: dict
         """
         x, z = batch
-        results = {}
+        results: Predictions = {}
         with torch.no_grad():
             # predictions with generated images through generator
             encoder_outs_generated, encoder_mare_outs_generated, decoder_outs_generated, normals_generated = self(z, generator=True)
@@ -347,6 +349,9 @@ class GAN(BaseModel):
                 results['phong_generated'] = phong_generated.detach()
                 results['calculated_phong_original'] = calculated_phong_original.detach()
                 results['calculated_phong_generated'] = calculated_phong_generated.detach()
+                results['normals_generated'] = normals_generated
+                results['normals_original'] = normals_original
+
         return results
 
     def _discriminators(self, predictions: Predictions) -> Tensor:
@@ -379,6 +384,10 @@ class GAN(BaseModel):
                                                    calculated_phong_original,
                                                    self.discriminators['depth_phong'],
                                                    'discriminator_depth_phong')
+            loss += self._apply_discriminator_loss(predictions['normals_generated'],
+                                                   predictions['normals_original'],
+                                                   self.discriminators['normals'],
+                                                   'discriminator_normals')
         return loss
 
     def _critics(self, predictions: Predictions) -> Tensor:
@@ -404,6 +413,9 @@ class GAN(BaseModel):
             loss += self._apply_critic_loss(calculated_phong_generated, calculated_phong_original,
                                             self.critics['depth_phong'],
                                             self.config.wasserstein_lambda, 'critic_depth_phong')
+            loss += self._apply_critic_loss(predictions['normals_generated'], predictions['normals_original'],
+                                            self.critics['normals'],
+                                            self.config.wasserstein_lambda, 'critic_normals')
         return loss
 
     def _apply_generator_discriminator_loss(self,
