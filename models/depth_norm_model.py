@@ -169,9 +169,9 @@ class DepthNormModel(pl.LightningModule):
         discriminator_loss: Tensor = 0
         for source_id in batch.keys():
             with torch.no_grad():
-                synth_img, synth_depth, synth_normals = batch[source_id]
-                denormed_images = synth_img if self.config.imagenet_norm_output else imagenet_denorm(synth_img)
-                out_images = self(synth_depth, synth_normals, source_id=source_id)
+                original_img, original_depth, original_normals = batch[source_id]
+                denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
+                out_images = self(original_depth, original_normals, source_id=source_id)
             loss_generated = self.discriminator_loss(out_images.detach(), 0.0, self.discriminators[str(source_id)])
             loss_original = self.discriminator_loss(denormed_images.detach(), 1.0, self.discriminators[str(source_id)])
             combined = loss_original + loss_generated
@@ -202,9 +202,9 @@ class DepthNormModel(pl.LightningModule):
         loss: Tensor = 0
         for source_id in batch.keys():
             with torch.no_grad():
-                synth_img, synth_depth, synth_normals = batch[source_id]
-                denormed_images = synth_img if self.config.imagenet_norm_output else imagenet_denorm(synth_img)
-                out_images = self(synth_depth, synth_normals, source_id=source_id)
+                original_img, original_depth, original_normals = batch[source_id]
+                denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
+                out_images = self(original_depth, original_normals, source_id=source_id)
             critic_loss = self.discriminator_critic_loss(denormed_images,
                                                          out_images.detach(),
                                                          self.critics[str(source_id)],
@@ -243,28 +243,28 @@ class DepthNormModel(pl.LightningModule):
             loss = 0
             if self.L_loss is not None:
                 for source_id in batch:
-                    synth_img, synth_depth, synth_normals = batch[source_id]
-                    out_images = self(synth_depth, synth_normals, source_id=source_id)
-                    denormed_images = synth_img if self.config.imagenet_norm_output else imagenet_denorm(synth_img)
+                    original_img, original_depth, original_normals = batch[source_id]
+                    out_images = self(original_depth, original_normals, source_id=source_id)
+                    denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
                     loss += self.L_loss(out_images, denormed_images)
                 self.val_loss += loss / len(batch)
                 self.val_batch_count += 1
 
             if self.validation_data is None:
                 self.validation_data = {}
-                synth_images_all = []
-                synth_depths_all = []
-                synth_normals_all = []
+                original_images_all = []
+                original_depths_all = []
+                original_normals_all = []
                 for source_id in batch:
-                    synth_img, synth_depth, synth_normals = batch[source_id]
-                    synth_images_all.append(synth_img[:self.max_num_image_samples])
-                    synth_depths_all.append(synth_depth[:self.max_num_image_samples])
-                    synth_normals_all.append(synth_normals[:self.max_num_image_samples])
+                    original_img, original_depth, original_normals = batch[source_id]
+                    original_images_all.append(original_img[:self.max_num_image_samples])
+                    original_depths_all.append(original_depth[:self.max_num_image_samples])
+                    original_normals_all.append(original_normals[:self.max_num_image_samples])
                     self.validation_data[source_id] = []
                     self.validation_data[source_id].append(imagenet_denorm(
-                        synth_img[:self.max_num_image_samples]).detach().cpu())
-                    self.validation_data[source_id].append(synth_depth[:self.max_num_image_samples].detach())
-                    self.validation_data[source_id].append(synth_normals[:self.max_num_image_samples].detach())
+                        original_img[:self.max_num_image_samples]).detach().cpu())
+                    self.validation_data[source_id].append(original_depth[:self.max_num_image_samples].detach())
+                    self.validation_data[source_id].append(original_normals[:self.max_num_image_samples].detach())
                 self.val_denorm_color_images = torch.cat([self.validation_data[i][0] for i in self.validation_data], dim=0)
 
     def on_validation_epoch_end(self) -> None:

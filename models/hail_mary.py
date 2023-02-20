@@ -1,4 +1,3 @@
-import pytorch_lightning as pl
 from matplotlib import pyplot as plt
 import torch
 from torch import Tensor
@@ -17,6 +16,15 @@ from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss
 from typing import *
 
 opts = {'adam': torch.optim.Adam, 'radam': torch.optim.RAdam, 'rmsprop': torch.optim.RMSprop}
+
+
+class DiscriminatorCriticInputs(TypedDict):
+    color: Tensor
+    encoder_outs: List[Tensor]
+    depth: Tensor
+    normals: Tensor
+    phong: Tensor
+    calculated_phong: Tensor
 
 
 class HailMary(BaseModel):
@@ -39,7 +47,7 @@ class HailMary(BaseModel):
         self.g_losses_log = {'g_loss': 0.0}
         self.discriminators: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critics: torch.nn.ModuleDict = torch.nn.ModuleDict()
-        self.real_source_id: int = len(self.texture_generator.sources)
+        self.generated_source_id: int = len(self.texture_generator.sources)
         self.critic_opt_idx = 0
         self.discriminators_opt_idx = 0
         self._unwrapped_optimizers = []
@@ -109,10 +117,10 @@ class HailMary(BaseModel):
                                               lr=self.config.discriminator_lr))
         self.discriminators_opt_idx = self.critic_opt_idx + 1
         if self.texture_generator.config.use_discriminator:
-            self.texture_generator.discriminators[str(self.real_source_id)] = \
+            self.texture_generator.discriminators[str(self.generated_source_id)] = \
                 Discriminator(self.texture_generator.config.discriminator_config)
-            self.texture_generator.g_losses_log[f'g_discriminator_loss-{self.real_source_id}'] = 0.0
-            self.texture_generator.d_losses_log[f'd_discriminator_loss-{self.real_source_id}'] = 0.0
+            self.texture_generator.g_losses_log[f'g_discriminator_loss-{self.generated_source_id}'] = 0.0
+            self.texture_generator.d_losses_log[f'd_discriminator_loss-{self.generated_source_id}'] = 0.0
 
     def setup_critics(self):
         d_in_shapes = self.generator.feature_levels[::-1]
@@ -139,10 +147,10 @@ class HailMary(BaseModel):
                                               lr=self.config.critic_lr))
         self.critic_opt_idx += 1
         if self.texture_generator.config.use_critic:
-            self.texture_generator.critics[str(self.real_source_id)] = \
+            self.texture_generator.critics[str(self.generated_source_id)] = \
                 Discriminator(self.texture_generator.config.critic_config)
-            self.texture_generator.g_losses_log[f'g_critic_loss-{self.real_source_id}'] = 0.0
-            self.texture_generator.d_losses_log[f'd_critic_loss-{self.real_source_id}'] = 0.0
+            self.texture_generator.g_losses_log[f'g_critic_loss-{self.generated_source_id}'] = 0.0
+            self.texture_generator.d_losses_log[f'd_critic_loss-{self.generated_source_id}'] = 0.0
 
     @staticmethod
     def reset_log_dict(log_dict: dict):
@@ -204,7 +212,7 @@ class HailMary(BaseModel):
             self.discriminator_critic_train_step(batch, batch_idx)
 
     def generator_train_step(self, batch: Dict[int, List[Tensor]], batch_idx) -> None:
-        z = batch[self.real_source_id][0]  # real images
+        z = batch[self.generated_source_id][0]  # real images
         # set discriminators to eval so that any normalization statistics don't get updated
         self.discriminators.eval()
         self.critics.eval()
@@ -212,45 +220,45 @@ class HailMary(BaseModel):
             self.generator.set_residuals_train()
 
         # output of encoder when evaluating a real image
-        encoder_outs_real, encoder_mare_outs_real, decoder_outs_real, normals_real = self(z, generator=True)
-        depth_out = decoder_outs_real[-1]
+        encoder_outs_generated, encoder_mare_outs_generated, decoder_outs_generated, normals_generated = self(z, generator=True)
+        depth_out = decoder_outs_generated[-1]
 
         g_loss: Tensor = 0.0
 
-        synth_phong_rendering = self.phong_renderer((depth_out, normals_real))
+        original_phong_rendering = self.phong_renderer((depth_out, normals_generated))
         calculated_norms = depth_to_normals(depth_out, self.phong_renderer.camera_intrinsics[None],
                                             self.phong_renderer.resized_pixel_locations)
         depth_phong = self.phong_renderer((depth_out, calculated_norms))
         if self.config.use_discriminator:
-            feat_outs = encoder_outs_real[::-1][:len(self.discriminators['features'])]
+            feat_outs = encoder_outs_generated[::-1][:len(self.discriminators['features'])]
             for idx, feature_out in enumerate(feat_outs):
                 g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx], f'discriminator_feature_{idx}') \
                           * self.config.feature_discriminator_factor
             g_loss += self._apply_generator_discriminator_loss(depth_out, self.discriminators['depth_image'], 'discriminator_depth_img') \
                       * self.config.img_discriminator_factor
-            g_loss += self._apply_generator_discriminator_loss(synth_phong_rendering, self.discriminators['phong'], 'discriminator_phong') \
+            g_loss += self._apply_generator_discriminator_loss(original_phong_rendering, self.discriminators['phong'], 'discriminator_phong') \
                       * self.config.phong_discriminator_factor
             g_loss += self._apply_generator_discriminator_loss(depth_phong, self.discriminators['depth_phong'],
                                                                'discriminator_depth_phong') * self.config.phong_discriminator_factor
 
         if self.config.use_critic:
-            feat_outs = encoder_outs_real[::-1][:len(self.critics['features'])]
+            feat_outs = encoder_outs_generated[::-1][:len(self.critics['features'])]
             for idx, feature_out in enumerate(feat_outs):
-                real_predicted = self.critics['features'][idx](feature_out).type_as(feature_out)
-                g_loss += self._apply_generator_critic_loss(real_predicted, f'critic_feature_{idx}') \
+                generated_predicted = self.critics['features'][idx](feature_out).type_as(feature_out)
+                g_loss += self._apply_generator_critic_loss(generated_predicted, f'critic_feature_{idx}') \
                           * self.config.feature_discriminator_factor
             valid_predicted_depth = self.critics['depth_image'](depth_out)
             g_loss += self._apply_generator_critic_loss(valid_predicted_depth, 'critic_depth_img') \
                       * self.config.img_discriminator_factor
 
-            phong_discrimination = self.critics['phong'](synth_phong_rendering)
+            phong_discrimination = self.critics['phong'](original_phong_rendering)
             g_loss += self._apply_generator_critic_loss(phong_discrimination, 'critic_phong') \
                       * self.config.phong_discriminator_factor
             g_loss += self._apply_generator_critic_loss(self.critics['depth_phong'](depth_phong),
                                                         'critic_depth_phong') \
                       * self.config.phong_discriminator_factor
 
-        batch[self.real_source_id].extend([depth_out, normals_real])
+        batch[self.generated_source_id].extend([depth_out, normals_generated])
         texture_generator_loss = self.texture_generator.calculate_generator_loss(batch)
         g_loss += texture_generator_loss
 
@@ -309,8 +317,8 @@ class HailMary(BaseModel):
                 o.zero_grad()
                 self.critic_global_step += 1
 
-        batch[self.real_source_id].extend([predictions[self.real_source_id]['depth'],
-                                           predictions[self.real_source_id]['normals']])
+        batch[self.generated_source_id].extend([predictions[self.generated_source_id]['depth'],
+                                           predictions[self.generated_source_id]['normals']])
 
         if self.texture_generator.config.use_critic:
             critic_loss = self.texture_generator.calculate_critic_loss(batch)
@@ -337,7 +345,7 @@ class HailMary(BaseModel):
             self.log_dict(self.texture_generator.d_losses_log)
             self.reset_log_dict(self.texture_generator.d_losses_log)
 
-    def get_discriminator_critic_inputs(self, batch, batch_idx) -> Dict[int, Dict[str, Tensor]]:
+    def get_discriminator_critic_inputs(self, batch, batch_idx) -> Dict[int, DiscriminatorCriticInputs]:
         """
 
         :param batch:
@@ -350,7 +358,7 @@ class HailMary(BaseModel):
                 results[source_id] = {}
                 z = batch[source_id][0]
                 encoder_outs, encoder_mare_outs, decoder_outs, normals = self(z,
-                                                                              generator=source_id == self.real_source_id)
+                                                                              generator=source_id == self.generated_source_id)
                 depth = decoder_outs[-1]
                 results[source_id]['color'] = z
                 results[source_id]['encoder_outs'] = [e.detach() for e in encoder_outs]
@@ -364,36 +372,36 @@ class HailMary(BaseModel):
                 results[source_id]['calculated_phong'] = calculated_phong.detach()
         return results
 
-    def _discriminators(self, predictions: Dict[int, Dict[str, Tensor]]) -> Tensor:
-        depth_real = predictions[self.real_source_id]['depth']
-        encoder_outs_real = predictions[self.real_source_id]['encoder_outs']
-        phong_real = predictions[self.real_source_id]['phong']
-        calculated_phong_real = predictions[self.real_source_id]['calculated_phong']
+    def _discriminators(self, predictions: Dict[int, DiscriminatorCriticInputs]) -> Tensor:
+        depth_generated = predictions[self.generated_source_id]['depth']
+        encoder_outs_generated = predictions[self.generated_source_id]['encoder_outs']
+        phong_generated = predictions[self.generated_source_id]['phong']
+        calculated_phong_generated = predictions[self.generated_source_id]['calculated_phong']
 
-        depth_synth = []
-        encoder_outs_synth = []
-        phong_synth = []
-        calculated_phong_synth = []
+        depth_original = []
+        encoder_outs_original = []
+        phong_original = []
+        calculated_phong_original = []
         for source_id in predictions:
-            if source_id == self.real_source_id:
+            if source_id == self.generated_source_id:
                 break
-            depth_synth.append(predictions[source_id]['depth'])
-            encoder_outs_synth.append(predictions[source_id]['encoder_outs'])
-            phong_synth.append(predictions[source_id]['phong'])
-            calculated_phong_synth.append(predictions[source_id]['calculated_phong'])
+            depth_original.append(predictions[source_id]['depth'])
+            encoder_outs_original.append(predictions[source_id]['encoder_outs'])
+            phong_original.append(predictions[source_id]['phong'])
+            calculated_phong_original.append(predictions[source_id]['calculated_phong'])
 
-        depth_synth = torch.cat(depth_synth, dim=0)
-        encoder_outs_synth = [torch.cat([s[i] for s in encoder_outs_synth], dim=0) for i in
-                              range(len(encoder_outs_synth[0]))]
-        phong_synth = torch.cat(phong_synth, dim=0)
-        calculated_phong_synth = torch.cat(calculated_phong_synth, dim=0)
+        depth_original = torch.cat(depth_original, dim=0)
+        encoder_outs_original = [torch.cat([s[i] for s in encoder_outs_original], dim=0) for i in
+                              range(len(encoder_outs_original[0]))]
+        phong_original = torch.cat(phong_original, dim=0)
+        calculated_phong_original = torch.cat(calculated_phong_original, dim=0)
 
         loss: Tensor = 0.0
-        loss += self._apply_discriminator_loss(depth_real,
-                                               depth_synth,
+        loss += self._apply_discriminator_loss(depth_generated,
+                                               depth_original,
                                                self.discriminators['depth_image'],
                                                'discriminator_depth_img')
-        feat_outs = zip(encoder_outs_real[::-1], encoder_outs_synth[::-1])
+        feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
         for idx, d_feat in enumerate(self.discriminators['features']):
             feature_out_r, feature_out_s = next(feat_outs)
             loss += self._apply_discriminator_loss(feature_out_r,
@@ -401,51 +409,51 @@ class HailMary(BaseModel):
                                                    d_feat,
                                                    f'discriminator_feature_{idx}')
 
-        loss += self._apply_discriminator_loss(phong_real,
-                                               phong_synth,
+        loss += self._apply_discriminator_loss(phong_generated,
+                                               phong_original,
                                                self.discriminators['phong'],
                                                'discriminator_phong')
-        loss += self._apply_discriminator_loss(calculated_phong_real,
-                                               calculated_phong_synth,
+        loss += self._apply_discriminator_loss(calculated_phong_generated,
+                                               calculated_phong_original,
                                                self.discriminators['depth_phong'],
                                                'discriminator_depth_phong')
         return loss
 
-    def _critics(self, predictions: Dict[int, Dict[str, Tensor]]) -> Tensor:
-        depth_real = predictions[self.real_source_id]['depth']
-        encoder_outs_real = predictions[self.real_source_id]['encoder_outs']
-        phong_real = predictions[self.real_source_id]['phong']
-        calculated_phong_real = predictions[self.real_source_id]['calculated_phong']
+    def _critics(self, predictions: Dict[int, DiscriminatorCriticInputs]) -> Tensor:
+        depth_generated = predictions[self.generated_source_id]['depth']
+        encoder_outs_generated = predictions[self.generated_source_id]['encoder_outs']
+        phong_generated = predictions[self.generated_source_id]['phong']
+        calculated_phong_generated = predictions[self.generated_source_id]['calculated_phong']
 
-        depth_synth = []
-        encoder_outs_synth = []
-        phong_synth = []
-        calculated_phong_synth = []
+        depth_original = []
+        encoder_outs_original = []
+        phong_original = []
+        calculated_phong_original = []
         for source_id in predictions:
-            if source_id == self.real_source_id:
+            if source_id == self.generated_source_id:
                 break
-            depth_synth.append(predictions[source_id]['depth'])
-            encoder_outs_synth.append(predictions[source_id]['encoder_outs'])
-            phong_synth.append(predictions[source_id]['phong'])
-            calculated_phong_synth.append(predictions[source_id]['calculated_phong'])
+            depth_original.append(predictions[source_id]['depth'])
+            encoder_outs_original.append(predictions[source_id]['encoder_outs'])
+            phong_original.append(predictions[source_id]['phong'])
+            calculated_phong_original.append(predictions[source_id]['calculated_phong'])
 
-        depth_synth = torch.cat(depth_synth, dim=0)
-        encoder_outs_synth = [torch.cat([s[i] for s in encoder_outs_synth], dim=0) for i in
-                              range(len(encoder_outs_synth[0]))]
-        phong_synth = torch.cat(phong_synth, dim=0)
-        calculated_phong_synth = torch.cat(calculated_phong_synth, dim=0)
+        depth_original = torch.cat(depth_original, dim=0)
+        encoder_outs_original = [torch.cat([s[i] for s in encoder_outs_original], dim=0) for i in
+                              range(len(encoder_outs_original[0]))]
+        phong_original = torch.cat(phong_original, dim=0)
+        calculated_phong_original = torch.cat(calculated_phong_original, dim=0)
         loss: Tensor = 0.0
-        loss += self._apply_critic_loss(depth_real, depth_synth, self.critics['depth_image'],
+        loss += self._apply_critic_loss(depth_generated, depth_original, self.critics['depth_image'],
                                         self.config.wasserstein_lambda, 'critic_depth_img')
-        feat_outs = zip(encoder_outs_real[::-1], encoder_outs_synth[::-1])
+        feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
         for idx, feature_critic in enumerate(self.critics['features']):
             feature_out_r, feature_out_s = next(feat_outs)
             loss += self._apply_critic_loss(feature_out_r, feature_out_s, feature_critic,
                                             self.config.wasserstein_lambda, f'critic_feature_{idx}')
 
-        loss += self._apply_critic_loss(phong_real, phong_synth, self.critics['phong'],
+        loss += self._apply_critic_loss(phong_generated, phong_original, self.critics['phong'],
                                         self.config.wasserstein_lambda, 'critic_phong')
-        loss += self._apply_critic_loss(calculated_phong_real, calculated_phong_synth, self.critics['depth_phong'],
+        loss += self._apply_critic_loss(calculated_phong_generated, calculated_phong_original, self.critics['depth_phong'],
                                         self.config.wasserstein_lambda, 'critic_depth_phong')
         return loss
 
@@ -490,7 +498,7 @@ class HailMary(BaseModel):
             if self.validation_data is None:
                 self.validation_data = {}
                 for source_id in batch:
-                    if source_id < self.real_source_id:
+                    if source_id < self.generated_source_id:
                         self.validation_data[source_id] = [x[:2] for x in batch[source_id]]
                         self.validation_data[source_id][0] = self.imagenet_denorm(self.validation_data[source_id][0])
                     else:
@@ -531,15 +539,15 @@ class HailMary(BaseModel):
 
     def plot(self):
         with torch.no_grad():
-            z = self.validation_data[self.real_source_id]
+            z = self.validation_data[self.generated_source_id]
             _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
             depth_adapted = decoder_outs_adapted[-1]
             denormed_images = self.imagenet_denorm(z)
-            self.validation_data[self.real_source_id] = [denormed_images, depth_adapted, normals_adapted]
+            self.validation_data[self.generated_source_id] = [denormed_images, depth_adapted, normals_adapted]
             self.texture_generator.validation_data = self.validation_data
             self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].cpu() for i in self.validation_data], dim=0)
             self.texture_generator.plot(self.global_step)
-            self.validation_data[self.real_source_id] = z
+            self.validation_data[self.generated_source_id] = z
 
             if self.unadapted_images_for_plotting is None:
                 _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)

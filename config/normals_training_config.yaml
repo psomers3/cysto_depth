@@ -25,9 +25,8 @@ synthetic_config:
     - /Users/peter/isys/2023_01_29/depth
     - /Users/peter/isys/2023_01_29/normals
   training_split: {'train': .8, 'validate': 0.18, 'test': .02}
-#  resume_from_checkpoint: ./logs/synthetic/lightning_logs/version_1/epoch=13-step=378.ckpt
+  resume_from_checkpoint: /Users/peter/Desktop/epoch=198-step=10920.ckpt
 gan_config:
-  synthetic_base_model: /Users/peter/Desktop/epoch=198-step=10920.ckpt
   encoder:
     backbone: resnet18
     adaptive_gating: true

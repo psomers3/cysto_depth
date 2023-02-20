@@ -142,24 +142,24 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
     return loss + regularization
 
 
-def wasserstein_discriminator_loss(original: Tensor, generated: Tensor, use_variance: bool = False, *args,
+def wasserstein_discriminator_loss(generated: Tensor, original: Tensor, use_variance: bool = False, *args,
                                    **kwargs) -> Tensor:
     """ Discriminator outputs from data originating from the original domain and
         from the generator's attempt (generated)
     """
     if use_variance:
-        return generated.mean() - original.mean() + \
-               generated.var(dim=None, unbiased=True) - original.var(dim=None, unbiased=True)
+        return original.mean() - generated.mean() + \
+               original.var(dim=None, unbiased=True) - generated.var(dim=None, unbiased=True)
     else:
-        return generated.mean() - original.mean()
+        return original.mean() - generated.mean()
 
 
 def wasserstein_generator_loss(generated: Tensor, *args, **kwargs) -> Tensor:
     return -generated.mean()
 
 
-def wasserstein_gradient_penalty(original_input: Tensor,
-                                 generated_input: Tensor,
+def wasserstein_gradient_penalty(generated_input: Tensor,
+                                 original_input: Tensor,
                                  critic: torch.nn.Module,
                                  wasserstein_lambda: float = 10) -> Tensor:
     batch_size = original_input.shape[0]
@@ -172,14 +172,14 @@ def wasserstein_gradient_penalty(original_input: Tensor,
     return grad_penalty
 
 
-def wasserstein_gp_discriminator_loss(original_input: Tensor,
-                                      generated_input: Tensor,
+def wasserstein_gp_discriminator_loss(generated_input: Tensor,
+                                      original_input: Tensor,
                                       critic: torch.nn.Module,
                                       wasserstein_lambda: float = 10,
                                       use_variance: bool = False) -> Tensor:
     """ https://arxiv.org/abs/1704.00028 """
-    return (wasserstein_discriminator_loss(critic(original_input), critic(generated_input), use_variance) \
-            + wasserstein_gradient_penalty(original_input, generated_input, critic, wasserstein_lambda))
+    return (wasserstein_discriminator_loss(critic(generated_input), critic(original_input), use_variance) \
+            + wasserstein_gradient_penalty(generated_input, original_input, critic, wasserstein_lambda))
 
 
 GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {

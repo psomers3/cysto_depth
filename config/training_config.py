@@ -303,8 +303,6 @@ class GANTrainingConfig:
     accumulate_grad_batches: int = 4
     """ how many batches to include before gradient update """
     batch_size: int = 16
-    synthetic_base_model: str = MISSING
-    """ The pretrained network to load weights from """
     resume_from_checkpoint: Union[str, None] = ""
     """ checkpoint to load weights from """
     generate_data: bool = False
@@ -335,6 +333,14 @@ class GANTrainingConfig:
                                                             img_level=True,
                                                             single_out=False,
                                                             use_sigmoid=False)
+    normals_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                              img_level=True,
+                                                              single_out=False,
+                                                              use_sigmoid=False)
+    normals_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
+                                                                     img_level=True,
+                                                                     single_out=False,
+                                                                     use_sigmoid=True)
     phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                                    img_level=True,
                                                                    single_out=False,
@@ -351,8 +357,9 @@ class GANTrainingConfig:
                                                                     img_level=False,
                                                                     single_out=False,
                                                                     use_sigmoid=True)
-    img_discriminator_factor: float = 0.0
+    img_discriminator_factor: float = 1.0
     phong_discriminator_factor: float = 1.0
+    normals_discriminator_factor: float = 1.0
     feature_discriminator_factor: float = 1.0
     """ scaling factor for feature level discriminators """
     d_max_conf: float = 0.9
