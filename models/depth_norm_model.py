@@ -102,6 +102,7 @@ class DepthNormModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.total_train_step_count += 1
+        self.batches_accumulated += 1
         if self._generator_training:
             # print('generator')
             self.generator_train_step(batch, batch_idx)
@@ -112,6 +113,8 @@ class DepthNormModel(pl.LightningModule):
             if self.config.use_critic:
                 # print('critic')
                 self.critic_train_step(batch, batch_idx)
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
+            self.batches_accumulated = 0
 
     def calculate_generator_loss(self, batch) -> Tensor:
         self.model.train()
@@ -143,10 +146,8 @@ class DepthNormModel(pl.LightningModule):
     def generator_train_step(self, batch: dict, batch_idx: int):
         loss = self.calculate_generator_loss(batch)
         self.manual_backward(loss)
-        self.batches_accumulated += 1
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
-            self.batches_accumulated = 0
             self._generator_training = False
             opt = self.optimizers(use_pl_optimizer=True)[0]
             # print('step generator')
@@ -181,7 +182,6 @@ class DepthNormModel(pl.LightningModule):
         self.manual_backward(discriminator_loss)
         self.d_losses_log['d_discriminator_loss'] += discriminator_loss.detach()
 
-        self.batches_accumulated += 1 if not self.config.use_critic else 0
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             # print('step discriminators')
             discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
@@ -191,7 +191,6 @@ class DepthNormModel(pl.LightningModule):
             if not self.config.use_critic:
                 self._generator_training = True
                 self.log_dict(self.d_losses_log)
-                self.batches_accumulated = 0
 
     def calculate_critic_loss(self, batch) -> Tensor:
         self.model.eval()
@@ -219,11 +218,9 @@ class DepthNormModel(pl.LightningModule):
         loss = self.calculate_critic_loss(batch)
         self.manual_backward(loss)
 
-        self.batches_accumulated += 1
         step_optimizers = False
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.critic_global_step += 1
-            self.batches_accumulated = 0
             step_optimizers = True
             if self.critic_global_step % self.config.wasserstein_critic_updates == 0:
                 self._generator_training = not self._generator_training
