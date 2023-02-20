@@ -193,6 +193,7 @@ class DepthNormModel(pl.LightningModule):
             [d_opt.zero_grad() for d_opt in discriminator_opts]
             if not self.config.use_critic:
                 self._generator_training = True
+                self.log_dict(self.d_losses_log)
 
     def calculate_critic_loss(self, batch) -> Tensor:
         self.model.eval()
