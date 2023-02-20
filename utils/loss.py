@@ -136,7 +136,7 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
     critic_input.requires_grad = True
     discriminated = discriminator(critic_input)
     if isinstance(ground_truth, float):
-        ground_truth = torch.ones_like(discriminated, device=discriminated.device)
+        ground_truth = torch.full_like(discriminated, device=discriminated.device, fill_value=ground_truth)
     loss = F.binary_cross_entropy(discriminated, ground_truth)
     regularization = factor * (compute_grad_norm(discriminated, critic_input)**2).mean()
     return loss + regularization
