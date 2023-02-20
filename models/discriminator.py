@@ -7,7 +7,8 @@ from config.training_config import DiscriminatorConfig
 _reductions = {'sum': torch.sum,
                'min': torch.min,
                'max': torch.max,
-               'mean': torch.mean}
+               'mean': torch.mean,
+               'dense': torch.nn.Linear}
 
 
 class Discriminator(nn.Module):
@@ -18,7 +19,8 @@ class Discriminator(nn.Module):
         norm = config.normalization
         in_channels = config.in_channels
         self.use_sigmoid = config.use_sigmoid
-        self.reduction = _reductions[config.single_out_reduction.lower()]
+        self.reduction = config.single_out_reduction
+        self._linear = None
 
         if config.img_level:
             self.conv = nn.Sequential(
@@ -52,7 +54,12 @@ class Discriminator(nn.Module):
     def forward(self, _input):
         validity = self.conv(_input)
         if self.single_out:
-            validity = self.reduction(validity)
+            if self.reduction.lower() == 'dense':
+                if self._linear is None:
+                    self._linear = torch.nn.Linear(validity.size(), 1)
+                validity = self._linear(validity)
+            else:
+                validity = _reductions[self.reduction.lower()](validity)
         if self.use_sigmoid:
             validity = torch.sigmoid(validity)
         return validity
