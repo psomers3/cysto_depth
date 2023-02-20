@@ -282,11 +282,11 @@ class DepthNormModel(pl.LightningModule):
                 generated_imgs.append(self(self.validation_data[source_id][1],
                                            self.validation_data[source_id][2],
                                            source_id=source_id).detach().cpu())
-        labels = ["Source Image", "Generated"]
-        generated_imgs = torch.cat(generated_imgs, dim=0)
-        generated_imgs = imagenet_denorm(generated_imgs) if self.config.imagenet_norm_output else generated_imgs
-        step = self.global_step if step is None else step
-        for idx, img_set in enumerate(zip(self.val_denorm_color_images, generated_imgs)):
-            fig = generate_img_fig(img_set, labels)
-            self.logger.experiment.add_figure(f'generated-image-{idx}', fig, step)
-            plt.close(fig)
+            labels = ["Source Image", "Generated"]
+            generated_imgs = torch.cat(generated_imgs, dim=0)
+            generated_imgs = imagenet_denorm(generated_imgs) if self.config.imagenet_norm_output else generated_imgs
+            step = self.global_step if step is None else step
+            for idx, img_set in enumerate(zip(self.val_denorm_color_images, generated_imgs)):
+                fig = generate_img_fig(img_set, labels)
+                self.logger.experiment.add_figure(f'generated-image-{idx}', fig, step)
+                plt.close(fig)

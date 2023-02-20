@@ -180,20 +180,16 @@ class HailMary(BaseModel):
             encoder_outs, encoder_mare_outs = self.generator(x)
         else:
             encoder_outs, encoder_mare_outs = self.depth_model.encoder(x)
-        if self.config.predict_normals:
-            if self.depth_model.config.merged_decoder:
-                output = self.depth_model.decoder(encoder_outs)
-                decoder_outs = [self.depth_model.decoder(encoder_outs)[i][:, 0, ...].unsqueeze(1) for i in
-                                range(len(output))]
-                normals = output[-1][:, 1:, ...]
-            else:
-                normals = self.depth_model.normals_decoder(encoder_outs)
-                decoder_outs = self.depth_model.decoder(encoder_outs)
-            normals = torch.where(decoder_outs[-1] > self.depth_model.config.min_depth,
-                                  normals, torch.zeros([1], device=self.device))
+        if self.depth_model.config.merged_decoder:
+            output = self.depth_model.decoder(encoder_outs)
+            decoder_outs = [self.depth_model.decoder(encoder_outs)[i][:, 0, ...].unsqueeze(1) for i in
+                            range(len(output))]
+            normals = output[-1][:, 1:, ...]
         else:
+            normals = self.depth_model.normals_decoder(encoder_outs)
             decoder_outs = self.depth_model.decoder(encoder_outs)
-            normals = None
+        normals = torch.where(decoder_outs[-1] > self.depth_model.config.min_depth,
+                              normals, torch.zeros([1], device=self.device))
 
         return encoder_outs, encoder_mare_outs, decoder_outs, normals
 
@@ -207,7 +203,7 @@ class HailMary(BaseModel):
         self.total_train_step_count += 1
         self.batches_accumulated += 1
         if self._generator_training:
-            # print('generator')
+            print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             self.discriminator_critic_train_step(batch, batch_idx)
@@ -293,23 +289,23 @@ class HailMary(BaseModel):
             if self.config.use_critic else True
 
         if self.config.use_discriminator and first_of_mini_batches:
-            # print('discriminator')
+            print('discriminator')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
             self.d_losses_log['d_discriminators_loss'] += discriminator_loss.detach()
             if full_batch:
-                # print('discriminator step')
+                print('discriminator step')
                 discriminator_opt = optimizers[self.discriminators_opt_idx]
                 discriminator_opt.step()
                 discriminator_opt.zero_grad()
 
         if self.config.use_critic:
-            # print('critic')
+            print('critic')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
             self.d_losses_log['d_critics_loss'] += critic_loss.detach()
             if full_batch:
-                # print('critic step')
+                print('critic step')
                 o = optimizers[self.critic_opt_idx]
                 o.step()
                 o.zero_grad()
@@ -554,26 +550,25 @@ class HailMary(BaseModel):
 
                 self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted)
 
-        depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
-        denormed_images = denormed_images.cpu()
-        plot_tensors = [denormed_images]
-        labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
-        centers = [None, None, None, 0]
-        minmax = []
-        plot_tensors.append(depth_adapted.cpu())
-        plot_tensors.append(depth_unadapted.cpu())
-        plot_tensors.append((depth_adapted - depth_unadapted).cpu())
+            depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
+            denormed_images = denormed_images.cpu()
+            plot_tensors = [denormed_images]
+            labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
+            centers = [None, None, None, 0]
+            minmax = []
+            plot_tensors.append(depth_adapted.cpu())
+            plot_tensors.append(depth_unadapted.cpu())
+            plot_tensors.append((depth_adapted - depth_unadapted).cpu())
 
-        for idx, imgs in enumerate(zip(*plot_tensors)):
-            fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
-                                       align_scales=True)
-            self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
-            plt.close(fig)
-        with torch.no_grad():
+            for idx, imgs in enumerate(zip(*plot_tensors)):
+                fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
+                                           align_scales=True)
+                self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
+                plt.close(fig)
             phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).detach().cpu()
 
-        labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
-        for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
-            fig = generate_img_fig(img_set, labels)
-            self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
-            plt.close(fig)
+            labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
+            for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
+                fig = generate_img_fig(img_set, labels)
+                self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
+                plt.close(fig)
