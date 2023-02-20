@@ -144,7 +144,7 @@ class DepthNormModel(pl.LightningModule):
         loss = self.calculate_generator_loss(batch)
         self.manual_backward(loss)
         self.batches_accumulated += 1
-        if self.batches_accumulated + 1 == self.config.accumulate_grad_batches:
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
             self.batches_accumulated = 0
             self._generator_training = False
