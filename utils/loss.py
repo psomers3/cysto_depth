@@ -142,16 +142,11 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
     return loss + regularization
 
 
-def wasserstein_discriminator_loss(generated: Tensor, original: Tensor, use_variance: bool = False, *args,
-                                   **kwargs) -> Tensor:
+def wasserstein_discriminator_loss(generated: Tensor, original: Tensor, *args, **kwargs) -> Tensor:
     """ Discriminator outputs from data originating from the original domain and
         from the generator's attempt (generated)
     """
-    if use_variance:
-        return original.mean() - generated.mean() + \
-               original.var(dim=None, unbiased=True) - generated.var(dim=None, unbiased=True)
-    else:
-        return original.mean() - generated.mean()
+    return original.mean() - generated.mean()
 
 
 def wasserstein_generator_loss(generated: Tensor, *args, **kwargs) -> Tensor:
@@ -175,10 +170,9 @@ def wasserstein_gradient_penalty(generated_input: Tensor,
 def wasserstein_gp_discriminator_loss(generated_input: Tensor,
                                       original_input: Tensor,
                                       critic: torch.nn.Module,
-                                      wasserstein_lambda: float = 10,
-                                      use_variance: bool = False) -> Tensor:
+                                      wasserstein_lambda: float = 10) -> Tensor:
     """ https://arxiv.org/abs/1704.00028 """
-    return (wasserstein_discriminator_loss(critic(generated_input), critic(original_input), use_variance) \
+    return (wasserstein_discriminator_loss(critic(generated_input), critic(original_input)) \
             + wasserstein_gradient_penalty(generated_input, original_input, critic, wasserstein_lambda))
 
 

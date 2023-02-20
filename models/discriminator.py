@@ -56,7 +56,7 @@ class Discriminator(nn.Module):
         if self.single_out:
             if self.reduction.lower() == 'dense':
                 if self._linear is None:
-                    self._linear = torch.nn.Linear(validity.size(), 1)
+                    self._linear = torch.nn.Linear(validity.shape[0] * validity.shape[1], 1)
                 validity = self._linear(validity)
             else:
                 validity = _reductions[self.reduction.lower()](validity)

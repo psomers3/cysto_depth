@@ -140,8 +140,6 @@ class DepthNorm2ImageConfig:
                                                                     use_sigmoid=True)
     wasserstein_critic_updates: int = 5
     """ how many gradient updates for critics before another generator update """
-    critic_use_variance: bool = False
-    """ whether to use the variance of the distributions for wasserstein distance """
     optimizer: str = 'adam'
     """ Which generator optimizer to use. ['adam', 'radam', 'rmsprop'] """
     L_loss: str = ''

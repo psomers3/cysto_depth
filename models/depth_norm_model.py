@@ -207,8 +207,7 @@ class DepthNormModel(pl.LightningModule):
             critic_loss = self.discriminator_critic_loss(denormed_images,
                                                          out_images.detach(),
                                                          self.critics[str(source_id)],
-                                                         10,
-                                                         self.config.critic_use_variance)
+                                                         10)
             self.d_losses_log[f'd_critic_loss-{source_id}'] += critic_loss.detach()
             loss += critic_loss
         self.d_losses_log[f'd_critic_loss'] += loss.detach()
