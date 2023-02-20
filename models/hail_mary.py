@@ -263,7 +263,7 @@ class HailMary(BaseModel):
         g_loss += texture_generator_loss
 
         self.manual_backward(g_loss)
-        self.g_losses_log['g_loss'] += g_loss
+        self.g_losses_log['g_loss'] += g_loss.detach()
         self.batches_accumulated += 1
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
@@ -298,7 +298,7 @@ class HailMary(BaseModel):
             # print('discriminator')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
-            self.d_losses_log['d_discriminators_loss'] += discriminator_loss
+            self.d_losses_log['d_discriminators_loss'] += discriminator_loss.detach()
             if full_batch:
                 # print('discriminator step')
                 discriminator_opt = optimizers[self.discriminators_opt_idx]
@@ -460,12 +460,12 @@ class HailMary(BaseModel):
     def _apply_generator_discriminator_loss(self, discriminator_in: Tensor, discriminator: torch.nn.Module, name: str,
                                             label: float = 1.0) -> Tensor:
         loss = self.generator_discriminator_loss(discriminator_in, label, discriminator)
-        self.g_losses_log[f'g_loss_{name}'] += loss
+        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_generator_critic_loss(self, discriminator_out: Tensor, name: str, ) -> Tensor:
         loss = self.generator_critic_loss(discriminator_out)
-        self.g_losses_log[f'g_loss_{name}'] += loss
+        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_discriminator_loss(self, generated: Tensor, original: Tensor, discriminator: torch.nn.Module,
@@ -473,13 +473,13 @@ class HailMary(BaseModel):
         loss_generated = self.discriminator_loss(generated, 0.0, discriminator)
         loss_original = self.discriminator_loss(original, 1.0, discriminator)
         combined = (loss_original + loss_generated) / 2
-        self.d_losses_log[f'd_loss_{name}'] += combined
+        self.d_losses_log[f'd_loss_{name}'] += combined.detach()
         return combined
 
     def _apply_critic_loss(self, original: Tensor, generated: Tensor, critic: torch.nn.Module,
                            wasserstein_lambda: float, name: str):
         critic_loss = self.critic_loss(original, generated, critic, wasserstein_lambda)
-        self.d_losses_log[f'd_loss_{name}'] += critic_loss
+        self.d_losses_log[f'd_loss_{name}'] += critic_loss.detach()
         return critic_loss
 
     def validation_step(self, batch, batch_idx):
@@ -541,11 +541,11 @@ class HailMary(BaseModel):
         with torch.no_grad():
             z = self.validation_data[self.generated_source_id]
             _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
-            depth_adapted = decoder_outs_adapted[-1]
-            denormed_images = self.imagenet_denorm(z)
-            self.validation_data[self.generated_source_id] = [denormed_images, depth_adapted, normals_adapted]
+            depth_adapted = decoder_outs_adapted[-1].detach()
+            denormed_images = self.imagenet_denorm(z).detach()
+            self.validation_data[self.generated_source_id] = [denormed_images, depth_adapted, normals_adapted.detach()]
             self.texture_generator.validation_data = self.validation_data
-            self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].cpu() for i in self.validation_data], dim=0)
+            self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].detach().cpu() for i in self.validation_data], dim=0)
             self.texture_generator.plot(self.global_step)
             self.validation_data[self.generated_source_id] = z
 
