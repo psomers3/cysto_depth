@@ -205,11 +205,14 @@ class HailMary(BaseModel):
             self.generator.apply(freeze_batchnorm)
 
         self.total_train_step_count += 1
+        self.batches_accumulated += 1
         if self._generator_training:
             # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             self.discriminator_critic_train_step(batch, batch_idx)
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
+            self.batches_accumulated = 0
 
     def generator_train_step(self, batch: Dict[int, List[Tensor]], batch_idx) -> None:
         z = batch[self.generated_source_id][0]  # real images
@@ -264,10 +267,8 @@ class HailMary(BaseModel):
 
         self.manual_backward(g_loss)
         self.g_losses_log['g_loss'] += g_loss.detach()
-        self.batches_accumulated += 1
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
-            self.batches_accumulated = 0
             self._generator_training = False
             optimizers = self.optimizers(True)
             optimizers = [optimizers[i] for i in [0, self.texture_generator_opt_idx]]
@@ -286,10 +287,7 @@ class HailMary(BaseModel):
         optimizers = self.optimizers(True)
 
         predictions = self.get_discriminator_critic_inputs(batch, batch_idx)
-        self.batches_accumulated += 1
         full_batch = self.batches_accumulated == self.config.accumulate_grad_batches
-        if full_batch:
-            self.batches_accumulated = 0
         first_of_mini_batches = self.critic_global_step % self.config.wasserstein_critic_updates == 0
         last_mini_batch = (self.critic_global_step + 1) % self.config.wasserstein_critic_updates == 0 \
             if self.config.use_critic else True
@@ -309,7 +307,7 @@ class HailMary(BaseModel):
             # print('critic')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
-            self.d_losses_log['d_critics_loss'] += critic_loss
+            self.d_losses_log['d_critics_loss'] += critic_loss.detach()
             if full_batch:
                 # print('critic step')
                 o = optimizers[self.critic_opt_idx]
@@ -499,10 +497,10 @@ class HailMary(BaseModel):
                 self.validation_data = {}
                 for source_id in batch:
                     if source_id < self.generated_source_id:
-                        self.validation_data[source_id] = [x[:2] for x in batch[source_id]]
-                        self.validation_data[source_id][0] = self.imagenet_denorm(self.validation_data[source_id][0])
+                        self.validation_data[source_id] = [x[:2].detach() for x in batch[source_id]]
+                        self.validation_data[source_id][0] = self.imagenet_denorm(self.validation_data[source_id][0]).detach()
                     else:
-                        self.validation_data[source_id] = batch[source_id][0][:2]
+                        self.validation_data[source_id] = batch[source_id][0][:2].detach()
             self.plot()
             self.log_gate_coefficients(step=self.global_step)
 
