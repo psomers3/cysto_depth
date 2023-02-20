@@ -16,10 +16,21 @@ depth_norm_config:
   encoder:
     load_imagenet_weights: True
     backbone: resnet18
-  accumulate_grad_batches: 2
+  accumulate_grad_batches: 1
   L_loss: L1
-  use_critic: true
+  use_critic: false
+  critic_config:
+    single_out: false
+    use_sigmoid: false
+    single_out_reduction: mean
   use_discriminator: true
+  discriminator_config:
+    single_out: false
+    single_out_reduction: max
+  generator_lr: 5e-4
+  discriminator_lr: 5e-5
+  critic_lr: 5e-5
+  add_noise: false
   max_epochs: 300
   batch_size: 4
   data_roles:

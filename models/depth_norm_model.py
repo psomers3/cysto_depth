@@ -109,8 +109,8 @@ class DepthNormModel(pl.LightningModule):
             if (self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
                 # print('discriminator')
                 self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
-            # print('critic')
             if self.config.use_critic:
+                # print('critic')
                 self.critic_train_step(batch, batch_idx)
 
     def calculate_generator_loss(self, batch) -> Tensor:
@@ -184,8 +184,8 @@ class DepthNormModel(pl.LightningModule):
         self.manual_backward(discriminator_loss)
         self.d_losses_log['d_discriminator_loss'] += discriminator_loss.detach()
 
-        # +1 because they are stepped in critic update
-        if self.batches_accumulated + 1 == self.config.accumulate_grad_batches:
+        self.batches_accumulated += 1 if not self.config.use_critic else 0
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
             # print('step discriminators')
             discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
             discriminator_opts = [discriminator_opt] if not isinstance(discriminator_opt, list) else discriminator_opt
