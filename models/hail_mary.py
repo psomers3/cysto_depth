@@ -550,9 +550,9 @@ class HailMary(BaseModel):
             if self.unadapted_images_for_plotting is None:
                 _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
                 depth_unadapted = decoder_outs_unadapted[-1].detach()
-                phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
+                phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).detach().cpu()
 
-                self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted.detach().cpu())
+                self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted)
 
         depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
         denormed_images = denormed_images.cpu()
@@ -569,8 +569,8 @@ class HailMary(BaseModel):
                                        align_scales=True)
             self.logger.experiment.add_figure(f"GAN Prediction Result-{idx}", fig, self.global_step)
             plt.close(fig)
-
-        phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).cpu()
+        with torch.no_grad():
+            phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).detach().cpu()
 
         labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
         for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
