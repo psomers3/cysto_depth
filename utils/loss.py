@@ -124,7 +124,7 @@ def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, fl
                               **kwargs) -> Tensor:
     discriminated = discriminator(input_data)
     if isinstance(ground_truth, float):
-        ground_truth = torch.ones_like(discriminated, device=discriminated.device)
+        ground_truth = torch.full_like(discriminated, device=discriminated.device, fill_value=ground_truth)
     return F.binary_cross_entropy(discriminated, ground_truth)
 
 
