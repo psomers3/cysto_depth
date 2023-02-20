@@ -115,7 +115,7 @@ def compute_grad_norm(interpolated_out, interpolated_img) -> Tensor:
     batch_size = interpolated_img.shape[0]
     grads = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
                                 grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
-                                create_graph=True, retain_graph=True)[0]
+                                create_graph=False, retain_graph=True, is_grads_batched=False)[0]
     grads = grads.reshape([batch_size, -1])
     return grads.norm(2, dim=1)
 
