@@ -447,7 +447,7 @@ class GAN(BaseModel):
 
     def _apply_critic_loss(self, generated: Tensor, original: Tensor, critic: torch.nn.Module,
                            wasserstein_lambda: float, name: str):
-        critic_loss = self.critic_loss(original, generated, critic, wasserstein_lambda)
+        critic_loss = self.critic_loss(generated, original, critic, wasserstein_lambda)
         self.d_losses_log[f'd_loss_{name}'] += critic_loss.detach()
         return critic_loss
 
