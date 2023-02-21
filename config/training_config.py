@@ -130,6 +130,10 @@ class DepthNorm2ImageConfig:
     """ Add a layer of noise to input of the generator """
     use_critic: bool = True
     use_discriminator: bool = True
+    critic_loss: str = 'wasserstein_gp'
+    """ Which loss to use for training the critics [wasserstein_gp, wasserstein] """
+    discriminator_loss: str = 'cross_entropy'
+    """ Which loss to use for training the discriminators [cross_entropy, cross_entropy_R1] """
     critic_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                              img_level=True,
                                                              normalization='instance',
