@@ -84,7 +84,7 @@ class DepthNormModel(pl.LightningModule):
                 self.discriminators[d](temp_out)
             for c in self.critics:
                 self.critics[c](temp_out)
-        self.load_state_dict(ckpt.state_dict())
+        self.load_state_dict(ckpt.state_dict(), strict=False)
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int, **kwargs: Any, ) -> Tensor:
         """
