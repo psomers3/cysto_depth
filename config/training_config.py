@@ -71,7 +71,7 @@ class CallbackConfig:
     """ patience for early stopping. If null, then no early stopping applied. """
     early_stop_metric: str = '${..monitor_metric}'
     """ metric for early stopping"""
-    early_stop_check_every: int = 1
+    early_stop_check_every: Union[int, None] = 1
     """ check every n validation runs """
     ckpt_metric: str = '${..monitor_metric}'
     """ metric for model checkpoints """

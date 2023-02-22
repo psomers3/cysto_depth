@@ -18,11 +18,11 @@ depth_norm_config:
     backbone: resnet18
   accumulate_grad_batches: 1
   L_loss: L1
-  use_critic: false
+  use_critic: true
   critic_config:
-    single_out: false
+    single_out: true
     use_sigmoid: false
-    single_out_reduction: mean
+    single_out_reduction: dense
   use_discriminator: true
   discriminator_config:
     single_out: false

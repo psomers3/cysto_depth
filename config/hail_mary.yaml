@@ -21,8 +21,6 @@ depth_norm_config:
   L_loss: L1
   use_critic: true
   use_discriminator: true
-  max_epochs: 300
-  batch_size: 4
   data_roles:
     - color_0
     - color_1
@@ -52,18 +50,8 @@ synthetic_config:
   normals_extra_layers: 0
   decoder_calculate_norms: false
   merged_decoder: true
-  accumulate_grad_batches: 1
-  max_epochs: 300
-  batch_size: 4
-  data_roles:
-    - color
-    - depth
-    - normals
   data_directories:
-    - /Users/peter/isys/2023_01_29/color
-    - /Users/peter/isys/2023_01_29/depth
-    - /Users/peter/isys/2023_01_29/normals
-  training_split: {'train': .8, 'validate': 0.18, 'test': .02}
+    - ''
   resume_from_checkpoint: /Users/peter/Desktop/epoch=198-step=10920.ckpt
 gan_config:
   encoder:
