@@ -71,9 +71,7 @@ class DepthNormModel(pl.LightningModule):
     def _resume_from_checkpoint(self, config):
         path_to_ckpt = config.resume_from_checkpoint
         config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-        ckpt = self.load_from_checkpoint(path_to_ckpt,
-                                         strict=False,
-                                         config=config)
+        ckpt = torch.load(path_to_ckpt)
         with torch.no_grad():
             # run some data through the network to initial dense layers in discriminators if needed
             # TODO: see if this actually works
@@ -84,7 +82,7 @@ class DepthNormModel(pl.LightningModule):
                 self.discriminators[d](temp_out)
             for c in self.critics:
                 self.critics[c](temp_out)
-        self.load_state_dict(ckpt.state_dict(), strict=False)
+        self.load_state_dict(ckpt, strict=False)
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int, **kwargs: Any, ) -> Tensor:
         """

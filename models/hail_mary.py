@@ -484,6 +484,9 @@ class HailMary(BaseModel):
         :return:
         """
         self.eval()
+        if batch_idx != 0:
+            return
+
         with torch.no_grad():
             if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
                 # just plot one batch worth of images. In case there are a lot...

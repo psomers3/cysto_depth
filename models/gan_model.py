@@ -74,6 +74,34 @@ class GAN(BaseModel):
                                              synth_config=synth_config,
                                              gan_config=gan_config)
             self.load_state_dict(ckpt.state_dict())
+    def _resume_from_checkpoint(self, config):
+        path_to_ckpt = config.resume_from_checkpoint
+        config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
+        ckpt = torch.load(path_to_ckpt)
+        with torch.no_grad():
+            # run some data through the network to initial dense layers in discriminators if needed
+            encoder_outs, encoder_mare_outs, decoder_outs, normals = self(torch.ones(1, 3, config.image_size, config.image_size))
+            feat_outs = encoder_outs[::-1][:len(self.discriminators['features'])]
+
+            if self.config.use_discriminator:
+                for idx, feature_out in enumerate(feat_outs):
+                    self.discriminators['features'][idx](feature_out)
+                self.discriminators['depth_image'](decoder_outs[-1])
+                if self.config.predict_normals:
+                    self.discriminators['phong'](normals)
+                    self.discriminators['depth_phong'](normals)
+                    self.discriminators['normals'](normals)
+
+            if self.config.use_critic:
+                for idx, feature_out in enumerate(feat_outs):
+                    self.critics['features'][idx](feature_out)
+                self.critics['depth_image'](decoder_outs[-1])
+                if self.config.predict_normals:
+                    self.critics['phong'](normals)
+                    self.critics['depth_phong'](normals)
+                    self.critics['normals'](normals)
+
+        self.load_state_dict(ckpt, strict=False)
 
     def setup_generator_optimizer(self):
         opt = opts[self.config.generator_optimizer.lower()]
