@@ -205,8 +205,7 @@ class HailMary(BaseModel):
         if self._generator_training:
             # print('generator')
             self.generator_train_step(batch, batch_idx)
-        else:
-            self.discriminator_critic_train_step(batch, batch_idx)
+        self.discriminator_critic_train_step(batch, batch_idx)
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.batches_accumulated = 0
 
