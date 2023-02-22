@@ -75,6 +75,8 @@ class CallbackConfig:
     """ check every n validation runs """
     ckpt_metric: str = '${..monitor_metric}'
     """ metric for model checkpoints """
+    ckpt_metric_mode: str = 'max'
+    """ max or min of metric """
     ckpt_save_top_k: int = 5
     """ keep the top k saved checkpoints """
     ckpt_every_n_epochs: Union[int, None] = None
@@ -170,7 +172,9 @@ class DepthNorm2ImageConfig:
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=None,
-                                               save_weights_only=False)
+                                               save_weights_only=False,
+                                               ckpt_metric='epoch',
+                                               ckpt_metric_mode='max')
     imagenet_norm_output: bool = False
     """ whether to predict normalized images or actual final color values """
     ckpt_metric: Union[str, None] = None
@@ -292,8 +296,6 @@ class GANTrainingConfig:
     """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
     discriminator_optimizer: str = 'adam'
     """ Which torch optimizer to use. ['adam', 'radam', 'rmsprop'] """
-    # cyclic_step_period: int = 1000
-    # """ How many steps for a full cycle (up and down) of learning rate changes """
     monitor_metric: str = 'g_loss'
     """ main metric to track for performance """
     val_check_interval: int = '${..val_check_interval}'
@@ -316,7 +318,9 @@ class GANTrainingConfig:
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=None,
-                                               save_weights_only=False)
+                                               save_weights_only=False,
+                                               ckpt_metric='epoch',
+                                               ckpt_metric_mode='max')
     phong_config: PhongConfig = '${..phong_config}'
     """ The config for the phong dataloader """
     predict_normals: bool = '${..predict_normals}'

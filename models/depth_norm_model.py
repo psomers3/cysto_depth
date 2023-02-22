@@ -70,11 +70,9 @@ class DepthNormModel(pl.LightningModule):
 
     def _resume_from_checkpoint(self, config):
         path_to_ckpt = config.resume_from_checkpoint
-        config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
         ckpt = torch.load(path_to_ckpt, map_location=self.device)
         with torch.no_grad():
             # run some data through the network to initial dense layers in discriminators if needed
-            # TODO: see if this actually works
             temp_out = self(torch.ones(1, 1, config.image_size, config.image_size, device=self.device),
                             torch.ones(1, 3, config.image_size, config.image_size, device=self.device),
                             source_id=0)
