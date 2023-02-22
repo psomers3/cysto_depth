@@ -34,17 +34,17 @@ class DepthNormModel(pl.LightningModule):
         self.critic_opt_idx = 0
         sources = list(range(len(config.data_roles) // 3))
         self.sources = sources
+        self.critics = torch.nn.ModuleDict()
+        self.discriminators = torch.nn.ModuleDict()
         if config.use_critic:
-            critics = {str(i): Discriminator(config.critic_config) for i in sources}
-            self.critics = torch.nn.ModuleDict(critics)
+            self.critics.update({str(i): Discriminator(config.critic_config) for i in sources})
             self.critic_opt_idx += 1
             self.d_losses_log[f'd_critic_loss'] = 0.0
             self.g_losses_log.update({f'g_critic_loss-{i}': 0.0 for i in sources})
             self.d_losses_log.update({f'd_critic_loss-{i}': 0.0 for i in sources})
 
         if config.use_discriminator:
-            discriminators = {str(i): Discriminator(config.discriminator_config) for i in sources}
-            self.discriminators = torch.nn.ModuleDict(discriminators)
+            self.discriminators.update({str(i): Discriminator(config.discriminator_config) for i in sources})
             self.discriminators_opt_idx = self.critic_opt_idx + 1
             self.d_losses_log['d_discriminator_loss'] = 0.0
             self.g_losses_log.update({f'g_discriminator_loss-{i}': 0.0 for i in sources})
@@ -130,10 +130,8 @@ class DepthNormModel(pl.LightningModule):
 
     def calculate_generator_loss(self, batch) -> Tensor:
         self.model.train()
-        if self.config.use_critic:
-            self.critics.eval()
-        if self.config.use_discriminator:
-            self.discriminators.eval()
+        self.critics.eval()
+        self.discriminators.eval()
         loss: Tensor = 0.0
         for source_id in batch.keys():
             img, depth, normals = batch[source_id]
@@ -171,8 +169,7 @@ class DepthNormModel(pl.LightningModule):
 
     def calculate_discriminator_loss(self, batch) -> Tensor:
         self.model.eval()
-        if self.config.use_critic:
-            self.critics.eval()
+        self.critics.eval()
         self.discriminators.train()
 
         discriminator_loss: Tensor = 0
@@ -207,8 +204,7 @@ class DepthNormModel(pl.LightningModule):
     def calculate_critic_loss(self, batch) -> Tensor:
         self.model.eval()
         self.critics.train()
-        if self.config.use_discriminator:
-            self.discriminators.eval()
+        self.discriminators.eval()
 
         loss: Tensor = 0
         for source_id in batch.keys():
