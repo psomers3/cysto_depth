@@ -67,17 +67,12 @@ class GAN(BaseModel):
         self.generator_critic_loss = GANGeneratorLoss[gan_config.critic_loss]
         self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss]
         if gan_config.resume_from_checkpoint:
-            path_to_ckpt = gan_config.resume_from_checkpoint
-            gan_config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-            ckpt = self.load_from_checkpoint(path_to_ckpt,
-                                             strict=False,
-                                             synth_config=synth_config,
-                                             gan_config=gan_config)
-            self.load_state_dict(ckpt.state_dict())
+            self._resume_from_checkpoint(gan_config)
+
     def _resume_from_checkpoint(self, config):
         path_to_ckpt = config.resume_from_checkpoint
         config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-        ckpt = torch.load(path_to_ckpt)
+        ckpt = torch.load(path_to_ckpt, map_location='cpu')
         with torch.no_grad():
             # run some data through the network to initial dense layers in discriminators if needed
             encoder_outs, encoder_mare_outs, decoder_outs, normals = self(torch.ones(1, 3, config.image_size, config.image_size))
