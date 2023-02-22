@@ -56,6 +56,7 @@ class HailMary(BaseModel):
             self.setup_critics()
         if self.config.use_discriminator:
             self.setup_discriminators()
+        self.setup_texture_generator()
         self.texture_generator_opt_idx = len(self._unwrapped_optimizers)
         self.texture_critic_opt_idx = self.texture_generator_opt_idx + 1 if \
             self.texture_generator.config.use_critic else self.texture_generator_opt_idx
@@ -116,11 +117,19 @@ class HailMary(BaseModel):
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
                                               lr=self.config.discriminator_lr))
         self.discriminators_opt_idx = self.critic_opt_idx + 1
+
+    def setup_texture_generator(self):
         if self.texture_generator.config.use_discriminator:
             self.texture_generator.discriminators[str(self.generated_source_id)] = \
                 Discriminator(self.texture_generator.config.discriminator_config)
             self.texture_generator.g_losses_log[f'g_discriminator_loss-{self.generated_source_id}'] = 0.0
             self.texture_generator.d_losses_log[f'd_discriminator_loss-{self.generated_source_id}'] = 0.0
+
+        if self.texture_generator.config.use_critic:
+            self.texture_generator.critics[str(self.generated_source_id)] = \
+                Discriminator(self.texture_generator.config.critic_config)
+            self.texture_generator.g_losses_log[f'g_critic_loss-{self.generated_source_id}'] = 0.0
+            self.texture_generator.d_losses_log[f'd_critic_loss-{self.generated_source_id}'] = 0.0
 
     def setup_critics(self):
         d_in_shapes = self.generator.feature_levels[::-1]
@@ -146,11 +155,6 @@ class HailMary(BaseModel):
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.critics.parameters()),
                                               lr=self.config.critic_lr))
         self.critic_opt_idx += 1
-        if self.texture_generator.config.use_critic:
-            self.texture_generator.critics[str(self.generated_source_id)] = \
-                Discriminator(self.texture_generator.config.critic_config)
-            self.texture_generator.g_losses_log[f'g_critic_loss-{self.generated_source_id}'] = 0.0
-            self.texture_generator.d_losses_log[f'd_critic_loss-{self.generated_source_id}'] = 0.0
 
     @staticmethod
     def reset_log_dict(log_dict: dict):
