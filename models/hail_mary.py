@@ -494,12 +494,15 @@ class HailMary(BaseModel):
         :return:
         """
         self.eval()
+        z = self.validation_data[self.generated_source_id]
+        _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
+        self.texture_generator.validation_step(batch, batch_idx)
+
         if batch_idx != 0:
             return
 
         with torch.no_grad():
-            if batch_idx != 0 or self.validation_epoch % self.config.val_plot_interval != 0:
-                # just plot one batch worth of images. In case there are a lot...
+            if self.validation_epoch % self.config.val_plot_interval != 0:
                 return
 
             if self.validation_data is None:
@@ -520,20 +523,9 @@ class HailMary(BaseModel):
     def configure_optimizers(self):
         return self._unwrapped_optimizers
 
-    def _on_epoch_end(self):
-        if self.lr_schedulers() is not None:
-            self.log("generator_lr", self.lr_schedulers()[0].get_last_lr()[0])
-            self.log("discriminator_lr", self.lr_schedulers()[1].get_last_lr()[0])
-
     def on_validation_epoch_end(self) -> None:
         self.validation_epoch += 1
-        self._on_epoch_end()
-
-    def on_train_epoch_end(self) -> None:
-        self._on_epoch_end()
-
-    def on_test_epoch_end(self) -> None:
-        self._on_epoch_end()
+        self.texture_generator.on_validation_epoch_end()
 
     def log_gate_coefficients(self, step=None):
         if step is None:

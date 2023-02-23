@@ -243,14 +243,14 @@ class DepthNormModel(pl.LightningModule):
         self.eval()
         with torch.no_grad():
             loss: Tensor = 0
-            if self.L_loss is not None:
-                for source_id in batch:
-                    original_img, original_depth, original_normals = batch[source_id]
-                    out_images = self(original_depth, original_normals, source_id=source_id)
-                    denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
-                    loss += self.L_loss(out_images, denormed_images)
-                self.val_loss += (loss / len(batch)).detach()
-                self.val_batch_count += 1
+            l_loss = self.L_loss if self.L_loss is not None else torch.nn.L1Loss()
+            for source_id in batch:
+                original_img, original_depth, original_normals = batch[source_id]
+                out_images = self(original_depth, original_normals, source_id=source_id)
+                denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
+                loss += l_loss(out_images, denormed_images)
+            self.val_loss += (loss / len(batch)).detach()
+            self.val_batch_count += 1
 
             if self.validation_data is None:
                 self.validation_data = {}
