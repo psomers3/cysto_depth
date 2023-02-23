@@ -111,10 +111,10 @@ class AvgTensorNorm(nn.Module):
         return avg_norm
 
 
-def compute_grad_norm(interpolated_out, interpolated_img) -> Tensor:
-    batch_size = interpolated_img.shape[0]
-    grads: Tensor = torch.autograd.grad(outputs=interpolated_out, inputs=interpolated_img,
-                                        grad_outputs=torch.ones_like(interpolated_out, device=interpolated_img.device),
+def compute_grad_norm(discriminators_out, discriminators_in) -> Tensor:
+    batch_size = discriminators_in.shape[0]
+    grads: Tensor = torch.autograd.grad(outputs=discriminators_out, inputs=discriminators_in,
+                                        grad_outputs=torch.ones_like(discriminators_out, device=discriminators_in.device),
                                         create_graph=True, retain_graph=True, is_grads_batched=False)[0]
     grads = grads.reshape([batch_size, -1])
     return torch.linalg.norm(grads, dim=1, ord=2)

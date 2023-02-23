@@ -5,6 +5,7 @@ mode: gan
 training_stage: train
 split_save_dir: ./splits
 num_workers: 1
+image_size: 64
 synthetic_config:
   encoder:
     load_imagenet_weights: True
