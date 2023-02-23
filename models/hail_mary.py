@@ -64,7 +64,7 @@ class HailMary(BaseModel):
         self._unwrapped_optimizers.extend(self.texture_generator.configure_optimizers())
         self.depth_model.requires_grad = True
         self.generator.requires_grad = True
-        self.texture_generator.requires_grad =True
+        self.texture_generator.requires_grad = True
         self.texture_discriminator_opt_idx = self.texture_critic_opt_idx + 1
         self.validation_epoch = 0
         self.generator_global_step = -1
@@ -222,7 +222,8 @@ class HailMary(BaseModel):
             self.generator.set_residuals_train()
 
         # output of encoder when evaluating a real image
-        encoder_outs_generated, encoder_mare_outs_generated, decoder_outs_generated, normals_generated = self(z, generator=True)
+        encoder_outs_generated, encoder_mare_outs_generated, decoder_outs_generated, normals_generated = self(z,
+                                                                                                              generator=True)
         depth_out = decoder_outs_generated[-1]
 
         g_loss: Tensor = 0.0
@@ -234,11 +235,14 @@ class HailMary(BaseModel):
         if self.config.use_discriminator:
             feat_outs = encoder_outs_generated[::-1][:len(self.discriminators['features'])]
             for idx, feature_out in enumerate(feat_outs):
-                g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx], f'discriminator_feature_{idx}') \
+                g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx],
+                                                                   f'discriminator_feature_{idx}') \
                           * self.config.feature_discriminator_factor
-            g_loss += self._apply_generator_discriminator_loss(depth_out, self.discriminators['depth_image'], 'discriminator_depth_img') \
+            g_loss += self._apply_generator_discriminator_loss(depth_out, self.discriminators['depth_image'],
+                                                               'discriminator_depth_img') \
                       * self.config.img_discriminator_factor
-            g_loss += self._apply_generator_discriminator_loss(original_phong_rendering, self.discriminators['phong'], 'discriminator_phong') \
+            g_loss += self._apply_generator_discriminator_loss(original_phong_rendering, self.discriminators['phong'],
+                                                               'discriminator_phong') \
                       * self.config.phong_discriminator_factor
             g_loss += self._apply_generator_discriminator_loss(depth_phong, self.discriminators['depth_phong'],
                                                                'discriminator_depth_phong') * self.config.phong_discriminator_factor
@@ -314,8 +318,9 @@ class HailMary(BaseModel):
                 o.zero_grad()
                 self.critic_global_step += 1
 
-        batch[self.generated_source_id].extend([predictions[self.generated_source_id]['depth'],
-                                           predictions[self.generated_source_id]['normals']])
+        if len(batch[self.generated_source_id]) != 3:
+            batch[self.generated_source_id].extend([predictions[self.generated_source_id]['depth'],
+                                                    predictions[self.generated_source_id]['normals']])
 
         if self.texture_generator.config.use_critic:
             critic_loss = self.texture_generator.calculate_critic_loss(batch)
@@ -389,7 +394,7 @@ class HailMary(BaseModel):
 
         depth_original = torch.cat(depth_original, dim=0)
         encoder_outs_original = [torch.cat([s[i] for s in encoder_outs_original], dim=0) for i in
-                              range(len(encoder_outs_original[0]))]
+                                 range(len(encoder_outs_original[0]))]
         phong_original = torch.cat(phong_original, dim=0)
         calculated_phong_original = torch.cat(calculated_phong_original, dim=0)
 
@@ -436,7 +441,7 @@ class HailMary(BaseModel):
 
         depth_original = torch.cat(depth_original, dim=0)
         encoder_outs_original = [torch.cat([s[i] for s in encoder_outs_original], dim=0) for i in
-                              range(len(encoder_outs_original[0]))]
+                                 range(len(encoder_outs_original[0]))]
         phong_original = torch.cat(phong_original, dim=0)
         calculated_phong_original = torch.cat(calculated_phong_original, dim=0)
         loss: Tensor = 0.0
@@ -450,7 +455,8 @@ class HailMary(BaseModel):
 
         loss += self._apply_critic_loss(phong_generated, phong_original, self.critics['phong'],
                                         self.config.wasserstein_lambda, 'critic_phong')
-        loss += self._apply_critic_loss(calculated_phong_generated, calculated_phong_original, self.critics['depth_phong'],
+        loss += self._apply_critic_loss(calculated_phong_generated, calculated_phong_original,
+                                        self.critics['depth_phong'],
                                         self.config.wasserstein_lambda, 'critic_depth_phong')
         return loss
 
@@ -500,7 +506,8 @@ class HailMary(BaseModel):
                 for source_id in batch:
                     if source_id < self.generated_source_id:
                         self.validation_data[source_id] = [x[:2].detach() for x in batch[source_id]]
-                        self.validation_data[source_id][0] = self.imagenet_denorm(self.validation_data[source_id][0]).detach()
+                        self.validation_data[source_id][0] = self.imagenet_denorm(
+                            self.validation_data[source_id][0]).detach()
                     else:
                         self.validation_data[source_id] = batch[source_id][0][:2].detach()
             self.plot()
@@ -545,7 +552,8 @@ class HailMary(BaseModel):
             denormed_images = self.imagenet_denorm(z).detach()
             self.validation_data[self.generated_source_id] = [denormed_images, depth_adapted, normals_adapted.detach()]
             self.texture_generator.validation_data = self.validation_data
-            self.texture_generator.val_denorm_color_images = torch.cat([self.validation_data[i][0].detach().cpu() for i in self.validation_data], dim=0)
+            self.texture_generator.val_denorm_color_images = torch.cat(
+                [self.validation_data[i][0].detach().cpu() for i in self.validation_data], dim=0)
             self.texture_generator.plot(self.global_step)
             self.validation_data[self.generated_source_id] = z
 
@@ -554,7 +562,8 @@ class HailMary(BaseModel):
                 depth_unadapted = decoder_outs_unadapted[-1].detach()
                 phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).detach().cpu()
 
-                self.unadapted_images_for_plotting = (depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted)
+                self.unadapted_images_for_plotting = (
+                depth_unadapted.detach(), normals_unadapted.detach().cpu(), phong_unadapted)
 
             depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
             denormed_images = denormed_images.cpu()
