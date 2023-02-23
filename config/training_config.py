@@ -73,7 +73,7 @@ class CallbackConfig:
     """ metric for early stopping"""
     early_stop_check_every: Union[int, None] = 1
     """ check every n validation runs """
-    ckpt_metric: str = '${..monitor_metric}'
+    ckpt_metric: Union[str, None] = '${..monitor_metric}'
     """ metric for model checkpoints """
     ckpt_metric_mode: str = 'max'
     """ max or min of metric """
@@ -173,8 +173,7 @@ class DepthNorm2ImageConfig:
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=None,
                                                save_weights_only=False,
-                                               ckpt_metric='epoch',
-                                               ckpt_metric_mode='max')
+                                               ckpt_metric=None)
     imagenet_norm_output: bool = False
     """ whether to predict normalized images or actual final color values """
     ckpt_metric: Union[str, None] = None
