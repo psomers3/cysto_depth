@@ -40,6 +40,7 @@ class HailMary(BaseModel):
         self.generator = AdaptiveEncoder(gan_config.encoder)
         self.generator.load_state_dict(self.depth_model.encoder.state_dict(), strict=False)
         self.texture_generator = DepthNormModel(depth_norm_config)
+        self.texture_generator.log = self.log
         self.depth_model.requires_grad = False
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
