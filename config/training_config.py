@@ -171,7 +171,7 @@ class DepthNorm2ImageConfig:
     """ main metric to track for performance """
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
-                                               model_ckpt_save_k=None,
+                                               model_ckpt_save_k=1,
                                                save_weights_only=False,
                                                ckpt_metric=None)
     imagenet_norm_output: bool = False
