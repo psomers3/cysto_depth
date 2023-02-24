@@ -524,7 +524,7 @@ def add_render_output_nodes(scene: bpy.types.Scene,
         links.new(rl.outputs[normals_label], normal_node.inputs['Image'])
         return_list[2] = normal_node
         normal_node.mute = True
-        normal_node.name = ['normals_out']
+        normal_node.name = 'normals_out'
 
     return return_list
 
