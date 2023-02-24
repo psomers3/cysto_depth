@@ -135,7 +135,7 @@ class DepthNormModel(pl.LightningModule):
             img, depth, normals = batch[source_id]
             out_images = self(depth, normals, source_id=source_id)
             if self.L_loss is not None:
-                denormed_images = img if self.config.imagenet_norm_output else imagenet_denorm(img)
+                denormed_images = img if self.config.imagenet_norm_output else imagenet_denorm(img).detach()
                 img_loss = self.L_loss(out_images, denormed_images)
                 self.g_losses_log['g_img_loss'] += img_loss.detach()
                 loss += img_loss
