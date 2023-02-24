@@ -146,21 +146,22 @@ def wasserstein_discriminator_loss(generated: Tensor, original: Tensor, *args, *
     """ Discriminator outputs from data originating from the original domain and
         from the generator's attempt (generated)
     """
-    return original.mean() - generated.mean()
+    return generated.mean() - original.mean()
 
 
 def wasserstein_generator_loss(generated: Tensor, *args, **kwargs) -> Tensor:
-    return generated.mean()
+    return -generated.mean()
 
 
 def wasserstein_gradient_penalty(generated_input: Tensor,
                                  original_input: Tensor,
                                  critic: torch.nn.Module,
                                  wasserstein_lambda: float = 10) -> Tensor:
+    # https://github.com/igul222/improved_wgan_training/blob/fa66c574a54c4916d27c55441d33753dcc78f6bc/gan_64x64.py#L495
     batch_size = original_input.shape[0]
-    epsilon = torch.rand(batch_size, *[1] * (original_input.ndim - 1), device=original_input.device)
-
-    interpolated_img = epsilon * original_input + (1 - epsilon) * generated_input
+    alpha = torch.rand(batch_size, *[1] * (original_input.ndim - 1), device=original_input.device)
+    differences = generated_input - original_input
+    interpolated_img = original_input + alpha*differences
     interpolated_img.requires_grad = True
     interpolated_out = critic(interpolated_img)
     grad_penalty = wasserstein_lambda * ((compute_grad_norm(interpolated_out, interpolated_img) - 1) ** 2).mean()
