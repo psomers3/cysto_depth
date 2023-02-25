@@ -123,13 +123,13 @@ class HailMary(BaseModel):
         if self.texture_generator.config.use_discriminator:
             self.texture_generator.discriminators[str(self.generated_source_id)] = \
                 Discriminator(self.texture_generator.config.discriminator_config)
-            self.texture_generator.g_losses_log[f'g_discriminator_loss-{self.generated_source_id}'] = 0.0
+            self.texture_generator.generator_losses[f'g_discriminator_loss-{self.generated_source_id}'] = 0.0
             self.texture_generator.d_losses_log[f'd_discriminator_loss-{self.generated_source_id}'] = 0.0
 
         if self.texture_generator.config.use_critic:
             self.texture_generator.critics[str(self.generated_source_id)] = \
                 Discriminator(self.texture_generator.config.critic_config)
-            self.texture_generator.g_losses_log[f'g_critic_loss-{self.generated_source_id}'] = 0.0
+            self.texture_generator.generator_losses[f'g_critic_loss-{self.generated_source_id}'] = 0.0
             self.texture_generator.d_losses_log[f'd_critic_loss-{self.generated_source_id}'] = 0.0
 
     def setup_critics(self):
@@ -143,14 +143,16 @@ class HailMary(BaseModel):
         self.d_losses_log['d_critics_loss'] = 0.0
         self.critics['features'] = torch.nn.ModuleList(modules=d_feat_list)
         self.d_losses_log.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.d_losses_log.update({f'd_loss_critic_gp_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         self.g_losses_log.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.critics['phong'] = Discriminator(self.config.phong_critic)
             self.critics['depth_phong'] = Discriminator(self.config.phong_critic)
             self.d_losses_log.update({'d_loss_critic_phong': 0.0, 'd_loss_critic_depth_phong': 0.0})
+            self.d_losses_log.update({'d_loss_critic_gp_phong': 0.0, 'd_loss_critic_gp_depth_phong': 0.0})
             self.g_losses_log.update({'g_loss_critic_phong': 0.0, 'g_loss_critic_depth_phong': 0.0})
         self.critics['depth_image'] = Discriminator(self.config.depth_critic)
-        self.d_losses_log.update({'d_loss_critic_depth_img': 0.0})
+        self.d_losses_log.update({'d_loss_critic_depth_img': 0.0, 'd_loss_critic_gp_depth_img': 0.0})
         self.g_losses_log.update({'g_loss_critic_depth_img': 0.0})
         opt = opts[self.config.critic_optimizer.lower()]
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.critics.parameters()),
@@ -280,9 +282,9 @@ class HailMary(BaseModel):
             [o.step() for o in optimizers]
             [o.zero_grad() for o in optimizers]
             self.log_dict(self.g_losses_log)
-            self.log_dict(self.texture_generator.g_losses_log)
+            self.log_dict(self.texture_generator.generator_losses)
             self.reset_log_dict(self.g_losses_log)
-            self.reset_log_dict(self.texture_generator.g_losses_log)
+            self.reset_log_dict(self.texture_generator.generator_losses)
             self.zero_grad()
 
     def discriminator_critic_train_step(self, batch: Dict[int, List[Tensor]], batch_idx) -> None:
@@ -448,18 +450,18 @@ class HailMary(BaseModel):
         calculated_phong_original = torch.cat(calculated_phong_original, dim=0)
         loss: Tensor = 0.0
         loss += self._apply_critic_loss(depth_generated, depth_original, self.critics['depth_image'],
-                                        self.config.wasserstein_lambda, 'critic_depth_img')
+                                        self.config.wasserstein_lambda, 'depth_img')
         feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
         for idx, feature_critic in enumerate(self.critics['features']):
             feature_out_r, feature_out_s = next(feat_outs)
             loss += self._apply_critic_loss(feature_out_r, feature_out_s, feature_critic,
-                                            self.config.wasserstein_lambda, f'critic_feature_{idx}')
+                                            self.config.wasserstein_lambda, f'feature_{idx}')
 
         loss += self._apply_critic_loss(phong_generated, phong_original, self.critics['phong'],
-                                        self.config.wasserstein_lambda, 'critic_phong')
+                                        self.config.wasserstein_lambda, 'phong')
         loss += self._apply_critic_loss(calculated_phong_generated, calculated_phong_original,
                                         self.critics['depth_phong'],
-                                        self.config.wasserstein_lambda, 'critic_depth_phong')
+                                        self.config.wasserstein_lambda, 'depth_phong')
         return loss
 
     def _apply_generator_discriminator_loss(self, discriminator_in: Tensor, discriminator: torch.nn.Module, name: str,
@@ -469,9 +471,10 @@ class HailMary(BaseModel):
         return loss
 
     def _apply_generator_critic_loss(self, discriminator_out: Tensor, name: str, ) -> Tensor:
-        loss = self.generator_critic_loss(discriminator_out)
-        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
-        return loss
+        loss, penalty = self.generator_critic_loss(discriminator_out)
+        self.g_losses_log[f'g_loss_critic_{name}'] += loss.detach()
+        self.g_losses_log[f'g_loss_critic_gp_{name}'] += penalty.detach()
+        return loss + penalty
 
     def _apply_discriminator_loss(self, generated: Tensor, original: Tensor, discriminator: torch.nn.Module,
                                   name: str) -> Tensor:

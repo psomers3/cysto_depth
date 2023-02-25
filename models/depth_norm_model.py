@@ -29,8 +29,9 @@ class DepthNormModel(pl.LightningModule):
         self.val_denorm_color_images = None
         self.validation_data = None
         self._val_epoch_count = 0
-        self.g_losses_log = {'g_loss': 0}
-        self.d_losses_log = {}
+        self.generator_losses = {'g_loss': 0}
+        self.critic_losses = {}
+        self.discriminator_losses = {}
         self.critic_opt_idx = 0
         sources = list(range(len(config.data_roles) // 3))
         self.sources = sources
@@ -39,16 +40,17 @@ class DepthNormModel(pl.LightningModule):
         if config.use_critic:
             self.critics.update({str(i): Discriminator(config.critic_config) for i in sources})
             self.critic_opt_idx += 1
-            self.d_losses_log[f'd_critic_loss'] = 0.0
-            self.g_losses_log.update({f'g_critic_loss-{i}': 0.0 for i in sources})
-            self.d_losses_log.update({f'd_critic_loss-{i}': 0.0 for i in sources})
+            self.critic_losses[f'd_critic_loss'] = 0.0
+            self.generator_losses.update({f'g_critic_loss-{i}': 0.0 for i in sources})
+            self.critic_losses.update({f'd_critic_loss-{i}': 0.0 for i in sources})
+            self.critic_losses.update({f'd_critic_gp_{i}': 0.0 for i in sources})
 
         if config.use_discriminator:
             self.discriminators.update({str(i): Discriminator(config.discriminator_config) for i in sources})
             self.discriminators_opt_idx = self.critic_opt_idx + 1
-            self.d_losses_log['d_discriminator_loss'] = 0.0
-            self.g_losses_log.update({f'g_discriminator_loss-{i}': 0.0 for i in sources})
-            self.d_losses_log.update({f'd_discriminator_loss-{i}': 0.0 for i in sources})
+            self.discriminator_losses['d_discriminator_loss'] = 0.0
+            self.generator_losses.update({f'g_discriminator_loss-{i}': 0.0 for i in sources})
+            self.discriminator_losses.update({f'd_discriminator_loss-{i}': 0.0 for i in sources})
 
         self.generator_global_step = -1
         self.critic_global_step = 0
@@ -60,13 +62,14 @@ class DepthNormModel(pl.LightningModule):
         self.L_loss = None
         if config.L_loss:
             self.L_loss = torch.nn.L1Loss() if '1' in config.L_loss else torch.nn.MSELoss()
-            self.g_losses_log.update({'g_img_loss': 0})
+            self.generator_losses.update({'g_img_loss': 0})
         self.val_loss = 0
         self.val_batch_count = 0
         self.batches_accumulated = 0
         self._generator_training = not (self.config.use_critic or self.config.use_discriminator)
         if config.resume_from_checkpoint:
             self._resume_from_checkpoint(config)
+        self._full_batch = False
 
     def _resume_from_checkpoint(self, config):
         path_to_ckpt = config.resume_from_checkpoint
@@ -113,18 +116,22 @@ class DepthNormModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         self.total_train_step_count += 1
         self.batches_accumulated += 1
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
+            self._full_batch = True
+            self.batches_accumulated = 0
+
         if self._generator_training:
             # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
-            if (self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
+            if (
+                    self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
                 # print('discriminator')
                 self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
             if self.config.use_critic:
                 # print('critic')
                 self.critic_train_step(batch, batch_idx)
-        if self.batches_accumulated == self.config.accumulate_grad_batches:
-            self.batches_accumulated = 0
+        self._full_batch = False
 
     def calculate_generator_loss(self, batch) -> Tensor:
         self.model.train()
@@ -137,32 +144,35 @@ class DepthNormModel(pl.LightningModule):
             if self.L_loss is not None:
                 denormed_images = img if self.config.imagenet_norm_output else imagenet_denorm(img).detach()
                 img_loss = self.L_loss(out_images, denormed_images)
-                self.g_losses_log['g_img_loss'] += img_loss.detach()
+                self.generator_losses['g_img_loss'] += img_loss.detach()
                 loss += img_loss
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
                 critic_loss = self.generator_critic_loss(critic_out)
-                self.g_losses_log[f'g_critic_loss-{source_id}'] += critic_loss.detach()
+                self.generator_losses[f'g_critic_loss-{source_id}'] += critic_loss.detach()
                 loss += critic_loss
             if self.config.use_discriminator:
-                discriminator_loss = self.generator_discriminator_loss(out_images, 1.0, self.discriminators[str(source_id)])
-                self.g_losses_log[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
+                discriminator_loss = self.generator_discriminator_loss(out_images, 1.0,
+                                                                       self.discriminators[str(source_id)])
+                self.generator_losses[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
                 loss += discriminator_loss
-        self.g_losses_log['g_loss'] += loss.detach()
+        self.generator_losses['g_loss'] += loss.detach()
         return loss
 
     def generator_train_step(self, batch: dict, batch_idx: int):
         loss = self.calculate_generator_loss(batch)
         self.manual_backward(loss)
-        if self.batches_accumulated == self.config.accumulate_grad_batches:
+        if self._full_batch:
             self.generator_global_step += 1
             self._generator_training = False
             opt = self.optimizers(use_pl_optimizer=True)[0]
             # print('step generator')
             opt.step()
             opt.zero_grad()
-            self.log_dict(self.g_losses_log)
-            self.g_losses_log.update({k: 0 for k in self.g_losses_log.keys()})
+            self.generator_losses.update({k: self.generator_losses[k] / self.config.accumulate_grad_batches
+                                          for k in self.generator_losses.keys()})
+            self.log_dict(self.generator_losses)
+            self.generator_losses.update({k: 0 for k in self.generator_losses.keys()})
             self.zero_grad()
 
     def calculate_discriminator_loss(self, batch) -> Tensor:
@@ -180,16 +190,16 @@ class DepthNormModel(pl.LightningModule):
             loss_original = self.discriminator_loss(denormed_images.detach(), 1.0, self.discriminators[str(source_id)])
             combined = loss_original + loss_generated
             discriminator_loss += combined
-            self.d_losses_log[f'd_discriminator_loss-{source_id}'] += combined.detach()
+            self.discriminator_losses[f'd_discriminator_loss-{source_id}'] += combined.detach()
         return discriminator_loss
 
     def discriminator_train_step(self, batch: dict, batch_idx):
         discriminator_loss = self.calculate_discriminator_loss(batch)
 
         self.manual_backward(discriminator_loss)
-        self.d_losses_log['d_discriminator_loss'] += discriminator_loss.detach()
+        self.discriminator_losses['d_discriminator_loss'] += discriminator_loss.detach()
 
-        if self.batches_accumulated == self.config.accumulate_grad_batches:
+        if self._full_batch:
             # print('step discriminators')
             discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
             discriminator_opts = [discriminator_opt] if not isinstance(discriminator_opt, list) else discriminator_opt
@@ -197,7 +207,10 @@ class DepthNormModel(pl.LightningModule):
             [d_opt.zero_grad() for d_opt in discriminator_opts]
             if not self.config.use_critic:
                 self._generator_training = True
-                self.log_dict(self.d_losses_log)
+                self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
+                                          for k in self.discriminator_losses.keys()})
+                self.log_dict(self.discriminator_losses)
+                self.discriminator_losses.update({k: 0.0 for k in self.discriminator_losses.keys()})
 
     def calculate_critic_loss(self, batch) -> Tensor:
         self.model.eval()
@@ -210,34 +223,34 @@ class DepthNormModel(pl.LightningModule):
                 original_img, original_depth, original_normals = batch[source_id]
                 denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
                 out_images = self(original_depth, original_normals, source_id=source_id)
-            critic_loss = self.discriminator_critic_loss(denormed_images,
-                                                         out_images.detach(),
-                                                         self.critics[str(source_id)],
-                                                         10)
-            self.d_losses_log[f'd_critic_loss-{source_id}'] += critic_loss.detach()
-            loss += critic_loss
-        self.d_losses_log[f'd_critic_loss'] += loss.detach()
+            critic_loss, penalty = self.discriminator_critic_loss(denormed_images,
+                                                                  out_images.detach(),
+                                                                  self.critics[str(source_id)],
+                                                                  10)
+
+            self.critic_losses[f'd_critic_loss-{source_id}'] += critic_loss.detach()
+            self.critic_losses[f'd_critic_gp_{source_id}'] += penalty.detach()
+            loss += critic_loss + penalty
+        self.critic_losses[f'd_critic_loss'] += loss.detach()
         return loss
 
     def critic_train_step(self, batch: dict, batch_idx):
         loss = self.calculate_critic_loss(batch)
         self.manual_backward(loss)
 
-        step_optimizers = False
-        if self.batches_accumulated == self.config.accumulate_grad_batches:
+        if self._full_batch:
             self.critic_global_step += 1
-            step_optimizers = True
-            if self.critic_global_step % self.config.wasserstein_critic_updates == 0:
-                self._generator_training = not self._generator_training
-                self.log_dict(self.d_losses_log)
-                self.d_losses_log.update({k: 0.0 for k in self.d_losses_log.keys()})
-
-        if step_optimizers:
+            self.critic_losses.update({k: self.critic_losses[k] / self.config.accumulate_grad_batches
+                                      for k in self.critic_losses.keys()})
+            self.log_dict(self.critic_losses)
+            self.critic_losses.update({k: 0.0 for k in self.critic_losses.keys()})
             # print('step critics')
             critic_opts = self.optimizers(True)[self.critic_opt_idx]
             critic_opts = [critic_opts] if not isinstance(critic_opts, list) else critic_opts
             [d_opt.step() for d_opt in critic_opts]
             [d_opt.zero_grad() for d_opt in critic_opts]
+            if self.critic_global_step % self.config.wasserstein_critic_updates == 0:
+                self._generator_training = True
 
     def validation_step(self, batch, batch_idx):
         self.eval()
@@ -267,7 +280,8 @@ class DepthNormModel(pl.LightningModule):
                         original_img[:self.max_num_image_samples]).detach().cpu())
                     self.validation_data[source_id].append(original_depth[:self.max_num_image_samples].detach())
                     self.validation_data[source_id].append(original_normals[:self.max_num_image_samples].detach())
-                self.val_denorm_color_images = torch.cat([self.validation_data[i][0] for i in self.validation_data], dim=0)
+                self.val_denorm_color_images = torch.cat([self.validation_data[i][0] for i in self.validation_data],
+                                                         dim=0)
 
     def on_validation_epoch_end(self) -> None:
         if self.val_batch_count > 0:

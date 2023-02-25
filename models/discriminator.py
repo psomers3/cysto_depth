@@ -10,6 +10,9 @@ _reductions = {'sum': torch.sum,
                'mean': torch.mean,
                'dense': torch.nn.Linear}
 
+_output_activation = {'sigmoid': torch.sigmoid,
+                      'tanh': torch.tanh}
+
 
 class Discriminator(nn.Module):
     def __init__(self, config: DiscriminatorConfig):
@@ -18,7 +21,7 @@ class Discriminator(nn.Module):
         activation = config.activation
         norm = config.normalization
         in_channels = config.in_channels
-        self.use_sigmoid = config.use_sigmoid
+        self.output_activation = config.output_activation.lower() if config.output_activation else None
         self.reduction = config.single_out_reduction
         self._linear = None
 
@@ -60,8 +63,8 @@ class Discriminator(nn.Module):
                 validity = self._linear(validity)
             else:
                 validity = _reductions[self.reduction.lower()](validity)
-        if self.use_sigmoid:
-            validity = torch.sigmoid(validity)
+        if self.output_activation is not None:
+            validity = _output_activation[self.output_activation](validity)
         return validity
 
     def __call__(self, *args, **kwargs) -> torch.Tensor:

@@ -171,10 +171,10 @@ def wasserstein_gradient_penalty(generated_input: Tensor,
 def wasserstein_gp_discriminator_loss(generated_input: Tensor,
                                       original_input: Tensor,
                                       critic: torch.nn.Module,
-                                      wasserstein_lambda: float = 10) -> Tensor:
+                                      wasserstein_lambda: float = 10) -> Tuple[Tensor, Tensor]:
     """ https://arxiv.org/abs/1704.00028 """
-    return (wasserstein_discriminator_loss(critic(generated_input), critic(original_input)) \
-            + wasserstein_gradient_penalty(generated_input, original_input, critic, wasserstein_lambda))
+    return (wasserstein_discriminator_loss(critic(generated_input), critic(original_input)),
+            wasserstein_gradient_penalty(generated_input, original_input, critic, wasserstein_lambda))
 
 
 GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {

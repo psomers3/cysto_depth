@@ -4,37 +4,37 @@ mode: depthnorm
 training_stage: train
 split_save_dir: ''
 num_workers: 1
-val_check_interval: 10
+val_check_interval: 30
 val_plot_interval: 1
 image_size: 64
 trainer_config:
   gpus: []
   strategy: null
-  accelerator: cpu
+  accelerator: mps
   log_every_n_steps: 2
   overfit_batches: 0
 depth_norm_config:
-  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_17/checkpoints/epoch=3-step=2683.ckpt
+  #resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_17/checkpoints/epoch=3-step=2683.ckpt
   encoder:
     load_imagenet_weights: True
     backbone: resnet18
-  accumulate_grad_batches: 1
-  L_loss: L1
+  accumulate_grad_batches: 2
+  L_loss: ""
   use_critic: true
   critic_config:
-    single_out: true
-    use_sigmoid: false
+    single_out: false
+    output_activation: ''
     single_out_reduction: dense
   use_discriminator: false
   discriminator_config:
-    single_out: false
+    output_activation: 'sigmoid'
     single_out_reduction: max
-  generator_lr: 5e-4
-  discriminator_lr: 5e-5
-  critic_lr: 5e-5
+  generator_lr: 1e-3
+  discriminator_lr: 1e-3
+  critic_lr: 1e-3
   add_noise: false
   max_epochs: 300
-  batch_size: 4
+  batch_size: 8
   data_roles:
     - color_0
     - color_1

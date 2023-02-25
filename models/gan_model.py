@@ -42,8 +42,9 @@ class GAN(BaseModel):
         self.depth_model.requires_grad = False
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
-        self.d_losses_log = {}
-        self.g_losses_log = {'g_loss': 0.0}
+        self.discriminator_losses = {}
+        self.generator_losses = {'g_loss': 0.0}
+        self.critic_losses = {}
         self.discriminators: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critics: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critic_opt_idx = 0
@@ -111,21 +112,21 @@ class GAN(BaseModel):
             d_config.in_channels = d_in_shape
             d = Discriminator(d_config)
             d_feat_list.append(d)
-        self.d_losses_log['d_discriminators_loss'] = 0.0
+        self.discriminator_losses['d_discriminators_loss'] = 0.0
         self.discriminators['features'] = torch.nn.ModuleList(modules=d_feat_list)
-        self.d_losses_log.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.g_losses_log.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.discriminator_losses.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.generator_losses.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.discriminators['phong'] = Discriminator(self.config.phong_discriminator)
             self.discriminators['depth_phong'] = Discriminator(self.config.phong_discriminator)
             self.discriminators['normals'] = Discriminator(self.config.normals_discriminator)
-            self.d_losses_log.update({'d_loss_discriminator_phong': 0.0, 'd_loss_discriminator_depth_phong': 0.0,
+            self.discriminator_losses.update({'d_loss_discriminator_phong': 0.0, 'd_loss_discriminator_depth_phong': 0.0,
                                       'd_loss_discriminator_normals': 0.0})
-            self.g_losses_log.update({'g_loss_discriminator_phong': 0.0, 'g_loss_discriminator_depth_phong': 0.0,
+            self.generator_losses.update({'g_loss_discriminator_phong': 0.0, 'g_loss_discriminator_depth_phong': 0.0,
                                       'g_loss_discriminator_normals': 0.0})
         self.discriminators['depth_image'] = Discriminator(self.config.depth_discriminator)
-        self.d_losses_log.update({'d_loss_discriminator_depth_img': 0.0})
-        self.g_losses_log.update({'g_loss_discriminator_depth_img': 0.0})
+        self.discriminator_losses.update({'d_loss_discriminator_depth_img': 0.0})
+        self.generator_losses.update({'g_loss_discriminator_depth_img': 0.0})
         opt = opts[self.config.discriminator_optimizer.lower()]
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
                                               lr=self.config.discriminator_lr))
@@ -139,21 +140,26 @@ class GAN(BaseModel):
             d_config.in_channels = d_in_shape
             d = Discriminator(d_config)
             d_feat_list.append(d)
-        self.d_losses_log['d_critics_loss'] = 0.0
+        self.critic_losses['d_critics_loss'] = 0.0
         self.critics['features'] = torch.nn.ModuleList(modules=d_feat_list)
-        self.d_losses_log.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.g_losses_log.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.critic_losses.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.generator_losses.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.critic_losses.update({f'd_loss_critic_gp_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.critics['phong'] = Discriminator(self.config.phong_critic)
             self.critics['depth_phong'] = Discriminator(self.config.phong_critic)
             self.critics['normals'] = Discriminator(self.config.normals_critic)
-            self.d_losses_log.update({'d_loss_critic_phong': 0.0, 'd_loss_critic_depth_phong': 0.0, 
-                                      'd_loss_critic_normals': 0.0})
-            self.g_losses_log.update({'g_loss_critic_phong': 0.0, 'g_loss_critic_depth_phong': 0.0, 
+            self.critic_losses.update({'d_loss_critic_phong': 0.0,
+                                      'd_loss_critic_depth_phong': 0.0,
+                                      'd_loss_critic_normals': 0.0,
+                                      'd_loss_critic_gp_phong': 0.0,
+                                      'd_loss_critic_gp_depth_phong': 0.0,
+                                      'd_loss_critic_gp_normals': 0.0})
+            self.generator_losses.update({'g_loss_critic_phong': 0.0, 'g_loss_critic_depth_phong': 0.0,
                                       'g_loss_critic_normals': 0.0})
         self.critics['depth_image'] = Discriminator(self.config.depth_critic)
-        self.d_losses_log.update({'d_loss_critic_depth_img': 0.0})
-        self.g_losses_log.update({'g_loss_critic_depth_img': 0.0})
+        self.critic_losses.update({'d_loss_critic_depth_img': 0.0, 'd_loss_critic_gp_depth_img': 0.0})
+        self.generator_losses.update({'g_loss_critic_depth_img': 0.0})
         opt = opts[self.config.critic_optimizer.lower()]
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.critics.parameters()),
                                               lr=self.config.critic_lr))
@@ -278,7 +284,7 @@ class GAN(BaseModel):
                           * self.config.normals_discriminator_factor
 
         self.manual_backward(g_loss)
-        self.g_losses_log['g_loss'] += g_loss.detach()
+        self.generator_losses['g_loss'] += g_loss.detach()
         self.batches_accumulated += 1
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self.generator_global_step += 1
@@ -287,8 +293,8 @@ class GAN(BaseModel):
             generator_opt = self.optimizers(True)[0]
             generator_opt.step()
             generator_opt.zero_grad()
-            self.log_dict(self.g_losses_log)
-            self.reset_log_dict(self.g_losses_log)
+            self.log_dict(self.generator_losses)
+            self.reset_log_dict(self.generator_losses)
             self.zero_grad()
 
     def discriminator_critic_train_step(self, batch, batch_idx) -> None:
@@ -309,30 +315,36 @@ class GAN(BaseModel):
             # print('discriminator')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
-            self.d_losses_log['d_discriminators_loss'] += discriminator_loss.detach()
+            self.discriminator_losses['d_discriminators_loss'] += discriminator_loss.detach()
             # +1 because they are stepped after critic update
             if full_batch:
                 # print('discriminator step')
                 discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
                 discriminator_opt.step()
                 discriminator_opt.zero_grad()
+                self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
+                                                  for k in self.discriminator_losses.keys()})
+                self.log_dict(self.discriminator_losses)
+                self.reset_log_dict(self.discriminator_losses)
 
         if self.config.use_critic:
             # print('critic')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
-            self.d_losses_log['d_critics_loss'] += critic_loss.detach()
+            self.critic_losses['d_critics_loss'] += critic_loss.detach()
             if full_batch:
                 # print('critic step')
                 critic_opt = self.optimizers(True)[self.critic_opt_idx]
                 critic_opt.step()
                 critic_opt.zero_grad()
                 self.critic_global_step += 1
+                self.critic_losses.update({k: self.critic_losses[k] / self.config.accumulate_grad_batches
+                                           for k in self.critic_losses.keys()})
+                self.log_dict(self.critic_losses)
+                self.reset_log_dict(self.critic_losses)
 
         if last_mini_batch and full_batch:
             self._generator_training = True
-            self.log_dict(self.d_losses_log)
-            self.reset_log_dict(self.d_losses_log)
 
     def get_discriminator_critic_inputs(self, batch, batch_idx) -> Predictions:
         """
@@ -420,25 +432,25 @@ class GAN(BaseModel):
         encoder_outs_original = predictions['encoder_outs_original']
         loss: Tensor = 0.0
         loss += self._apply_critic_loss(depth_generated, depth_original, self.critics['depth_image'],
-                                        self.config.wasserstein_lambda, 'critic_depth_img')
+                                        self.config.wasserstein_lambda, 'depth_img')
         feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
         for idx, feature_critic in enumerate(self.critics['features']):
             feature_out_r, feature_out_s = next(feat_outs)
             loss += self._apply_critic_loss(feature_out_r, feature_out_s, feature_critic,
-                                            self.config.wasserstein_lambda, f'critic_feature_{idx}')
+                                            self.config.wasserstein_lambda, f'feature_{idx}')
         if self.config.predict_normals:
             phong_generated = predictions['phong_generated']
             phong_original = predictions['phong_original']
             calculated_phong_generated = predictions['calculated_phong_generated']
             calculated_phong_original = predictions['calculated_phong_original']
             loss += self._apply_critic_loss(phong_generated, phong_original, self.critics['phong'],
-                                            self.config.wasserstein_lambda, 'critic_phong')
+                                            self.config.wasserstein_lambda, 'phong')
             loss += self._apply_critic_loss(calculated_phong_generated, calculated_phong_original,
                                             self.critics['depth_phong'],
-                                            self.config.wasserstein_lambda, 'critic_depth_phong')
+                                            self.config.wasserstein_lambda, 'depth_phong')
             loss += self._apply_critic_loss(predictions['normals_generated'], predictions['normals_original'],
                                             self.critics['normals'],
-                                            self.config.wasserstein_lambda, 'critic_normals')
+                                            self.config.wasserstein_lambda, 'normals')
         return loss
 
     def _apply_generator_discriminator_loss(self,
@@ -447,14 +459,14 @@ class GAN(BaseModel):
                                             name: str,
                                             label: float = 1.0) -> Tensor:
         loss = self.generator_discriminator_loss(discriminator_in, label, discriminator)
-        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
+        self.generator_losses[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_generator_critic_loss(self,
                                      discriminator_out: Tensor,
                                      name: str,) -> Tensor:
         loss = self.generator_critic_loss(discriminator_out)
-        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
+        self.generator_losses[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_discriminator_loss(self,
@@ -465,14 +477,15 @@ class GAN(BaseModel):
         loss_generated = self.discriminator_loss(generated, 0.0, discriminator)
         loss_original = self.discriminator_loss(original, 1.0, discriminator)
         combined = loss_original + loss_generated
-        self.d_losses_log[f'd_loss_{name}'] += combined.detach()
+        self.discriminator_losses[f'd_loss_{name}'] += combined.detach()
         return combined
 
     def _apply_critic_loss(self, generated: Tensor, original: Tensor, critic: torch.nn.Module,
                            wasserstein_lambda: float, name: str):
-        critic_loss = self.critic_loss(generated, original, critic, wasserstein_lambda)
-        self.d_losses_log[f'd_loss_{name}'] += critic_loss.detach()
-        return critic_loss
+        critic_loss, penalty = self.critic_loss(generated, original, critic, wasserstein_lambda)
+        self.critic_losses[f'd_loss_critic_{name}'] += critic_loss.detach()
+        self.critic_losses[f'd_loss_critic_gp_{name}'] += penalty.detach()
+        return critic_loss + penalty
 
     def validation_step(self, batch, batch_idx):
         """

@@ -57,8 +57,8 @@ class DiscriminatorConfig:
     """ Whether this discriminator uses the padding/stride for image level discrimination """
     single_out: bool = False
     """ Whether to return just the max of the output """
-    use_sigmoid: bool = True
-    """ Whether to use a sigmoid output activation """
+    output_activation: str = 'sigmoid'
+    """ final output activation ['', 'sigmoid', 'tanh'] """
     single_out_reduction: str = 'max'
     """ How to combine outputs to single output [max, min, mean, sum] """
 
@@ -139,11 +139,11 @@ class DepthNorm2ImageConfig:
     critic_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                              img_level=True,
                                                              normalization='instance',
-                                                             use_sigmoid=False)
+                                                             output_activation='')
     discriminator_config: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                                     img_level=True,
                                                                     normalization='instance',
-                                                                    use_sigmoid=True)
+                                                                    output_activation='sigmoid')
     wasserstein_critic_updates: int = 5
     """ how many gradient updates for critics before another generator update """
     optimizer: str = 'adam'
@@ -333,35 +333,35 @@ class GANTrainingConfig:
     depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=1,
                                                                    img_level=True,
                                                                    single_out=False,
-                                                                   use_sigmoid=True)
+                                                                   output_activation='sigmoid')
     depth_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=1,
                                                             img_level=True,
                                                             single_out=False,
-                                                            use_sigmoid=False)
+                                                            output_activation='')
     normals_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                               img_level=True,
                                                               single_out=False,
-                                                              use_sigmoid=False)
+                                                              output_activation='')
     normals_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                                      img_level=True,
                                                                      single_out=False,
-                                                                     use_sigmoid=True)
+                                                                     output_activation='sigmoid')
     phong_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                                    img_level=True,
                                                                    single_out=False,
-                                                                   use_sigmoid=True)
+                                                                   output_activation='sigmoid')
     phong_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=3,
                                                             img_level=True,
                                                             single_out=False,
-                                                            use_sigmoid=False)
+                                                            output_activation='')
     feature_level_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=-1,
                                                                            img_level=False,
                                                                            single_out=False,
-                                                                           use_sigmoid=True)
+                                                                           output_activation='sigmoid')
     feature_level_critic: DiscriminatorConfig = DiscriminatorConfig(in_channels=-1,
                                                                     img_level=False,
                                                                     single_out=False,
-                                                                    use_sigmoid=True)
+                                                                    output_activation='')
     img_discriminator_factor: float = 1.0
     phong_discriminator_factor: float = 1.0
     normals_discriminator_factor: float = 1.0
