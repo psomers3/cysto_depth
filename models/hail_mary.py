@@ -44,8 +44,9 @@ class HailMary(BaseModel):
         self.depth_model.requires_grad = False
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
-        self.d_losses_log = {}
-        self.g_losses_log = {'g_loss': 0.0}
+        self.discriminator_losses = {}
+        self.generator_losses = {'g_loss': 0.0}
+        self.critic_losses = {}
         self.discriminators: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critics: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.generated_source_id: int = len(self.texture_generator.sources)
@@ -72,6 +73,7 @@ class HailMary(BaseModel):
         self.critic_global_step = 0
         self.total_train_step_count = -1
         self.batches_accumulated = 0
+        self._full_batch = False
         self._generator_training = False
         self.unadapted_images_for_plotting = None
         self.validation_data = None
@@ -102,18 +104,18 @@ class HailMary(BaseModel):
             d_config.in_channels = d_in_shape
             d = Discriminator(d_config)
             d_feat_list.append(d)
-        self.d_losses_log['d_discriminators_loss'] = 0.0
+        self.discriminator_losses['d_discriminators_loss'] = 0.0
         self.discriminators['features'] = torch.nn.ModuleList(modules=d_feat_list)
-        self.d_losses_log.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.g_losses_log.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.discriminator_losses.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.generator_losses.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.discriminators['phong'] = Discriminator(self.config.phong_discriminator)
             self.discriminators['depth_phong'] = Discriminator(self.config.phong_discriminator)
-            self.d_losses_log.update({'d_loss_discriminator_phong': 0.0, 'd_loss_discriminator_depth_phong': 0.0})
-            self.g_losses_log.update({'g_loss_discriminator_phong': 0.0, 'g_loss_discriminator_depth_phong': 0.0})
+            self.discriminator_losses.update({'d_loss_discriminator_phong': 0.0, 'd_loss_discriminator_depth_phong': 0.0})
+            self.generator_losses.update({'g_loss_discriminator_phong': 0.0, 'g_loss_discriminator_depth_phong': 0.0})
         self.discriminators['depth_image'] = Discriminator(self.config.depth_discriminator)
-        self.d_losses_log.update({'d_loss_discriminator_depth_img': 0.0})
-        self.g_losses_log.update({'g_loss_discriminator_depth_img': 0.0})
+        self.discriminator_losses.update({'d_loss_discriminator_depth_img': 0.0})
+        self.generator_losses.update({'g_loss_discriminator_depth_img': 0.0})
         opt = opts[self.config.discriminator_optimizer.lower()]
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
                                               lr=self.config.discriminator_lr))
@@ -140,20 +142,20 @@ class HailMary(BaseModel):
             d_config.in_channels = d_in_shape
             d = Discriminator(d_config)
             d_feat_list.append(d)
-        self.d_losses_log['d_critics_loss'] = 0.0
+        self.critic_losses['d_critics_loss'] = 0.0
         self.critics['features'] = torch.nn.ModuleList(modules=d_feat_list)
-        self.d_losses_log.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.d_losses_log.update({f'd_loss_critic_gp_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.g_losses_log.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.critic_losses.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.critic_losses.update({f'd_loss_critic_gp_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        self.generator_losses.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.critics['phong'] = Discriminator(self.config.phong_critic)
             self.critics['depth_phong'] = Discriminator(self.config.phong_critic)
-            self.d_losses_log.update({'d_loss_critic_phong': 0.0, 'd_loss_critic_depth_phong': 0.0})
-            self.d_losses_log.update({'d_loss_critic_gp_phong': 0.0, 'd_loss_critic_gp_depth_phong': 0.0})
-            self.g_losses_log.update({'g_loss_critic_phong': 0.0, 'g_loss_critic_depth_phong': 0.0})
+            self.critic_losses.update({'d_loss_critic_phong': 0.0, 'd_loss_critic_depth_phong': 0.0})
+            self.critic_losses.update({'d_loss_critic_gp_phong': 0.0, 'd_loss_critic_gp_depth_phong': 0.0})
+            self.generator_losses.update({'g_loss_critic_phong': 0.0, 'g_loss_critic_depth_phong': 0.0})
         self.critics['depth_image'] = Discriminator(self.config.depth_critic)
-        self.d_losses_log.update({'d_loss_critic_depth_img': 0.0, 'd_loss_critic_gp_depth_img': 0.0})
-        self.g_losses_log.update({'g_loss_critic_depth_img': 0.0})
+        self.critic_losses.update({'d_loss_critic_depth_img': 0.0, 'd_loss_critic_gp_depth_img': 0.0})
+        self.generator_losses.update({'g_loss_critic_depth_img': 0.0})
         opt = opts[self.config.critic_optimizer.lower()]
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.critics.parameters()),
                                               lr=self.config.critic_lr))
@@ -208,14 +210,15 @@ class HailMary(BaseModel):
             self.generator.apply(freeze_batchnorm)
 
         self.total_train_step_count += 1
-        self.batches_accumulated += 1
+        if self.batches_accumulated == self.config.accumulate_grad_batches:
+            self._full_batch = True
+            self.batches_accumulated = 0
         if self._generator_training:
             # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             self.discriminator_critic_train_step(batch, batch_idx)
-        if self.batches_accumulated == self.config.accumulate_grad_batches:
-            self.batches_accumulated = 0
+        self._full_batch = False
 
     def generator_train_step(self, batch: Dict[int, List[Tensor]], batch_idx) -> None:
         z = batch[self.generated_source_id][0]  # real images
@@ -273,17 +276,17 @@ class HailMary(BaseModel):
         g_loss += texture_generator_loss
 
         self.manual_backward(g_loss)
-        self.g_losses_log['g_loss'] += g_loss.detach()
-        if self.batches_accumulated == self.config.accumulate_grad_batches:
+        self.generator_losses['g_loss'] += g_loss.detach()
+        if self._full_batch:
             self.generator_global_step += 1
             self._generator_training = False
             optimizers = self.optimizers(True)
             optimizers = [optimizers[i] for i in [0, self.texture_generator_opt_idx]]
             [o.step() for o in optimizers]
             [o.zero_grad() for o in optimizers]
-            self.log_dict(self.g_losses_log)
+            self.log_dict(self.generator_losses)
             self.log_dict(self.texture_generator.generator_losses)
-            self.reset_log_dict(self.g_losses_log)
+            self.reset_log_dict(self.generator_losses)
             self.reset_log_dict(self.texture_generator.generator_losses)
             self.zero_grad()
 
@@ -294,7 +297,6 @@ class HailMary(BaseModel):
         optimizers = self.optimizers(True)
 
         predictions = self.get_discriminator_critic_inputs(batch, batch_idx)
-        full_batch = self.batches_accumulated == self.config.accumulate_grad_batches
         first_of_mini_batches = self.critic_global_step % self.config.wasserstein_critic_updates == 0
         last_mini_batch = (self.critic_global_step + 1) % self.config.wasserstein_critic_updates == 0 \
             if self.config.use_critic else True
@@ -303,24 +305,32 @@ class HailMary(BaseModel):
             # print('discriminator')
             discriminator_loss = self._discriminators(predictions)
             self.manual_backward(discriminator_loss)
-            self.d_losses_log['d_discriminators_loss'] += discriminator_loss.detach()
-            if full_batch:
+            self.discriminator_losses['d_discriminators_loss'] += discriminator_loss.detach()
+            if self._full_batch:
                 # print('discriminator step')
                 discriminator_opt = optimizers[self.discriminators_opt_idx]
                 discriminator_opt.step()
                 discriminator_opt.zero_grad()
+                self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
+                                                  for k in self.discriminator_losses.keys()})
+                self.log_dict(self.discriminator_losses)
+                self.reset_log_dict(self.discriminator_losses)
 
         if self.config.use_critic:
             # print('critic')
             critic_loss = self._critics(predictions)
             self.manual_backward(critic_loss)
-            self.d_losses_log['d_critics_loss'] += critic_loss.detach()
-            if full_batch:
+            self.discriminator_losses['d_critics_loss'] += critic_loss.detach()
+            if self._full_batch:
                 # print('critic step')
                 o = optimizers[self.critic_opt_idx]
                 o.step()
                 o.zero_grad()
                 self.critic_global_step += 1
+                self.critic_losses.update({k: self.critic_losses[k] / self.config.accumulate_grad_batches
+                                           for k in self.critic_losses.keys()})
+                self.log_dict(self.critic_losses)
+                self.reset_log_dict(self.critic_losses)
 
         if len(batch[self.generated_source_id]) != 3:
             batch[self.generated_source_id].extend([predictions[self.generated_source_id]['depth'],
@@ -329,27 +339,31 @@ class HailMary(BaseModel):
         if self.texture_generator.config.use_critic:
             critic_loss = self.texture_generator.calculate_critic_loss(batch)
             self.manual_backward(critic_loss)
-            if full_batch:
+            if self._full_batch:
                 o = optimizers[self.texture_critic_opt_idx]
                 o.step()
                 o.zero_grad()
+                self.texture_generator.critic_losses.update({k: self.texture_generator.critic_losses[k] / self.config.accumulate_grad_batches
+                                           for k in self.texture_generator.critic_losses.keys()})
+                self.log_dict(self.texture_generator.critic_losses)
+                self.reset_log_dict(self.texture_generator.critic_losses)
                 if not self.config.use_critic:
                     self.critic_global_step += 1
 
         if self.texture_generator.config.use_discriminator and first_of_mini_batches:
             discriminator_loss = self.texture_generator.calculate_discriminator_loss(batch)
             self.manual_backward(discriminator_loss)
-            if full_batch:
+            if self._full_batch:
                 o = optimizers[self.texture_discriminator_opt_idx]
                 o.step()
                 o.zero_grad()
+                self.texture_generator.discriminator_losses.update({k: self.texture_generator.discriminator_losses[k] / self.config.accumulate_grad_batches
+                                                  for k in self.texture_generator.discriminator_losses.keys()})
+                self.log_dict(self.texture_generator.discriminator_losses)
+                self.reset_log_dict(self.texture_generator.discriminator_losses)
 
-        if last_mini_batch and full_batch:
+        if last_mini_batch and self._full_batch:
             self._generator_training = True
-            self.log_dict(self.d_losses_log)
-            self.reset_log_dict(self.d_losses_log)
-            self.log_dict(self.texture_generator.d_losses_log)
-            self.reset_log_dict(self.texture_generator.d_losses_log)
 
     def get_discriminator_critic_inputs(self, batch, batch_idx) -> Dict[int, DiscriminatorCriticInputs]:
         """
@@ -467,13 +481,13 @@ class HailMary(BaseModel):
     def _apply_generator_discriminator_loss(self, discriminator_in: Tensor, discriminator: torch.nn.Module, name: str,
                                             label: float = 1.0) -> Tensor:
         loss = self.generator_discriminator_loss(discriminator_in, label, discriminator)
-        self.g_losses_log[f'g_loss_{name}'] += loss.detach()
+        self.generator_losses[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_generator_critic_loss(self, discriminator_out: Tensor, name: str, ) -> Tensor:
         loss, penalty = self.generator_critic_loss(discriminator_out)
-        self.g_losses_log[f'g_loss_critic_{name}'] += loss.detach()
-        self.g_losses_log[f'g_loss_critic_gp_{name}'] += penalty.detach()
+        self.generator_losses[f'g_loss_critic_{name}'] += loss.detach()
+        self.generator_losses[f'g_loss_critic_gp_{name}'] += penalty.detach()
         return loss + penalty
 
     def _apply_discriminator_loss(self, generated: Tensor, original: Tensor, discriminator: torch.nn.Module,
@@ -481,13 +495,13 @@ class HailMary(BaseModel):
         loss_generated = self.discriminator_loss(generated, 0.0, discriminator)
         loss_original = self.discriminator_loss(original, 1.0, discriminator)
         combined = (loss_original + loss_generated) / 2
-        self.d_losses_log[f'd_loss_{name}'] += combined.detach()
+        self.discriminator_losses[f'd_loss_{name}'] += combined.detach()
         return combined
 
     def _apply_critic_loss(self, generated: Tensor, original: Tensor, critic: torch.nn.Module,
                            wasserstein_lambda: float, name: str):
         critic_loss = self.critic_loss(generated, original, critic, wasserstein_lambda)
-        self.d_losses_log[f'd_loss_{name}'] += critic_loss.detach()
+        self.critic_losses[f'd_loss_{name}'] += critic_loss.detach()
         return critic_loss
 
     def validation_step(self, batch, batch_idx):

@@ -20,19 +20,21 @@ depth_norm_config:
     backbone: resnet18
   accumulate_grad_batches: 2
   L_loss: ""
-  use_critic: true
+  use_critic: false
   critic_config:
     single_out: false
     output_activation: ''
-    single_out_reduction: dense
-  use_discriminator: false
+    single_out_reduction: mean
+  use_discriminator: true
+  discriminator_loss: cross_entropy_R1
   discriminator_config:
+    single_out: false
     output_activation: 'sigmoid'
-    single_out_reduction: max
-  generator_lr: 1e-3
-  discriminator_lr: 1e-3
-  critic_lr: 1e-3
-  add_noise: false
+    single_out_reduction: mean
+  generator_lr: 1e-5
+  discriminator_lr: 1e-5
+  critic_lr: 1e-5
+  add_noise: true
   max_epochs: 300
   batch_size: 8
   data_roles:

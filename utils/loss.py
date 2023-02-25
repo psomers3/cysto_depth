@@ -121,25 +121,25 @@ def compute_grad_norm(discriminators_out, discriminators_in) -> Tensor:
 
 
 def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, float], discriminator: nn.Module, *args,
-                              **kwargs) -> Tensor:
+                              **kwargs) -> Tuple[Tensor, Tensor]:
     discriminated = discriminator(input_data)
     if isinstance(ground_truth, float):
         ground_truth = torch.full_like(discriminated, device=discriminated.device, fill_value=ground_truth)
-    return F.binary_cross_entropy(discriminated, ground_truth)
+    return F.binary_cross_entropy(discriminated, ground_truth), torch.tensor(0.0, device=input_data.device)
 
 
 def binary_cross_entropy_loss_R1(critic_input: Tensor,
                                  ground_truth: Union[Tensor, float],
                                  discriminator: torch.nn.Module,
                                  factor: float = 2.0,
-                                 *args, **kwargs) -> Tensor:
+                                 *args, **kwargs) -> Tuple[Tensor, Tensor]:
     critic_input.requires_grad = True
     discriminated = discriminator(critic_input)
     if isinstance(ground_truth, float):
         ground_truth = torch.full_like(discriminated, device=discriminated.device, fill_value=ground_truth)
     loss = F.binary_cross_entropy(discriminated, ground_truth)
     regularization = factor * (compute_grad_norm(discriminated, critic_input) ** 2).mean()
-    return loss + regularization
+    return loss, regularization
 
 
 def wasserstein_discriminator_loss(generated: Tensor, original: Tensor, *args, **kwargs) -> Tensor:

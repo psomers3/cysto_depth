@@ -51,6 +51,7 @@ class DepthNormModel(pl.LightningModule):
             self.discriminator_losses['d_discriminator_loss'] = 0.0
             self.generator_losses.update({f'g_discriminator_loss-{i}': 0.0 for i in sources})
             self.discriminator_losses.update({f'd_discriminator_loss-{i}': 0.0 for i in sources})
+            self.discriminator_losses.update({f'd_discriminator_reg_loss-{i}': 0.0 for i in sources})
 
         self.generator_global_step = -1
         self.critic_global_step = 0
@@ -103,14 +104,12 @@ class DepthNormModel(pl.LightningModule):
     def configure_optimizers(self):
         opts = {'adam': optim.Adam, 'radam': optim.RAdam, 'rmsprop': optim.RMSprop}
         opt = opts[self.config.optimizer.lower()]
-        optimizer = opt(filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.config.generator_lr)
+        optimizer = opt(self.model.parameters(), lr=self.config.generator_lr)
         optimizers = [optimizer]
         if self.config.use_critic:
-            optimizers.append(optim.RMSprop(filter(lambda p: p.requires_grad, self.critics.parameters()),
-                                            lr=self.config.critic_lr))
+            optimizers.append(optim.RMSprop(self.critics.parameters(), lr=self.config.critic_lr))
         if self.config.use_discriminator:
-            optimizers.append(optim.Adam(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
-                                         lr=self.config.discriminator_lr))
+            optimizers.append(optim.Adam(self.discriminators.parameters(), lr=self.config.discriminator_lr))
         return optimizers  # , [scheduler]
 
     def training_step(self, batch, batch_idx):
@@ -152,7 +151,7 @@ class DepthNormModel(pl.LightningModule):
                 self.generator_losses[f'g_critic_loss-{source_id}'] += critic_loss.detach()
                 loss += critic_loss
             if self.config.use_discriminator:
-                discriminator_loss = self.generator_discriminator_loss(out_images, 1.0,
+                discriminator_loss, penalty = self.generator_discriminator_loss(out_images, 1.0,
                                                                        self.discriminators[str(source_id)])
                 self.generator_losses[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
                 loss += discriminator_loss
@@ -186,11 +185,14 @@ class DepthNormModel(pl.LightningModule):
                 original_img, original_depth, original_normals = batch[source_id]
                 denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
                 out_images = self(original_depth, original_normals, source_id=source_id)
-            loss_generated = self.discriminator_loss(out_images.detach(), 0.0, self.discriminators[str(source_id)])
-            loss_original = self.discriminator_loss(denormed_images.detach(), 1.0, self.discriminators[str(source_id)])
-            combined = loss_original + loss_generated
-            discriminator_loss += combined
-            self.discriminator_losses[f'd_discriminator_loss-{source_id}'] += combined.detach()
+            loss_generated, penalty_generated = self.discriminator_loss(out_images.detach(), 0.0, self.discriminators[str(source_id)])
+            loss_original, penalty_original = self.discriminator_loss(denormed_images.detach(), 1.0, self.discriminators[str(source_id)])
+            penalty_combined = penalty_original + penalty_generated
+            loss_combined = loss_original + loss_generated
+            discriminator_loss += penalty_combined + loss_combined
+            self.discriminator_losses[f'd_discriminator_loss-{source_id}'] += loss_combined.detach()
+            self.discriminator_losses[f'd_discriminator_reg_loss-{source_id}'] += penalty_combined.detach()
+
         return discriminator_loss
 
     def discriminator_train_step(self, batch: dict, batch_idx):
@@ -202,9 +204,8 @@ class DepthNormModel(pl.LightningModule):
         if self._full_batch:
             # print('step discriminators')
             discriminator_opt = self.optimizers(True)[self.discriminators_opt_idx]
-            discriminator_opts = [discriminator_opt] if not isinstance(discriminator_opt, list) else discriminator_opt
-            [d_opt.step() for d_opt in discriminator_opts]
-            [d_opt.zero_grad() for d_opt in discriminator_opts]
+            discriminator_opt.step()
+            discriminator_opt.zero_grad()
             if not self.config.use_critic:
                 self._generator_training = True
                 self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
@@ -245,10 +246,9 @@ class DepthNormModel(pl.LightningModule):
             self.log_dict(self.critic_losses)
             self.critic_losses.update({k: 0.0 for k in self.critic_losses.keys()})
             # print('step critics')
-            critic_opts = self.optimizers(True)[self.critic_opt_idx]
-            critic_opts = [critic_opts] if not isinstance(critic_opts, list) else critic_opts
-            [d_opt.step() for d_opt in critic_opts]
-            [d_opt.zero_grad() for d_opt in critic_opts]
+            critic_opt = self.optimizers(True)[self.critic_opt_idx]
+            critic_opt.step()
+            critic_opt.zero_grad()
             if self.critic_global_step % self.config.wasserstein_critic_updates == 0:
                 self._generator_training = True
 
