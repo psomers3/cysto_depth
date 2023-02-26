@@ -19,6 +19,13 @@ class DepthNormModel(pl.LightningModule):
     def __init__(self, config: DepthNorm2ImageConfig):
         super(DepthNormModel, self).__init__()
         self.automatic_optimization = False
+        ckpt = None
+        if config.resume_from_checkpoint:
+            ckpt = torch.load(config.resume_from_checkpoint, map_location=self.device)
+            hparams = ckpt['hyper_parameters']
+            hparams['resume_from_checkpoint'] = config.resume_from_checkpoint
+            [setattr(config, key, val)for key, val in hparams.items() if key in config]
+
         self.save_hyperparameters(Namespace(**config))
         self.config = config
         self.model = DepthNorm2Image(config.encoder,
@@ -69,16 +76,14 @@ class DepthNormModel(pl.LightningModule):
         self.batches_accumulated = 0
         self._generator_training = not (self.config.use_critic or self.config.use_discriminator)
         if config.resume_from_checkpoint:
-            self._resume_from_checkpoint(config)
+            self._resume_from_checkpoint(ckpt)
         self._full_batch = False
 
-    def _resume_from_checkpoint(self, config):
-        path_to_ckpt = config.resume_from_checkpoint
-        ckpt = torch.load(path_to_ckpt, map_location=self.device)
+    def _resume_from_checkpoint(self, ckpt: dict):
         with torch.no_grad():
             # run some data through the network to initial dense layers in discriminators if needed
-            temp_out = self(torch.ones(1, 1, config.image_size, config.image_size, device=self.device),
-                            torch.ones(1, 3, config.image_size, config.image_size, device=self.device),
+            temp_out = self(torch.ones(1, 1, self.config.image_size, self.config.image_size, device=self.device),
+                            torch.ones(1, 3, self.config.image_size, self.config.image_size, device=self.device),
                             source_id=0)
             for d in self.discriminators:
                 self.discriminators[d](temp_out)

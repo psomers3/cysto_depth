@@ -34,6 +34,13 @@ class GAN(BaseModel):
     def __init__(self, synth_config: SyntheticTrainingConfig, gan_config: GANTrainingConfig):
         super().__init__()
         self.automatic_optimization = False
+        ckpt = None
+        if gan_config.resume_from_checkpoint:
+            ckpt = torch.load(gan_config.resume_from_checkpoint, map_location=self.device)
+            hparams = ckpt['hyper_parameters']
+            hparams['resume_from_checkpoint'] = gan_config.resume_from_checkpoint
+            [setattr(gan_config, key, val) for key, val in hparams.items() if key in gan_config]
+
         self.save_hyperparameters(Namespace(**gan_config))
         self.depth_model: DepthEstimationModel = DepthEstimationModel(synth_config)
         self.config = gan_config
@@ -68,16 +75,13 @@ class GAN(BaseModel):
         self.generator_critic_loss = GANGeneratorLoss[gan_config.critic_loss]
         self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss]
         if gan_config.resume_from_checkpoint:
-            self._resume_from_checkpoint(gan_config)
+            self._resume_from_checkpoint(ckpt)
 
-    def _resume_from_checkpoint(self, config):
-        path_to_ckpt = config.resume_from_checkpoint
-        config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-        ckpt = torch.load(path_to_ckpt, map_location=self.device)
+    def _resume_from_checkpoint(self, ckpt: dict):
         with torch.no_grad():
             # run some data through the network to initial dense layers in discriminators if needed
             encoder_outs, encoder_mare_outs, decoder_outs, normals = self(
-                torch.ones(1, 3, config.image_size, config.image_size, device=self.device))
+                torch.ones(1, 3, self.config.image_size, self.config.image_size, device=self.device))
             feat_outs = encoder_outs[::-1][:len(self.discriminators['features'])]
 
             if self.config.use_discriminator:

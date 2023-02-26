@@ -34,6 +34,13 @@ class HailMary(BaseModel):
                  depth_norm_config: DepthNorm2ImageConfig):
         super().__init__()
         self.automatic_optimization = False
+        ckpt = None
+        if gan_config.resume_from_checkpoint:
+            ckpt = torch.load(gan_config.resume_from_checkpoint, map_location=self.device)
+            hparams = ckpt['hyper_parameters']
+            hparams['resume_from_checkpoint'] = gan_config.resume_from_checkpoint
+            [setattr(gan_config, key, val) for key, val in hparams.items() if key in gan_config]
+
         self.save_hyperparameters(Namespace(**gan_config))
         self.depth_model = DepthEstimationModel(synth_config)
         self.config = gan_config
@@ -83,12 +90,6 @@ class HailMary(BaseModel):
         self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss]
 
         if gan_config.resume_from_checkpoint:
-            path_to_ckpt = gan_config.resume_from_checkpoint
-            gan_config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-            ckpt = self.load_from_checkpoint(path_to_ckpt,
-                                             strict=False,
-                                             synth_config=synth_config,
-                                             gan_config=gan_config)
             self.load_state_dict(ckpt.state_dict())
 
     def setup_generator_optimizer(self):

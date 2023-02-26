@@ -160,7 +160,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
         trainer_dict.update({'callbacks': get_callbacks(config.gan_config.callbacks)})
     logger = pl_loggers.TensorBoardLogger(os.path.join(config.log_directory, config.mode))
     trainer_dict.update({'logger': logger})
-    trainer_dict.pop('resume_from_checkpoint')
+    # trainer_dict.pop('resume_from_checkpoint')
     trainer = pl.Trainer(**trainer_dict)
 
     if config.split_save_dir:

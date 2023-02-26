@@ -25,6 +25,13 @@ class DepthEstimationModel(BaseModel):
     def __init__(self, config: SyntheticTrainingConfig):
         super().__init__()
         # automatic learning rate finder sets lr to self.lr, else default
+        ckpt = None
+        if config.resume_from_checkpoint:
+            ckpt = torch.load(config.resume_from_checkpoint, map_location=self.device)
+            hparams = ckpt['hyper_parameters']
+            hparams['resume_from_checkpoint'] = config.resume_from_checkpoint
+            [setattr(config, key, val) for key, val in hparams.items() if key in config]
+
         self.save_hyperparameters(Namespace(**config))
         self.config = config
         self.encoder = AdaptiveEncoder(config.encoder)
@@ -63,11 +70,6 @@ class DepthEstimationModel(BaseModel):
         """ number of images to track and plot during training """
 
         if config.resume_from_checkpoint:
-            path_to_ckpt = config.resume_from_checkpoint
-            config.resume_from_checkpoint = ""  # set empty or a recursive loading problem occurs
-            ckpt = self.load_from_checkpoint(path_to_ckpt,
-                                             strict=False,
-                                             config=config)
             self.load_state_dict(ckpt.state_dict())
 
     def forward(self, _input):
