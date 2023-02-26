@@ -22,7 +22,8 @@ class FileLoadingDataModule(pl.LightningDataModule):
                  split: dict = None,
                  workers_per_loader: int = 6,
                  exclude_regex: str = None,
-                 pin_memory: bool = True):
+                 pin_memory: bool = True,
+                 seed: int = None):
         """
          A Data Module for loading paired files located in different directories. See the split parameter for
          thoughts on how best to set up your data structure for use with this module.
@@ -48,6 +49,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
 
         :param workers_per_loader: cpu threads to use for each data loader.
         :param exclude_regex: regex for excluding files.
+        :param seed: seed for shuffling data
         """
         super().__init__()
         self.workers_per_loader = workers_per_loader
@@ -57,7 +59,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
             with open(split, 'r') as f:
                 self.split_files = json.load(f)
         else:
-            self.split_files = self.create_file_split(directories, split, exclude_regex)
+            self.split_files = self.create_file_split(directories, split, exclude_regex, seed=seed)
         for key, stage in self.split_files.items():
             if 0 in [len(data_id) for k, data_id in stage.items()]:
                 raise ValueError(f"No files found for one split. Check your directories: {directories}")
@@ -68,7 +70,8 @@ class FileLoadingDataModule(pl.LightningDataModule):
     @staticmethod
     def create_file_split(directories: Dict[str, Union[List[str], str]],
                           split: dict = None,
-                          exclusion_regex: str = None) -> Dict[str, List[str]]:
+                          exclusion_regex: str = None,
+                          seed: int = None) -> Dict[str, List[str]]:
         if split is None:
             split = {'train': ".*train.*", 'validate': ".*val.*", 'test': ".*test.*"}
         image_files = {}
@@ -100,7 +103,8 @@ class FileLoadingDataModule(pl.LightningDataModule):
                     for f in split_files[stage][key]:
                         file_list.remove(f)
         first_role = list(image_files.keys())[0]
-        indices = np.random.permutation(np.linspace(0, len(image_files[first_role]) - 1,
+
+        indices = np.random.RandomState(seed=seed).permutation(np.linspace(0, len(image_files[first_role]) - 1,
                                                     len(image_files[first_role]))).astype(int)
         remaining_count = len(indices)
         for stage in stages:

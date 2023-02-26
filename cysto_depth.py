@@ -22,6 +22,10 @@ from models.gan_model import GAN
 import signal
 
 
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
+
+
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
 def cysto_depth(cfg: CystoDepthConfig) -> None:
     config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
@@ -55,7 +59,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                           phong_config=config.phong_config,
                                           memorize_check=config.memorize_check,
                                           add_random_blur=config.synthetic_config.add_mask_blur,
-                                          pin_memory=config.pin_dataloader_memory)
+                                          pin_memory=config.pin_dataloader_memory,
+                                          seed=42)
         else:
             data_module = EndoDepthDataModule(batch_size=config.synthetic_config.batch_size,
                                               data_roles=config.synthetic_config.data_roles,
@@ -67,7 +72,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               inverse_depth=config.inverse_depth,
                                               memorize_check=config.memorize_check,
                                               add_random_blur=config.synthetic_config.add_mask_blur,
-                                              pin_memory=config.pin_dataloader_memory)
+                                              pin_memory=config.pin_dataloader_memory,
+                                              seed=42)
         model = DepthEstimationModel(config.synthetic_config)
         [trainer_dict.update({key: val}) for key, val in config.synthetic_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.synthetic_config.callbacks)})
@@ -83,7 +89,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     image_size=config.image_size,
                                     workers_per_loader=config.num_workers,
                                     add_random_blur=config.add_mask_blur,
-                                    pin_memory=config.pin_dataloader_memory)
+                                    pin_memory=config.pin_dataloader_memory,
+                                    seed=42)
         model = GAN(synth_config=config.synthetic_config.copy(), gan_config=config.gan_config.copy())
         config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]
@@ -109,7 +116,8 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               inverse_depth=config.depth_norm_config.inverse_depth,
                                               memorize_check=config.memorize_check,
                                               add_random_blur=config.depth_norm_config.add_mask_blur,
-                                              pin_memory=config.pin_dataloader_memory)
+                                              pin_memory=config.pin_dataloader_memory,
+                                              seed=42)
             dataload_dict[i] = data_module
         data_module = DictDataLoaderCombine(dataload_dict)
         model = DepthNormModel(config.depth_norm_config.copy())

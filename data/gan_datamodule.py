@@ -49,6 +49,7 @@ class GANDataModule(pl.LightningDataModule):
                  add_random_blur: bool = False,
                  real_only: bool = False,
                  pin_memory: bool = True,
+                 seed: int = None
                  ):
         """ A Data Module for loading rendered endoscopic images and real images. The rendered images will be made
          square and a circular mask applied to simulate actual endoscopic images. The real images are generated
@@ -90,6 +91,7 @@ class GANDataModule(pl.LightningDataModule):
         self.add_random_blur = add_random_blur
         self.real_only = real_only
         self.pin_memory = pin_memory
+        self.seed = seed
         self.data_train: Dataset = None
         self.data_val: Dataset = None
         self.data_test: Dataset = None
@@ -151,11 +153,13 @@ class GANDataModule(pl.LightningDataModule):
         real_transforms = torch_transforms.Compose([squarify, affine_transform, imagenet_norm])
 
         real_split = FileLoadingDataModule.create_file_split({'real': self.directories['real']},
-                                                             exclusion_regex=_failed_exclusion)
+                                                             exclusion_regex=_failed_exclusion,
+                                                             seed=self.seed)
         if not self.real_only:
             synth_split = FileLoadingDataModule.create_file_split({'synth': self.directories['synth']},
                                                                   split=self.synth_split,
-                                                                  exclusion_regex=_failed_exclusion)
+                                                                  exclusion_regex=_failed_exclusion,
+                                                                  seed=self.seed)
         keys = ['train', 'validate', 'test']
         real, synth = [], []
         for key in keys:
