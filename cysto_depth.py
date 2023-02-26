@@ -22,10 +22,6 @@ from models.gan_model import GAN
 import signal
 
 
-import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
-
-
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
 def cysto_depth(cfg: CystoDepthConfig) -> None:
     config: Union[Any, CystoDepthConfig] = OmegaConf.merge(OmegaConf.structured(CystoDepthConfig()), cfg, )
