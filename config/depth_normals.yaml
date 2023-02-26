@@ -14,27 +14,27 @@ trainer_config:
   log_every_n_steps: 2
   overfit_batches: 0
 depth_norm_config:
-  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_18/checkpoints/epoch=95-step=15445.ckpt
-#  encoder:
-#    load_imagenet_weights: True
-#    backbone: resnet18
-#  accumulate_grad_batches: 2
-#  L_loss: ""
-#  use_critic: false
-#  critic_config:
-#    single_out: false
-#    output_activation: ''
-#    single_out_reduction: mean
-#  use_discriminator: true
-#  discriminator_loss: cross_entropy_R1
-#  discriminator_config:
-#    single_out: false
-#    output_activation: 'sigmoid'
-#    single_out_reduction: mean
-#  generator_lr: 1e-5
-#  discriminator_lr: 1e-5
-#  critic_lr: 1e-5
-  add_noise: true
+#  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_18/checkpoints/epoch=95-step=15445.ckpt
+  encoder:
+    load_imagenet_weights: True
+    backbone: resnet18
+  accumulate_grad_batches: 2
+  L_loss: L2
+  use_critic: false
+  critic_config:
+    single_out: false
+    output_activation: ''
+    single_out_reduction: mean
+  use_discriminator: true
+  discriminator_loss: cross_entropy_R1
+  discriminator_config:
+    single_out: true
+    output_activation: 'sigmoid'
+    single_out_reduction: mean
+  generator_lr: 5e-4
+  discriminator_lr: 5e-4
+  critic_lr: 5e-5
+  add_noise: false
   max_epochs: 300
   batch_size: 8
   data_roles:

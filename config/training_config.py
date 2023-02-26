@@ -177,6 +177,10 @@ class DepthNorm2ImageConfig:
     imagenet_norm_output: bool = False
     """ whether to predict normalized images or actual final color values """
     ckpt_metric: Union[str, None] = None
+    discriminator_original_confidence: float = 0.95
+    """ scaling factor for confidence of discriminators on original data """
+    discriminator_generated_confidence: float = 0.05
+    """ scaling factor for confidence of discriminators on generated data """
 
 
 @dataclass

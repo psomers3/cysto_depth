@@ -127,21 +127,20 @@ class DepthNormModel(pl.LightningModule):
         if self._generator_training:
             # print('generator')
             self.generator_train_step(batch, batch_idx)
-        else:
-            if (
-                    self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
-                # print('discriminator')
-                self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
-            if self.config.use_critic:
-                # print('critic')
-                self.critic_train_step(batch, batch_idx)
+
+        if (self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
+            # print('discriminator')
+            self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
+        if self.config.use_critic:
+            # print('critic')
+            self.critic_train_step(batch, batch_idx)
         self._full_batch = False
 
     def calculate_generator_loss(self, batch) -> Tensor:
         self.model.train()
         self.critics.eval()
         self.discriminators.eval()
-        loss: Tensor = 0.0
+        losses = []
         for source_id in batch.keys():
             img, depth, normals = batch[source_id]
             out_images = self(depth, normals, source_id=source_id)
@@ -149,17 +148,22 @@ class DepthNormModel(pl.LightningModule):
                 denormed_images = img if self.config.imagenet_norm_output else imagenet_denorm(img).detach()
                 img_loss = self.L_loss(out_images, denormed_images)
                 self.generator_losses['g_img_loss'] += img_loss.detach()
-                loss += img_loss
+                losses.append(img_loss)
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
                 critic_loss = self.generator_critic_loss(critic_out)
                 self.generator_losses[f'g_critic_loss-{source_id}'] += critic_loss.detach()
-                loss += critic_loss
+                losses.append(critic_loss)
             if self.config.use_discriminator:
                 discriminator_loss, penalty = self.generator_discriminator_loss(out_images, 1.0,
                                                                        self.discriminators[str(source_id)])
                 self.generator_losses[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
-                loss += discriminator_loss
+                losses.append(discriminator_loss)
+        detached_losses = torch.tensor([l.detach() for l in losses])
+        percents = (detached_losses.abs() / detached_losses.abs().sum()).detach()
+        percents = percents.to(batch[0][0].device)
+        losses = torch.stack(losses)
+        loss = (losses * percents).sum()
         self.generator_losses['g_loss'] += loss.detach()
         return loss
 
@@ -190,8 +194,12 @@ class DepthNormModel(pl.LightningModule):
                 original_img, original_depth, original_normals = batch[source_id]
                 denormed_images = original_img if self.config.imagenet_norm_output else imagenet_denorm(original_img)
                 out_images = self(original_depth, original_normals, source_id=source_id)
-            loss_generated, penalty_generated = self.discriminator_loss(out_images.detach(), 0.0, self.discriminators[str(source_id)])
-            loss_original, penalty_original = self.discriminator_loss(denormed_images.detach(), 1.0, self.discriminators[str(source_id)])
+            loss_generated, penalty_generated = self.discriminator_loss(out_images.detach(),
+                                                                        self.config.discriminator_generated_confidence,
+                                                                        self.discriminators[str(source_id)])
+            loss_original, penalty_original = self.discriminator_loss(denormed_images.detach(),
+                                                                      self.config.discriminator_original_confidence,
+                                                                      self.discriminators[str(source_id)])
             penalty_combined = penalty_original + penalty_generated
             loss_combined = loss_original + loss_generated
             discriminator_loss += penalty_combined + loss_combined
