@@ -30,8 +30,17 @@ def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
     if configuration.early_stop_patience:
         callbacks.append(pl.callbacks.EarlyStopping(monitor=configuration.early_stop_metric,
                                                     patience=configuration.early_stop_patience))
-    callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration.ckpt_metric,
-                                                  save_top_k=configuration.ckpt_save_top_k,
-                                                  every_n_epochs=configuration.ckpt_every_n_epochs,
-                                                  save_weights_only=configuration.save_weights_only),)
+    if configuration.ckpt_metric:
+        callbacks.append(pl.callbacks.ModelCheckpoint(monitor=configuration.ckpt_metric,
+                                                      mode=configuration.ckpt_metric_mode,
+                                                      save_top_k=configuration.ckpt_save_top_k,
+                                                      every_n_epochs=configuration.ckpt_every_n_epochs,
+                                                      save_weights_only=configuration.save_weights_only),)
+    if configuration.save_last_ckpt:
+        callbacks.append(pl.callbacks.ModelCheckpoint(monitor='step',
+                                                      mode='max',
+                                                      filename='latest-{epoch}-{step}',
+                                                      save_top_k=1,
+                                                      every_n_epochs=configuration.ckpt_every_n_epochs,
+                                                      save_weights_only=configuration.save_weights_only), )
     return callbacks

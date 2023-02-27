@@ -3,10 +3,11 @@ print_config: true
 mode: depthnorm
 training_stage: train
 split_save_dir: ''
-num_workers: 6
+num_workers: 0
 val_check_interval: 30
 val_plot_interval: 1
 image_size: 64
+pin_dataloader_memory: true
 trainer_config:
   gpus: []
   strategy: null
@@ -14,7 +15,7 @@ trainer_config:
   log_every_n_steps: 2
   overfit_batches: 0
 depth_norm_config:
-  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_39/checkpoints/epoch=39-step=8741.ckpt
+  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_44/checkpoints/epoch=43-step=9848.ckpt
   encoder:
     load_imagenet_weights: True
     backbone: resnet18

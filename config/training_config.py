@@ -85,6 +85,8 @@ class CallbackConfig:
     """ keep the top k saved checkpoints """
     save_weights_only: bool = False
     """ Only save model weights on checkpoints """
+    save_last_ckpt: bool = True
+    """ Always save latest epoch """
 
 
 @dataclass
@@ -169,11 +171,13 @@ class DepthNorm2ImageConfig:
     """ Whether to add random gaussian blur to the edge of the circular mask """
     monitor_metric: str = 'val_loss'
     """ main metric to track for performance """
-    callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
+    callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=1,
                                                ckpt_save_top_k=1,
                                                model_ckpt_save_k=1,
                                                save_weights_only=False,
-                                               ckpt_metric=None)
+                                               save_last_ckpt=True,
+                                               ckpt_metric='val_loss',
+                                               ckpt_metric_mode='min')
     imagenet_norm_output: bool = False
     """ whether to predict normalized images or actual final color values """
     ckpt_metric: Union[str, None] = None
@@ -320,10 +324,9 @@ class GANTrainingConfig:
     """ folder containing (or will contain) the generated real image training data """
     callbacks: CallbackConfig = CallbackConfig(ckpt_every_n_epochs=2,
                                                ckpt_save_top_k=1,
-                                               model_ckpt_save_k=None,
                                                save_weights_only=False,
-                                               ckpt_metric='epoch',
-                                               ckpt_metric_mode='max')
+                                               ckpt_metric=None,
+                                               save_last_ckpt=True)
     phong_config: PhongConfig = '${..phong_config}'
     """ The config for the phong dataloader """
     predict_normals: bool = '${..predict_normals}'
