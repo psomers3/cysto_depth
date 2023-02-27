@@ -49,9 +49,9 @@ class GAN(BaseModel):
         self.depth_model.requires_grad = False
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
-        self.discriminator_losses = {}
+        self.discriminator_losses: Dict[str, Union[float, Tensor]] = {}
         self.generator_losses = {'g_loss': 0.0}
-        self.critic_losses = {}
+        self.critic_losses: Dict[str, Union[float, Tensor]] = {}
         self.discriminators: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critics: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critic_opt_idx = 0
@@ -309,9 +309,9 @@ class GAN(BaseModel):
             generator_opt = self.optimizers(True)[0]
             generator_opt.step()
             generator_opt.zero_grad()
+            self.zero_grad()
             self.log_dict(self.generator_losses)
             self.reset_log_dict(self.generator_losses)
-            self.zero_grad()
 
     def discriminator_critic_train_step(self, batch, batch_idx) -> None:
         self.generator.eval()

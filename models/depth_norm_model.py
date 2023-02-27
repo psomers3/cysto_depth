@@ -125,14 +125,15 @@ class DepthNormModel(pl.LightningModule):
             self.batches_accumulated = 0
 
         print('generator')
-        self.generator_train_step(batch, batch_idx)
-
-        if (self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
-            print('discriminator')
-            self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
-        if self.config.use_critic:
-            # print('critic')
-            self.critic_train_step(batch, batch_idx)
+        if self._generator_training:  # this check in case critics are being used
+            self.generator_train_step(batch, batch_idx)
+        else:
+            if (self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
+                print('discriminator')
+                self.discriminator_train_step(batch, batch_idx)  # only update discriminators on first critic update
+            if self.config.use_critic:
+                # print('critic')
+                self.critic_train_step(batch, batch_idx)
         self._full_batch = False
 
     def calculate_generator_loss(self, batch) -> Tensor:
@@ -176,6 +177,7 @@ class DepthNormModel(pl.LightningModule):
             print('step generator')
             opt.step()
             opt.zero_grad()
+            self.zero_grad()
             self.generator_losses.update({k: self.generator_losses[k] / self.config.accumulate_grad_batches
                                           for k in self.generator_losses.keys()})
             self.log_dict(self.generator_losses)

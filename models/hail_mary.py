@@ -285,11 +285,11 @@ class HailMary(BaseModel):
             optimizers = [optimizers[i] for i in [0, self.texture_generator_opt_idx]]
             [o.step() for o in optimizers]
             [o.zero_grad() for o in optimizers]
+            self.zero_grad()
             self.log_dict(self.generator_losses)
             self.log_dict(self.texture_generator.generator_losses)
             self.reset_log_dict(self.generator_losses)
             self.reset_log_dict(self.texture_generator.generator_losses)
-            self.zero_grad()
 
     def discriminator_critic_train_step(self, batch: Dict[int, List[Tensor]], batch_idx) -> None:
         self.generator.eval()
