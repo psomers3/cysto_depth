@@ -134,6 +134,8 @@ class DepthNormModel(pl.LightningModule):
             if self.config.use_critic:
                 # print('critic')
                 self.critic_train_step(batch, batch_idx)
+        if self._full_batch:
+            self.zero_grad()
         self._full_batch = False
 
     def calculate_generator_loss(self, batch) -> Tensor:
@@ -177,7 +179,6 @@ class DepthNormModel(pl.LightningModule):
             print('step generator')
             opt.step()
             opt.zero_grad()
-            self.zero_grad()
             self.generator_losses.update({k: self.generator_losses[k] / self.config.accumulate_grad_batches
                                           for k in self.generator_losses.keys()})
             self.log_dict(self.generator_losses)
