@@ -174,7 +174,7 @@ class DepthNormModel(pl.LightningModule):
         self.manual_backward(loss)
         if self._full_batch:
             self.generator_global_step += 1
-            if self.generator_global_step % len(self.sources) == 0:
+            if self.generator_global_step % len(self.sources) != 0:
                 return
             self._generator_training = False
             opt = self.optimizers(use_pl_optimizer=True)[0]
