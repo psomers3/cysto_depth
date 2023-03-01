@@ -248,8 +248,7 @@ class HailMary(BaseModel):
             encoder_outs, encoder_mare_outs = self.depth_model.encoder(x)
         if self.depth_model.config.merged_decoder:
             output = self.depth_model.decoder(encoder_outs)
-            decoder_outs = [self.depth_model.decoder(encoder_outs)[i][:, 0, ...].unsqueeze(1) for i in
-                            range(len(output))]
+            decoder_outs = [level[:, 0, ...].unsqueeze(1) for level in output]
             normals = output[-1][:, 1:, ...]
         else:
             normals = self.depth_model.normals_decoder(encoder_outs)
