@@ -18,7 +18,8 @@
                     "remoteRoot": "."
                 }
             ],
-            "justMyCode": true
+            "justMyCode": true,
+            "keyboard.dispatch": "keyCode"
         }
     ]
 }
