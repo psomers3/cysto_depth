@@ -416,12 +416,13 @@ class HailMary(BaseModel):
                 self.log_dict(self.critic_losses)
                 self.reset_log_dict(self.critic_losses)
 
-            if last_mini_batch:
+            if first_of_mini_batches:
                 if self.texture_generator.config.use_discriminator or self.config.use_discriminator:
                     self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
                                                       for k in self.discriminator_losses.keys()})
                     self.log_dict(self.discriminator_losses)
                     self.reset_log_dict(self.discriminator_losses)
+            if last_mini_batch:
                 self._generator_training = True
 
     def get_discriminator_critic_inputs(self, batch, batch_idx) -> Dict[int, DiscriminatorCriticInputs]:
