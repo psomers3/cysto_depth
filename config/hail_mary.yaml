@@ -16,6 +16,7 @@ trainer_config:
   overfit_batches: 0
 depth_norm_config:
   L_loss: L1
+  use_critic: false
   data_roles:
     - color_0
     - color_1
@@ -45,7 +46,6 @@ synthetic_config:
   resume_from_checkpoint: /Users/peter/isys/desktop_dump/epoch=198-step=10920.ckpt
 gan_config:
   encoder:
-    backbone: resnet18
     adaptive_gating: true
     residual_learning: true
     res_layer_norm: instance
@@ -53,10 +53,8 @@ gan_config:
   use_discriminator: true
   generator_lr: 5e-4
   discriminator_lr: 5e-5
-  critic_lr: 5e-5
-  critic_loss: wasserstein_gp
   wasserstein_critic_updates: 2
-  discriminator_loss: cross_entropy
+  discriminator_loss: cross_entropy_R1
   wasserstein_lambda: 10.0
   freeze_batch_norm: true
   phong_discriminator_factor: 1.0

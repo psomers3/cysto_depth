@@ -23,7 +23,8 @@ class DepthNormModel(pl.LightningModule):
         if config.resume_from_checkpoint:
             ckpt = torch.load(config.resume_from_checkpoint, map_location=self.device)
             hparams = ckpt['hyper_parameters']
-            hparams['resume_from_checkpoint'] = config.resume_from_checkpoint
+            hparams.pop('resume_from_checkpoint')
+            hparams.pop('batch_size')
             [setattr(config, key, val)for key, val in hparams.items() if key in config]
 
         self.save_hyperparameters(Namespace(**config))
@@ -90,7 +91,7 @@ class DepthNormModel(pl.LightningModule):
             for c in self.critics:
                 self.critics[c](temp_out)
 
-        self.load_state_dict(ckpt, strict=False)
+        self.load_state_dict(ckpt['state_dict'], strict=False)
 
     def forward(self, depth: Tensor, normals: Tensor, source_id: int, **kwargs: Any, ) -> Tensor:
         """
@@ -246,7 +247,7 @@ class DepthNormModel(pl.LightningModule):
                                                                   10)
 
             self.critic_losses[f'd_critic_loss-{source_id}'] += critic_loss.detach()
-            self.critic_losses[f'd_critic_gp_{source_id}'] += penalty.detach()
+            self.critic_losses[f'd_critic_gp-{source_id}'] += penalty.detach()
             loss += critic_loss + penalty
         self.critic_losses[f'd_critic_loss'] += loss.detach()
         return loss
