@@ -142,16 +142,26 @@ class GANDataModule(pl.LightningDataModule):
             [videos.remove(v) for v in manually_labeled_videos]
             # TODO: Handle videos not in the annotations csv
 
-    def setup(self, stage: str = None):
-        # NOTE!! if any SynchronizeTransforms are used, then each dataset needs its own set of transforms. See the
-        # EndoDepthDataModule
+    def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
+        real_transforms, synth_transforms = [], []
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0], add_random_blur=self.add_random_blur)
         imagenet_norm = d_transforms.ImageNetNormalization()
         affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
-        synth_transforms = torch_transforms.Compose([mask, squarify, affine_transform, imagenet_norm])
-        real_transforms = torch_transforms.Compose([squarify, affine_transform, imagenet_norm])
+        synth_transforms.extend([mask, squarify])
+        real_transforms.extend([squarify])
+        if stage.lower() == 'train':
+            synth_transforms.append(affine_transform)
+            real_transforms.append(affine_transform)
+        synth_transforms.append(imagenet_norm)
+        real_transforms.append(imagenet_norm)
+        synth_transforms = torch_transforms.Compose(synth_transforms)
+        real_transforms = torch_transforms.Compose(real_transforms)
+        return [synth_transforms, real_transforms]
 
+    def setup(self, stage: str = None):
+        # NOTE!! if any SynchronizeTransforms are used, then each dataset needs its own set of transforms. See the
+        # EndoDepthDataModule
         real_split = FileLoadingDataModule.create_file_split({'real': self.directories['real']},
                                                              exclusion_regex=_failed_exclusion,
                                                              seed=self.seed)
@@ -162,14 +172,12 @@ class GANDataModule(pl.LightningDataModule):
                                                                   seed=self.seed)
         keys = ['train', 'validate', 'test']
         real, synth = [], []
+
         for key in keys:
-            real.append(ImageDataset(files=real_split[key]['real'],
-                                     transforms=real_transforms if key == 'train' else imagenet_norm,
-                                     randomize=True))
+            synth_transforms, real_transforms = self.get_transforms(key)
+            real.append(ImageDataset(files=real_split[key]['real'], transforms=real_transforms, randomize=True))
             if not self.real_only:
-                synth.append(ImageDataset(files=synth_split[key]['synth'],
-                                          transforms=synth_transforms if key == 'train' else imagenet_norm,
-                                          randomize=True))
+                synth.append(ImageDataset(files=synth_split[key]['synth'], transforms=synth_transforms, randomize=True))
 
         if self.real_only:
             self.data_train = real[0]

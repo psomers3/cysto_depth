@@ -43,6 +43,7 @@ class GAN(BaseModel):
 
         self.save_hyperparameters(Namespace(**gan_config))
         self.depth_model: DepthEstimationModel = DepthEstimationModel(synth_config)
+        gan_config.encoder.backbone = self.depth_model.config.encoder.backbone
         self.config = gan_config
         self.generator = AdaptiveEncoder(gan_config.encoder)
         self.generator.load_state_dict(self.depth_model.encoder.state_dict(), strict=False)
@@ -85,8 +86,9 @@ class GAN(BaseModel):
             feat_outs = encoder_outs[::-1][:len(self.discriminators['features'])]
 
             if self.config.use_discriminator:
-                for idx, feature_out in enumerate(feat_outs):
-                    self.discriminators['features'][idx](feature_out)
+                if self.config.use_feature_level:
+                    for idx, feature_out in enumerate(feat_outs):
+                        self.discriminators['features'][idx](feature_out)
                 self.discriminators['depth_image'](decoder_outs[-1])
                 if self.config.predict_normals:
                     self.discriminators['phong'](normals)
@@ -94,15 +96,16 @@ class GAN(BaseModel):
                     self.discriminators['normals'](normals)
 
             if self.config.use_critic:
-                for idx, feature_out in enumerate(feat_outs):
-                    self.critics['features'][idx](feature_out)
+                if self.config.use_feature_level:
+                    for idx, feature_out in enumerate(feat_outs):
+                        self.critics['features'][idx](feature_out)
                 self.critics['depth_image'](decoder_outs[-1])
                 if self.config.predict_normals:
                     self.critics['phong'](normals)
                     self.critics['depth_phong'](normals)
                     self.critics['normals'](normals)
 
-        self.load_state_dict(ckpt, strict=False)
+        self.load_state_dict(ckpt['state_dict'], strict=False)
 
     def setup_generator_optimizer(self):
         opt = opts[self.config.generator_optimizer.lower()]
@@ -112,17 +115,18 @@ class GAN(BaseModel):
     def setup_discriminators(self):
         d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
-        for d_in_shape in d_in_shapes[:-1]:
-            d_config: DiscriminatorConfig = self.config.feature_level_discriminator.copy()
-            d_config.in_channels = d_in_shape
-            d = Discriminator(d_config)
-            d_feat_list.append(d)
         self.discriminator_losses['d_discriminators_loss'] = 0.0
-        self.discriminators['features'] = torch.nn.ModuleList(modules=d_feat_list)
-        self.discriminator_losses.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.discriminator_losses.update(
-            {f'd_loss_reg_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.generator_losses.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        if self.config.use_feature_level:
+            for d_in_shape in d_in_shapes[:-1]:
+                d_config: DiscriminatorConfig = self.config.feature_level_discriminator.copy()
+                d_config.in_channels = d_in_shape
+                d = Discriminator(d_config)
+                d_feat_list.append(d)
+            self.discriminators['features'] = torch.nn.ModuleList(modules=d_feat_list)
+            self.discriminator_losses.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+            self.discriminator_losses.update(
+                {f'd_loss_reg_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+            self.generator_losses.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.discriminators['phong'] = Discriminator(self.config.phong_discriminator)
             self.discriminators['depth_phong'] = Discriminator(self.config.phong_discriminator)
@@ -147,16 +151,17 @@ class GAN(BaseModel):
     def setup_critics(self):
         d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
-        for d_in_shape in d_in_shapes[:-1]:
-            d_config: DiscriminatorConfig = self.config.feature_level_critic.copy()
-            d_config.in_channels = d_in_shape
-            d = Discriminator(d_config)
-            d_feat_list.append(d)
         self.critic_losses['d_critics_loss'] = 0.0
-        self.critics['features'] = torch.nn.ModuleList(modules=d_feat_list)
-        self.critic_losses.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.generator_losses.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        self.critic_losses.update({f'd_loss_critic_gp_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+        if self.config.use_feature_level:
+            for d_in_shape in d_in_shapes[:-1]:
+                d_config: DiscriminatorConfig = self.config.feature_level_critic.copy()
+                d_config.in_channels = d_in_shape
+                d = Discriminator(d_config)
+                d_feat_list.append(d)
+            self.critics['features'] = torch.nn.ModuleList(modules=d_feat_list)
+            self.critic_losses.update({f'd_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+            self.generator_losses.update({f'g_loss_critic_feature_{i}': 0.0 for i in range(len(d_feat_list))})
+            self.critic_losses.update({f'd_loss_critic_gp_feature_{i}': 0.0 for i in range(len(d_feat_list))})
         if self.config.predict_normals:
             self.critics['phong'] = Discriminator(self.config.phong_critic)
             self.critics['depth_phong'] = Discriminator(self.config.phong_critic)
@@ -208,8 +213,7 @@ class GAN(BaseModel):
         if self.config.predict_normals:
             if self.depth_model.config.merged_decoder:
                 output = self.depth_model.decoder(encoder_outs)
-                decoder_outs = [self.depth_model.decoder(encoder_outs)[i][:, 0, ...].unsqueeze(1) for i in
-                                range(len(output))]
+                decoder_outs = [output[i][:, 0, ...].unsqueeze(1) for i in range(len(output))]
                 normals = output[-1][:, 1:, ...]
             else:
                 normals = self.depth_model.normals_decoder(encoder_outs)
@@ -258,11 +262,12 @@ class GAN(BaseModel):
             depth_phong = self.phong_renderer((depth_out, calculated_norms))
 
         if self.config.use_discriminator:
-            feat_outs = encoder_outs_generated[::-1][:len(self.discriminators['features'])]
-            for idx, feature_out in enumerate(feat_outs):
-                g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx],
-                                                                   f'discriminator_feature_{idx}') \
-                          * self.config.feature_discriminator_factor
+            if self.config.use_feature_level:
+                feat_outs = encoder_outs_generated[::-1][:len(self.discriminators['features'])]
+                for idx, feature_out in enumerate(feat_outs):
+                    g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx],
+                                                                       f'discriminator_feature_{idx}') \
+                              * self.config.feature_discriminator_factor
             g_loss += self._apply_generator_discriminator_loss(depth_out, self.discriminators['depth_image'],
                                                                'discriminator_depth_img') \
                       * self.config.img_discriminator_factor
@@ -279,11 +284,12 @@ class GAN(BaseModel):
                           * self.config.normals_discriminator_factor
 
         if self.config.use_critic:
-            feat_outs = encoder_outs_generated[::-1][:len(self.critics['features'])]
-            for idx, feature_out in enumerate(feat_outs):
-                generated_predicted = self.critics['features'][idx](feature_out).type_as(feature_out)
-                g_loss += self._apply_generator_critic_loss(generated_predicted, f'critic_feature_{idx}') \
-                          * self.config.feature_discriminator_factor
+            if self.config.use_feature_level:
+                feat_outs = encoder_outs_generated[::-1][:len(self.critics['features'])]
+                for idx, feature_out in enumerate(feat_outs):
+                    generated_predicted = self.critics['features'][idx](feature_out).type_as(feature_out)
+                    g_loss += self._apply_generator_critic_loss(generated_predicted, f'critic_feature_{idx}') \
+                              * self.config.feature_discriminator_factor
             valid_predicted_depth = self.critics['depth_image'](depth_out)
             g_loss += self._apply_generator_critic_loss(valid_predicted_depth, 'critic_depth_img') \
                       * self.config.img_discriminator_factor
@@ -417,13 +423,14 @@ class GAN(BaseModel):
                                                depth_original,
                                                self.discriminators['depth_image'],
                                                'depth_img')
-        feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
-        for idx, d_feat in enumerate(self.discriminators['features']):
-            feature_out_r, feature_out_s = next(feat_outs)
-            loss += self._apply_discriminator_loss(feature_out_r,
-                                                   feature_out_s,
-                                                   d_feat,
-                                                   f'feature_{idx}')
+        if self.config.use_feature_level:
+            feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
+            for idx, d_feat in enumerate(self.discriminators['features']):
+                feature_out_r, feature_out_s = next(feat_outs)
+                loss += self._apply_discriminator_loss(feature_out_r,
+                                                       feature_out_s,
+                                                       d_feat,
+                                                       f'feature_{idx}')
         if self.config.predict_normals:
             phong_generated = predictions['phong_generated']
             phong_original = predictions['phong_original']
@@ -451,11 +458,12 @@ class GAN(BaseModel):
         loss: Tensor = 0.0
         loss += self._apply_critic_loss(depth_generated, depth_original, self.critics['depth_image'],
                                         self.config.wasserstein_lambda, 'depth_img')
-        feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
-        for idx, feature_critic in enumerate(self.critics['features']):
-            feature_out_r, feature_out_s = next(feat_outs)
-            loss += self._apply_critic_loss(feature_out_r, feature_out_s, feature_critic,
-                                            self.config.wasserstein_lambda, f'feature_{idx}')
+        if self.config.use_feature_level:
+            feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
+            for idx, feature_critic in enumerate(self.critics['features']):
+                feature_out_r, feature_out_s = next(feat_outs)
+                loss += self._apply_critic_loss(feature_out_r, feature_out_s, feature_critic,
+                                                self.config.wasserstein_lambda, f'feature_{idx}')
         if self.config.predict_normals:
             phong_generated = predictions['phong_generated']
             phong_original = predictions['phong_original']
@@ -476,14 +484,14 @@ class GAN(BaseModel):
                                             discriminator: torch.nn.Module,
                                             name: str,
                                             label: float = 1.0) -> Tensor:
-        loss = self.generator_discriminator_loss(discriminator_in, label, discriminator)
+        loss, penalty = self.generator_discriminator_loss(discriminator_in, label, discriminator)
         self.generator_losses[f'g_loss_{name}'] += loss.detach()
         return loss
 
     def _apply_generator_critic_loss(self,
                                      discriminator_out: Tensor,
                                      name: str, ) -> Tensor:
-        loss = self.generator_critic_loss(discriminator_out)
+        loss, penalty = self.generator_critic_loss(discriminator_out)
         self.generator_losses[f'g_loss_{name}'] += loss.detach()
         return loss
 
@@ -521,7 +529,6 @@ class GAN(BaseModel):
                 return
             x, z = batch
             # predictions with generated images through generator
-            self.generator.apply(freeze_batchnorm)
             _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
             depth_adapted = decoder_outs_adapted[-1]
 
@@ -532,11 +539,13 @@ class GAN(BaseModel):
                     phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
                 else:
                     phong_unadapted = None
-                self.unadapted_images_for_plotting = (
-                    depth_unadapted, normals_unadapted.detach(), phong_unadapted.detach())
+                self.unadapted_images_for_plotting = (depth_unadapted,
+                                                      normals_unadapted.detach() if normals_unadapted
+                                                                                 is not None else normals_unadapted,
+                                                      phong_unadapted.detach())
 
             depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
-            denormed_images = self.imagenet_denorm(z).cpu()
+            denormed_images = torch.clamp(self.imagenet_denorm(z).cpu(), 0, 1)
             plot_tensors = [denormed_images]
             labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
             centers = [None, None, None, 0]

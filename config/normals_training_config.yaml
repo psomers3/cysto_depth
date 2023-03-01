@@ -4,19 +4,9 @@ print_config: true
 mode: gan
 training_stage: train
 split_save_dir: ./splits
-num_workers: 1
+num_workers: 0
 image_size: 64
 synthetic_config:
-  encoder:
-    load_imagenet_weights: True
-    backbone: resnet18
-    res_layer_norm: instance
-  normals_extra_layers: 0
-  decoder_calculate_norms: false
-  merged_decoder: true
-  accumulate_grad_batches: 1
-  max_epochs: 300
-  batch_size: 4
   data_roles:
     - color
     - depth
@@ -26,22 +16,18 @@ synthetic_config:
     - /Users/peter/isys/2023_01_29/depth
     - /Users/peter/isys/2023_01_29/normals
   training_split: {'train': .8, 'validate': 0.18, 'test': .02}
-  resume_from_checkpoint: /Users/peter/Desktop/epoch=198-step=10920.ckpt
+  resume_from_checkpoint: /Users/peter/isys/desktop_dump/64_synthetic/checkpoints/epoch=113-step=6154.ckpt
 gan_config:
   encoder:
-    backbone: resnet18
     adaptive_gating: true
     residual_learning: true
     res_layer_norm: instance
   use_critic: false
   use_discriminator: true
+  use_feature_level: false
   generator_lr: 5e-4
   discriminator_lr: 5e-5
-  critic_lr: 5e-5
-  critic_loss: wasserstein_gp
-  wasserstein_critic_updates: 2
   discriminator_loss: cross_entropy_R1
-  wasserstein_lambda: 10.0
   freeze_batch_norm: true
   phong_discriminator_factor: 1.0
   batch_size: 4

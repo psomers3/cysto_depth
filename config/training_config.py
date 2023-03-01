@@ -224,7 +224,9 @@ class SyntheticTrainingConfig:
     batch_size: int = 32
     resume_from_checkpoint: Union[str, None] = ""
     """ checkpoint to load weights from """
-    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15, early_stop_check_every=50, ckpt_save_top_k=5)
+    callbacks: CallbackConfig = CallbackConfig(early_stop_patience=15,
+                                               early_stop_check_every=50,
+                                               ckpt_save_top_k=5)
     phong_loss_factor: float = 1.0
     """ factor for loss phong shading for depth and normals """
     depth_loss_factor: float = 1.0
@@ -337,6 +339,8 @@ class GANTrainingConfig:
     """ Whether to freeze the batch norm statistics for the already learned generator """
     use_critic: bool = True
     use_discriminator: bool = True
+    use_feature_level: bool = True
+    """ Whether to use the feature level discriminators/critics. Useful to turn off for small image sizes """
     depth_discriminator: DiscriminatorConfig = DiscriminatorConfig(in_channels=1,
                                                                    img_level=True,
                                                                    single_out=False,

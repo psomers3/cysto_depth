@@ -7,6 +7,7 @@ split_save_dir: ''
 num_workers: 1
 val_check_interval: 10
 val_plot_interval: 1
+image_size: 256
 trainer_config:
   gpus: []
   strategy: null
@@ -14,13 +15,7 @@ trainer_config:
   log_every_n_steps: 2
   overfit_batches: 0
 depth_norm_config:
-  encoder:
-    load_imagenet_weights: True
-    backbone: resnet18
-  accumulate_grad_batches: 2
   L_loss: L1
-  use_critic: true
-  use_discriminator: true
   data_roles:
     - color_0
     - color_1
@@ -43,23 +38,18 @@ depth_norm_config:
       - /Users/peter/isys/2023_01_29/normals/bland_bladder_wall
   training_split: {'train': .75, 'validate': 0.225, 'test': .025}
 synthetic_config:
-  encoder:
-    load_imagenet_weights: True
-    backbone: resnet34
-    res_layer_norm: instance
-  normals_extra_layers: 0
-  decoder_calculate_norms: false
-  merged_decoder: true
   data_directories:
     - ''
-  resume_from_checkpoint: /Users/peter/Desktop/epoch=198-step=10920.ckpt
+  encoder:
+    backbone: resnet34
+  resume_from_checkpoint: /Users/peter/isys/desktop_dump/epoch=198-step=10920.ckpt
 gan_config:
   encoder:
     backbone: resnet18
     adaptive_gating: true
     residual_learning: true
     res_layer_norm: instance
-  use_critic: true
+  use_critic: false
   use_discriminator: true
   generator_lr: 5e-4
   discriminator_lr: 5e-5

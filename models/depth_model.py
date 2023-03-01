@@ -29,8 +29,9 @@ class DepthEstimationModel(BaseModel):
         if config.resume_from_checkpoint:
             ckpt = torch.load(config.resume_from_checkpoint, map_location=self.device)
             hparams = ckpt['hyper_parameters']
-            hparams['resume_from_checkpoint'] = config.resume_from_checkpoint
-            [setattr(config, key, val) for key, val in hparams.items() if key in config]
+            needed_params = ['encoder', 'merged_decoder', 'normals_extra_layers', 'phong_config', 'image_size',
+                             'decoder_calculate_norms']
+            [setattr(config, key, val) for key, val in hparams.items() if key in needed_params]
 
         self.save_hyperparameters(Namespace(**config))
         self.config = config
@@ -68,9 +69,11 @@ class DepthEstimationModel(BaseModel):
         self._val_epoch_count = 0
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
+        if ckpt is not None:
+            self._resume_from_checkpoint(ckpt)
 
-        if config.resume_from_checkpoint:
-            self.load_state_dict(ckpt.state_dict())
+    def _resume_from_checkpoint(self, ckpt: dict):
+        self.load_state_dict(ckpt['state_dict'], strict=False)
 
     def forward(self, _input):
         skip_outs, _ = self.encoder(_input)
@@ -228,7 +231,6 @@ class DepthEstimationModel(BaseModel):
         if self._val_epoch_count % self.config.val_plot_interval == 0:
             self.plot('val')
         self._val_epoch_count += 1
-        return super().on_validation_epoch_end()
 
     def test_step(self, batch, batch_idx):
         return self.shared_val_test_step(batch, batch_idx, "test")
@@ -242,6 +244,8 @@ class DepthEstimationModel(BaseModel):
 
         :param prefix: a string to prepend to the image tags. Usually "test" or "train"
         """
+        if self.validation_images is None:
+            return
         with torch.no_grad():
             if prefix == 'val':
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
