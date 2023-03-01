@@ -267,6 +267,7 @@ class HailMary(BaseModel):
             self.generator.apply(freeze_batchnorm)
 
         self.total_train_step_count += 1
+        self.batches_accumulated += 1
         if self.batches_accumulated == self.config.accumulate_grad_batches:
             self._full_batch = True
             self.batches_accumulated = 0
