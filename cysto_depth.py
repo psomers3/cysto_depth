@@ -138,7 +138,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                                     image_size=config.image_size,
                                                     workers_per_loader=config.num_workers,
                                                     depth_scale_factor=1e3,
-                                                    inverse_depth=config.gan_config.inverse_depth,
+                                                    inverse_depth=config.depth_norm_config.inverse_depth,
                                                     memorize_check=config.memorize_check,
                                                     add_random_blur=config.depth_norm_config.add_mask_blur,
                                                     pin_memory=config.pin_dataloader_memory)
