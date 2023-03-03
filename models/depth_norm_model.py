@@ -51,7 +51,7 @@ class DepthNormModel(pl.LightningModule):
             self.critic_losses[f'd_critic_loss'] = 0.0
             self.generator_losses.update({f'g_critic_loss-{i}': 0.0 for i in sources})
             self.critic_losses.update({f'd_critic_loss-{i}': 0.0 for i in sources})
-            self.critic_losses.update({f'd_critic_gp_{i}': 0.0 for i in sources})
+            self.critic_losses.update({f'd_critic_gp-{i}': 0.0 for i in sources})
 
         if config.use_discriminator:
             self.discriminators.update({str(i): Discriminator(config.discriminator_config) for i in sources})
