@@ -163,11 +163,12 @@ class DepthNormModel(pl.LightningModule):
                 self.generator_losses[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
                 losses.append(discriminator_loss)
         detached_losses = torch.tensor([l.detach() for l in losses])
-        goal_percent = 1.0/len(detached_losses)
-        percents = (detached_losses.abs() / detached_losses.abs().sum()).detach()
-        percents = percents.to(batch[0][0].device)
+        total_loss = detached_losses.abs().sum()
+        goal = total_loss/len(detached_losses)
+        scaling = (goal / detached_losses.abs()).detach()
+        scaling = scaling.to(batch[0][0].device)
         losses = torch.stack(losses)
-        loss = (losses * (goal_percent/percents)).sum()
+        loss = (losses * scaling).sum()
         self.generator_losses['g_loss'] += loss.detach()
         return loss
 
