@@ -15,7 +15,7 @@ trainer_config:
   log_every_n_steps: 2
   overfit_batches: 0
 depth_norm_config:
-  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_44/checkpoints/epoch=43-step=9848.ckpt
+#  resume_from_checkpoint: /Users/peter/git/cysto_depth/logs/depthnorm/lightning_logs/version_44/checkpoints/epoch=43-step=9848.ckpt
   encoder:
     load_imagenet_weights: True
     backbone: resnet18
