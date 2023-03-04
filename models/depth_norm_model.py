@@ -143,7 +143,8 @@ class DepthNormModel(pl.LightningModule):
         self.model.train()
         self.critics.eval()
         self.discriminators.eval()
-        losses = []
+        discriminator_losses = []
+        loss: Tensor = 0.0
         for source_id in batch.keys():
             img, depth, normals = batch[source_id]
             out_images = self(depth, normals, source_id=source_id)
@@ -151,24 +152,24 @@ class DepthNormModel(pl.LightningModule):
                 denormed_images = img if self.config.imagenet_norm_output else imagenet_denorm(img).detach()
                 img_loss = self.L_loss(out_images, denormed_images)
                 self.generator_losses['g_img_loss'] += img_loss.detach()
-                losses.append(img_loss)
+                loss += img_loss
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
                 critic_loss = self.generator_critic_loss(critic_out)
                 self.generator_losses[f'g_critic_loss-{source_id}'] += critic_loss.detach()
-                losses.append(critic_loss)
+                discriminator_losses.append(critic_loss)
             if self.config.use_discriminator:
                 discriminator_loss, penalty = self.generator_discriminator_loss(out_images, 1.0,
                                                                        self.discriminators[str(source_id)])
                 self.generator_losses[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
-                losses.append(discriminator_loss)
-        detached_losses = torch.tensor([l.detach() for l in losses])
+                discriminator_losses.append(discriminator_loss)
+        detached_losses = torch.tensor([l.detach() for l in discriminator_losses]) + 1e-5
         total_loss = detached_losses.abs().sum()
         goal = total_loss/len(detached_losses)
         scaling = (goal / detached_losses.abs()).detach()
         scaling = scaling.to(batch[0][0].device)
-        losses = torch.stack(losses)
-        loss = (losses * scaling).sum()
+        discriminator_losses = torch.stack(discriminator_losses)
+        loss += (discriminator_losses * scaling).sum()
         self.generator_losses['g_loss'] += loss.detach()
         return loss
 
