@@ -3,10 +3,10 @@
 import sys
 import os
 
-sys.path.append(os.path.join('..', os.path.dirname(__file__)))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from pathlib import Path
 from argparse import ArgumentParser
-from utils.exr_utils import exr_2_numpy
+from .exr_utils import exr_2_numpy
 from tqdm import tqdm
 
 
