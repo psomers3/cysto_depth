@@ -309,7 +309,7 @@ class DepthNormModel(pl.LightningModule):
         self.val_batch_count = 0
         if self._val_epoch_count % self.config.val_plot_interval == 0:
             if self.validation_data is not None:
-                self.plot()
+                self.plot(self.generator_global_step//len(self.sources))
         self._val_epoch_count += 1
         return super().on_validation_epoch_end()
 
