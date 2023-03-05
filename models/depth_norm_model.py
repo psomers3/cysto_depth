@@ -82,7 +82,7 @@ class DepthNormModel(pl.LightningModule):
 
     def _resume_from_checkpoint(self, ckpt: dict):
         with torch.no_grad():
-            # run some data through the network to initial dense layers in discriminators if needed
+            # run some data through the network to initialize dense layers in discriminators if needed
             temp_out = self(torch.ones(1, 1, self.config.image_size, self.config.image_size, device=self.device),
                             torch.ones(1, 3, self.config.image_size, self.config.image_size, device=self.device),
                             source_id=0)
@@ -228,10 +228,10 @@ class DepthNormModel(pl.LightningModule):
             discriminator_opt.zero_grad()
             if not self.config.use_critic:
                 self._generator_training = True
-                self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
-                                          for k in self.discriminator_losses.keys()})
-                self.log_dict(self.discriminator_losses)
-                self.discriminator_losses.update({k: 0.0 for k in self.discriminator_losses.keys()})
+            self.discriminator_losses.update({k: self.discriminator_losses[k] / self.config.accumulate_grad_batches
+                                      for k in self.discriminator_losses.keys()})
+            self.log_dict(self.discriminator_losses)
+            self.discriminator_losses.update({k: 0.0 for k in self.discriminator_losses.keys()})
 
     def calculate_critic_loss(self, batch) -> Tensor:
         self.model.eval()
@@ -312,7 +312,6 @@ class DepthNormModel(pl.LightningModule):
             if self.validation_data is not None:
                 self.plot(self.generator_global_step//len(self.sources))
         self._val_epoch_count += 1
-        return super().on_validation_epoch_end()
 
     def plot(self, step: int = None):
         with torch.no_grad():

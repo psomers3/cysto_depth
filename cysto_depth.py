@@ -20,6 +20,13 @@ from data.general_data_module import DictDataLoaderCombine
 from data.gan_datamodule import GANDataModule
 from models.gan_model import GAN
 import signal
+import debugpy
+
+def start_debugger():
+    debugpy.listen(5678)
+    print("Waiting for debugger to attach... ", end='', flush=True)
+    debugpy.wait_for_client()
+    print("done!")
 
 
 @hydra.main(version_base=None, config_path="config", config_name="training_config")
@@ -187,9 +194,12 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
 
 if __name__ == "__main__":
-    # parser = ArgumentParser()
+    parser = ArgumentParser()
+    parser.add_argument('debug', default=False, required=False)
     # cfg = CystoDepthConfig()
     # parser.add_arguments(CystoDepthConfig, dest='')
-    # args, unknown_args = parser.parse_known_args()
+    args, unknown_args = parser.parse_known_args()
+    if args.debug:
+        start_debugger()
     # TODO: The above code fails with missing values. Need to figure out how to get it to ignore them.
     cysto_depth()
