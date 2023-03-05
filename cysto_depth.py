@@ -123,7 +123,7 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                               seed=42)
             dataload_dict[i] = data_module
         data_module = DictDataLoaderCombine(dataload_dict)
-        model = DepthNormModel(config.depth_norm_config.copy())
+        model = DepthNormModel(config.depth_norm_config)
         config.depth_norm_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.depth_norm_config.items() if key in trainer_dict]
         trainer_dict.update({'callbacks': get_callbacks(config.depth_norm_config.callbacks)})
@@ -197,12 +197,14 @@ if __name__ == "__main__":
     import sys
     parser = ArgumentParser()
     parser.add_argument('--debug', action='store_true')
+    
     # cfg = CystoDepthConfig()
     # parser.add_arguments(CystoDepthConfig, dest='')
     args, unknown_args = parser.parse_known_args()
-    
+
     if args.debug:
         sys.argv.remove('--debug')
         start_debugger()
     # TODO: The above code fails with missing values. Need to figure out how to get it to ignore them.
+    
     cysto_depth()

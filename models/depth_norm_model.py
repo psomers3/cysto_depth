@@ -25,6 +25,8 @@ class DepthNormModel(pl.LightningModule):
             hparams = ckpt['hyper_parameters']
             hparams.pop('resume_from_checkpoint')
             hparams.pop('batch_size')
+            hparams.pop('val_check_interval')
+            hparams.pop('val_plot_interval')
             [setattr(config, key, val)for key, val in hparams.items() if key in config]
 
         self.save_hyperparameters(Namespace(**config))
