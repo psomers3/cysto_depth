@@ -194,12 +194,15 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
 
 
 if __name__ == "__main__":
+    import sys
     parser = ArgumentParser()
     parser.add_argument('--debug', action='store_true')
     # cfg = CystoDepthConfig()
     # parser.add_arguments(CystoDepthConfig, dest='')
     args, unknown_args = parser.parse_known_args()
+    
     if args.debug:
+        sys.argv.remove('--debug')
         start_debugger()
     # TODO: The above code fails with missing values. Need to figure out how to get it to ignore them.
     cysto_depth()
