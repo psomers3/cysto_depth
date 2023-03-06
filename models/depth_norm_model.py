@@ -9,6 +9,7 @@ from argparse import Namespace
 from typing import *
 from torch import Tensor, optim
 import torch
+import numpy as np
 from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss
 
 imagenet_denorm = ImageNetNormalization(inverse=True)
@@ -25,6 +26,7 @@ class DepthNormModel(pl.LightningModule):
             hparams = ckpt['hyper_parameters']
             hparams.pop('resume_from_checkpoint')
             hparams.pop('batch_size')
+            hparams.pop('accumulate_grad_batches')
             hparams.pop('val_check_interval')
             hparams.pop('val_plot_interval')
             [setattr(config, key, val)for key, val in hparams.items() if key in config]
@@ -147,14 +149,14 @@ class DepthNormModel(pl.LightningModule):
         self.discriminators.eval()
         discriminator_losses = []
         loss: Tensor = 0.0
+        img_loss: Tensor = 0.0
         for source_id in batch.keys():
             img, depth, normals = batch[source_id]
             out_images = self(depth, normals, source_id=source_id)
             if self.L_loss is not None:
                 denormed_images = img if self.config.imagenet_norm_output else imagenet_denorm(img).detach()
-                img_loss = self.L_loss(out_images, denormed_images)
+                img_loss += self.L_loss(out_images, denormed_images)
                 self.generator_losses['g_img_loss'] += img_loss.detach()
-                loss += img_loss
             if self.config.use_critic:
                 critic_out = self.critics[str(source_id)](out_images)
                 critic_loss = self.generator_critic_loss(critic_out)
@@ -165,13 +167,15 @@ class DepthNormModel(pl.LightningModule):
                                                                        self.discriminators[str(source_id)])
                 self.generator_losses[f'g_discriminator_loss-{source_id}'] += discriminator_loss.detach()
                 discriminator_losses.append(discriminator_loss)
-        detached_losses = torch.tensor([l.detach() for l in discriminator_losses]) + 1e-5
-        total_loss = detached_losses.abs().sum()
-        goal = total_loss/len(detached_losses)
-        scaling = (goal / detached_losses.abs()).detach()
-        scaling = scaling.to(batch[0][0].device)
+        if self.config.normalize_discriminator_losses:
+            detached_losses = torch.tensor([l.detach() for l in discriminator_losses]) + 1e-5
+            goal = np.sqrt(1/len(detached_losses))
+            scaling = (goal / detached_losses.abs()).detach()
+            scaling = scaling.to(batch[0][0].device)
+        else:
+            scaling = 1.0
         discriminator_losses = torch.stack(discriminator_losses)
-        loss += (discriminator_losses * scaling).sum()
+        loss += (discriminator_losses*scaling).sum() + img_loss/len(self.sources)
         self.generator_losses['g_loss'] += loss.detach()
         return loss
 
@@ -180,8 +184,8 @@ class DepthNormModel(pl.LightningModule):
         self.manual_backward(loss)
         if self._full_batch:
             self.generator_global_step += 1
-            if self.generator_global_step % len(self.sources) != 0:
-                return
+            # if self.generator_global_step % len(self.sources) != 0:
+            #     return
             self._generator_training = False
             opt = self.optimizers(use_pl_optimizer=True)[0]
             # print('step generator')
@@ -205,17 +209,19 @@ class DepthNormModel(pl.LightningModule):
                 out_images = self(original_depth, original_normals, source_id=source_id)
             loss_generated, penalty_generated = self.discriminator_loss(out_images.detach(),
                                                                         self.config.discriminator_generated_confidence,
-                                                                        self.discriminators[str(source_id)])
+                                                                        self.discriminators[str(source_id)],
+                                                                        .1)
             loss_original, penalty_original = self.discriminator_loss(denormed_images.detach(),
                                                                       self.config.discriminator_original_confidence,
-                                                                      self.discriminators[str(source_id)])
+                                                                      self.discriminators[str(source_id)],
+                                                                      .1)
             penalty_combined = penalty_original + penalty_generated
             loss_combined = loss_original + loss_generated
             discriminator_loss += penalty_combined + loss_combined
             self.discriminator_losses[f'd_discriminator_loss-{source_id}'] += loss_combined.detach()
             self.discriminator_losses[f'd_discriminator_reg_loss-{source_id}'] += penalty_combined.detach()
 
-        return discriminator_loss
+        return discriminator_loss / len(self.sources)
 
     def discriminator_train_step(self, batch: dict, batch_idx):
         discriminator_loss = self.calculate_discriminator_loss(batch)
@@ -249,13 +255,13 @@ class DepthNormModel(pl.LightningModule):
             critic_loss, penalty = self.discriminator_critic_loss(denormed_images,
                                                                   out_images.detach(),
                                                                   self.critics[str(source_id)],
-                                                                  10)
+                                                                  10.0)
 
             self.critic_losses[f'd_critic_loss-{source_id}'] += critic_loss.detach()
             self.critic_losses[f'd_critic_gp-{source_id}'] += penalty.detach()
             loss += critic_loss + penalty
         self.critic_losses[f'd_critic_loss'] += loss.detach()
-        return loss
+        return loss / len(self.sources)
 
     def critic_train_step(self, batch: dict, batch_idx):
         loss = self.calculate_critic_loss(batch)
@@ -312,7 +318,7 @@ class DepthNormModel(pl.LightningModule):
         self.val_batch_count = 0
         if self._val_epoch_count % self.config.val_plot_interval == 0:
             if self.validation_data is not None:
-                self.plot(self.generator_global_step//len(self.sources))
+                self.plot(self.generator_global_step)
         self._val_epoch_count += 1
 
     def plot(self, step: int = None):

@@ -185,6 +185,8 @@ class DepthNorm2ImageConfig:
     """ scaling factor for confidence of discriminators on original data """
     discriminator_generated_confidence: float = 0.05
     """ scaling factor for confidence of discriminators on generated data """
+    normalize_discriminator_losses: bool = False
+    """ Whether to scale all discriminator losses equally for generator pass """
 
 
 @dataclass

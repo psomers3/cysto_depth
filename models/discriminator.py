@@ -4,10 +4,30 @@ from utils.torch_utils import convrelu
 from config.training_config import DiscriminatorConfig
 
 
-_reductions = {'sum': torch.sum,
-               'min': torch.min,
-               'max': torch.max,
-               'mean': torch.mean,
+class Sum(nn.Module):
+    def forward(self, x):
+        return torch.sum(x)
+
+
+class Min(nn.Module):
+    def forward(self, x):
+        return torch.min(x)
+
+
+class Max(nn.Module):
+    def forward(self, x):
+        return torch.max(x)
+
+
+class Mean(nn.Module):
+    def forward(self, x):
+        return torch.mean(x)
+
+
+_reductions = {'sum': Sum,
+               'min': Min,
+               'max': Max,
+               'mean': Mean,
                'dense': torch.nn.Linear}
 
 _output_activation = {'sigmoid': torch.sigmoid,
@@ -22,7 +42,7 @@ class Discriminator(nn.Module):
         norm = config.normalization
         in_channels = config.in_channels
         self.output_activation = config.output_activation.lower() if config.output_activation else None
-        self.reduction = config.single_out_reduction
+        self.reduction = config.single_out_reduction.lower()
         self._linear = None
 
         if config.img_level:
@@ -53,16 +73,15 @@ class Discriminator(nn.Module):
                 nn.Conv2d(512, 1, 3, 1, 1),
                 nn.Flatten()
             )
+        if self.single_out and (self.reduction != 'dense'):
+            self.conv.append(_reductions[self.reduction]())
 
     def forward(self, _input):
         validity = self.conv(_input)
-        if self.single_out:
-            if self.reduction.lower() == 'dense':
-                if self._linear is None:
-                    self._linear = torch.nn.Linear(validity.shape[1], 1, device=validity.device)
-                validity = self._linear(validity)
-            else:
-                validity = _reductions[self.reduction.lower()](validity)
+        if self.single_out and self.reduction == 'dense':
+            if self._linear is None:
+                self._linear = torch.nn.Linear(validity.shape[1], 1, device=validity.device)
+            validity = self._linear(validity)
         if self.output_activation is not None:
             validity = _output_activation[self.output_activation](validity)
         return validity
