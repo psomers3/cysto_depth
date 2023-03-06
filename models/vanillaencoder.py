@@ -100,8 +100,8 @@ class VanillaEncoder(torch.nn.Module):
 class CoordConv2dELU(nn.modules.conv.Conv2d):
     """ A coordinate convolution with an ELU activation """
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
-                 padding=0, dilation=1, groups=1, bias=True, with_r=False):
+    def __init__(self, in_channels, out_channels, kernel_size, padding=0, stride=1,
+                 dilation=1, groups=1, bias=True, with_r=False, **kwargs):
         """
 
         :param in_channels:

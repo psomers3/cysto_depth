@@ -2,6 +2,7 @@ from torch import nn
 import torch
 from utils.torch_utils import convrelu
 from config.training_config import DiscriminatorConfig
+from models.vanillaencoder import CoordConv2dELU
 
 
 class Sum(nn.Module):
@@ -44,12 +45,13 @@ class Discriminator(nn.Module):
         self.output_activation = config.output_activation.lower() if config.output_activation else None
         self.reduction = config.single_out_reduction.lower()
         self._linear = None
+        first_layer = CoordConv2dELU if config.add_coordinates else convrelu
 
         if config.img_level:
             self.conv = nn.Sequential(
                 # Shape N, 512, x.H/32, x.W/32
-                # receptive field:
-                convrelu(in_channels, 64, 4, 0, 2, norm=norm, activation=activation, alpha=0.2),
+
+                first_layer(in_channels, 64, 4, 0, 2, norm=norm, activation=activation, alpha=0.2),
                 torch.nn.Dropout(),
                 convrelu(64, 128, 4, 1, 2, norm=norm, activation=activation, alpha=0.2),
                 torch.nn.Dropout(),
@@ -63,7 +65,7 @@ class Discriminator(nn.Module):
         else:
             self.conv = nn.Sequential(
                 # Shape N, 512, x.H/32, x.W/32
-                convrelu(in_channels, 64, 4, 1, 2, alpha=0.2),
+                first_layer(in_channels, 64, 4, 1, 2, alpha=0.2),
                 torch.nn.Dropout(),
                 convrelu(64, 128, 4, 1, 2, norm=norm, activation=activation, alpha=0.2),
                 torch.nn.Dropout(),
@@ -73,6 +75,7 @@ class Discriminator(nn.Module):
                 nn.Conv2d(512, 1, 3, 1, 1),
                 nn.Flatten()
             )
+
         if self.single_out and (self.reduction != 'dense'):
             self.conv.append(_reductions[self.reduction]())
 

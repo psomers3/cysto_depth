@@ -61,6 +61,8 @@ class DiscriminatorConfig:
     """ final output activation ['', 'sigmoid', 'tanh'] """
     single_out_reduction: str = 'max'
     """ How to combine outputs to single output [max, min, mean, sum] """
+    add_coordinates: bool = False
+    """ Make the first layer a coordinate convolution """
 
 
 @dataclass

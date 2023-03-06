@@ -33,6 +33,7 @@ depth_norm_config:
     single_out: false
     output_activation: 'sigmoid'
     single_out_reduction: sum
+    add_coordinates: true
   generator_lr: 1e-3
   discriminator_lr: 1e-3
   critic_lr: 5e-5
