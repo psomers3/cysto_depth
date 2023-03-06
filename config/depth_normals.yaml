@@ -30,13 +30,13 @@ depth_norm_config:
   use_discriminator: true
   discriminator_loss: cross_entropy_R1
   discriminator_config:
-    single_out: true
+    single_out: false
     output_activation: 'sigmoid'
-    single_out_reduction: max
+    single_out_reduction: sum
   generator_lr: 1e-3
   discriminator_lr: 1e-3
   critic_lr: 5e-5
-  add_noise: true
+  add_noise: false
   max_epochs: 300
   batch_size: 8
   data_roles:
