@@ -56,15 +56,16 @@ class DepthNormModel(pl.LightningModule):
             self.generator_losses.update({f'g_critic_loss-{i}': 0.0 for i in sources})
             self.critic_losses.update({f'd_critic_loss-{i}': 0.0 for i in sources})
             self.critic_losses.update({f'd_critic_gp-{i}': 0.0 for i in sources})
-
+        self._empty_discriminator_losses = {}
         if config.use_discriminator:
-            self.discriminators.update({str(i): Discriminator(config.discriminator_config) for i in sources})
-            self.discriminators_opt_idx = self.critic_opt_idx + 1
-            self.discriminator_losses['d_discriminator_loss'] = 0.0
-            self.generator_losses.update({f'g_discriminator_loss-{i}': 0.0 for i in sources})
-            self.discriminator_losses.update({f'd_discriminator_loss-{i}': 0.0 for i in sources})
-            self.discriminator_losses.update({f'd_discriminator_reg_loss-{i}': 0.0 for i in sources})
-
+            for k in range(self.config.discriminator_ensemble_size):
+                self.discriminators.update({f'{k}-{i}': Discriminator(config.discriminator_config) for i in sources})
+                self.discriminators_opt_idx = self.critic_opt_idx + 1
+                self.discriminator_losses['d_discriminator_loss'] = 0.0
+                self.generator_losses.update({f'g_discriminator_loss-{k}-{i}': 0.0 for i in sources})
+                self.discriminator_losses.update({f'd_discriminator_loss-{k}-{i}': 0.0 for i in sources})
+                self.discriminator_losses.update({f'd_discriminator_reg_loss-{k}-{i}': 0.0 for i in sources})
+                self._empty_discriminator_losses.update({f'{k}-{i}': 0.0 for i in sources})
         self.generator_global_step = -1
         self.critic_global_step = 0
         self.total_train_step_count = -1
@@ -129,8 +130,8 @@ class DepthNormModel(pl.LightningModule):
             self._full_batch = True
             self.batches_accumulated = 0
 
-        # print('generator')
         if self._generator_training:  # this check in case critics are being used
+            # print('generator')
             self.generator_train_step(batch, batch_idx)
         else:
             if (self.critic_global_step % self.config.wasserstein_critic_updates == 0) and self.config.use_discriminator:
@@ -147,7 +148,7 @@ class DepthNormModel(pl.LightningModule):
         self.model.train()
         self.critics.eval()
         self.discriminators.eval()
-        discriminator_losses = []
+        discriminator_losses = self._empty_discriminator_losses.copy()
         loss: Tensor = 0.0
         img_loss: Tensor = 0.0
         for source_id in batch.keys():
@@ -164,19 +165,18 @@ class DepthNormModel(pl.LightningModule):
                     self.generator_losses[f'g_critic_loss-{str(discriminator_id)}'] += critic_loss.detach()
                     discriminator_losses.append(critic_loss)
                 if self.config.use_discriminator:
-                    discriminator_loss, penalty = self.generator_discriminator_loss(out_images, 1.0,
-                                                                           self.discriminators[str(str(discriminator_id))])
-                    self.generator_losses[f'g_discriminator_loss-{str(discriminator_id)}'] += discriminator_loss.detach()
-                    discriminator_losses.append(discriminator_loss)
-        if self.config.normalize_discriminator_losses:
-            detached_losses = torch.tensor([l.detach() for l in discriminator_losses]) + 1e-5
-            goal = np.sqrt(1/len(detached_losses))
-            scaling = (goal / detached_losses.abs()).detach()
-            scaling = scaling.to(batch[0][0].device)
-        else:
-            scaling = 1.0
-        discriminator_losses = torch.stack(discriminator_losses)
-        loss += (discriminator_losses*scaling).sum() + img_loss/len(self.sources)
+                    for k in range(self.config.discriminator_ensemble_size):
+                        discriminator_loss, penalty = self.generator_discriminator_loss(out_images, 1.0,
+                                                                               self.discriminators[f'{k}-{discriminator_id}'])
+                        self.generator_losses[f'g_discriminator_loss-{k}-{str(discriminator_id)}'] += discriminator_loss.detach()
+                        discriminator_losses[f'{k}-{discriminator_id}'] += discriminator_loss
+        discriminator_losses_as_list = [l for k, l in discriminator_losses.items()]
+        discriminator_losses = torch.stack(discriminator_losses_as_list)
+        if self.config.hyper_volume_slack > 1.0:
+            factors = self.hypervolume_optimization_coefficients(discriminator_losses)
+            discriminator_losses = factors * discriminator_losses
+
+        loss += discriminator_losses.sum() + img_loss/len(self.sources)
         self.generator_losses['g_loss'] += loss.detach()
         return loss
 
@@ -210,19 +210,20 @@ class DepthNormModel(pl.LightningModule):
             for discriminator_id in self.sources:
                 with torch.no_grad():
                     out_images = self(original_depth, original_normals, source_id=discriminator_id)
-                loss_generated, penalty_generated = self.discriminator_loss(out_images.detach(),
-                                                                            self.config.discriminator_generated_confidence,
-                                                                            self.discriminators[str(discriminator_id)],
-                                                                            .1)
-                loss_original, penalty_original = self.discriminator_loss(denormed_images.detach(),
-                                                                          self.config.discriminator_original_confidence,
-                                                                          self.discriminators[str(discriminator_id)],
-                                                                          .1)
-                penalty_combined = penalty_original + penalty_generated
-                loss_combined = loss_original + loss_generated
-                discriminator_loss += penalty_combined + loss_combined
-                self.discriminator_losses[f'd_discriminator_loss-{discriminator_id}'] += loss_combined.detach()
-                self.discriminator_losses[f'd_discriminator_reg_loss-{discriminator_id}'] += penalty_combined.detach()
+                for k in range(self.config.discriminator_ensemble_size):
+                    loss_generated, penalty_generated = self.discriminator_loss(out_images.detach(),
+                                                                                self.config.discriminator_generated_confidence,
+                                                                                self.discriminators[f'{k}-{discriminator_id}'],
+                                                                                4)
+                    loss_original, penalty_original = self.discriminator_loss(denormed_images.detach(),
+                                                                              self.config.discriminator_original_confidence,
+                                                                              self.discriminators[f'{k}-{discriminator_id}'],
+                                                                              4)
+                    penalty_combined = penalty_original + penalty_generated
+                    loss_combined = loss_original + loss_generated
+                    discriminator_loss += penalty_combined + loss_combined
+                    self.discriminator_losses[f'd_discriminator_loss-{k}-{discriminator_id}'] += loss_combined.detach()
+                    self.discriminator_losses[f'd_discriminator_reg_loss-{k}-{discriminator_id}'] += penalty_combined.detach()
 
         return discriminator_loss
 

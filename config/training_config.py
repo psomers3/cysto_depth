@@ -187,10 +187,10 @@ class DepthNorm2ImageConfig:
     """ scaling factor for confidence of discriminators on original data """
     discriminator_generated_confidence: float = 0.05
     """ scaling factor for confidence of discriminators on generated data """
-    normalize_discriminator_losses: bool = False
-    """ Whether to scale all discriminator losses equally for generator pass """
     hyper_volume_slack: float = 0.0
     """ Must be greater than 1 """
+    discriminator_ensemble_size: int = 1
+    """ How many copies of each discriminator to use """
 
 
 @dataclass
