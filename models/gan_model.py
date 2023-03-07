@@ -116,33 +116,35 @@ class GAN(BaseModel):
         d_in_shapes = self.generator.feature_levels[::-1]
         d_feat_list = []
         self.discriminator_losses['d_discriminators_loss'] = 0.0
-        if self.config.use_feature_level:
-            for d_in_shape in d_in_shapes[:-1]:
-                d_config: DiscriminatorConfig = self.config.feature_level_discriminator.copy()
-                d_config.in_channels = d_in_shape
-                d = Discriminator(d_config)
-                d_feat_list.append(d)
-            self.discriminators['features'] = torch.nn.ModuleList(modules=d_feat_list)
-            self.discriminator_losses.update({f'd_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-            self.discriminator_losses.update(
-                {f'd_loss_reg_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-            self.generator_losses.update({f'g_loss_discriminator_feature_{i}': 0.0 for i in range(len(d_feat_list))})
-        if self.config.predict_normals:
-            self.discriminators['phong'] = Discriminator(self.config.phong_discriminator)
-            self.discriminators['depth_phong'] = Discriminator(self.config.phong_discriminator)
-            self.discriminators['normals'] = Discriminator(self.config.normals_discriminator)
-            self.discriminator_losses.update({'d_loss_discriminator_phong': 0.0,
-                                              'd_loss_discriminator_depth_phong': 0.0,
-                                              'd_loss_discriminator_normals': 0.0})
-            self.discriminator_losses.update({'d_loss_reg_discriminator_phong': 0.0,
-                                              'd_loss_reg_discriminator_depth_phong': 0.0,
-                                              'd_loss_reg_discriminator_normals': 0.0})
-            self.generator_losses.update({'g_loss_discriminator_phong': 0.0, 'g_loss_discriminator_depth_phong': 0.0,
-                                          'g_loss_discriminator_normals': 0.0})
-        self.discriminators['depth_image'] = Discriminator(self.config.depth_discriminator)
-        self.discriminator_losses.update({'d_loss_discriminator_depth_img': 0.0,
-                                          'd_loss_reg_discriminator_depth_img': 0.0})
-        self.generator_losses.update({'g_loss_discriminator_depth_img': 0.0})
+        for k in range(self.config.discriminator_ensemble_size):
+            if self.config.use_feature_level:
+                for d_in_shape in d_in_shapes[:-1]:
+                    d_config: DiscriminatorConfig = self.config.feature_level_discriminator.copy()
+                    d_config.in_channels = d_in_shape
+                    d = Discriminator(d_config)
+                    d_feat_list.append(d)
+                self.discriminators[f'features-{k}'] = torch.nn.ModuleList(modules=d_feat_list)
+                self.discriminator_losses.update(
+                    {f'd_loss_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
+                self.discriminator_losses.update(
+                    {f'd_loss_reg_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
+                self.generator_losses.update({f'g_loss_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
+            if self.config.predict_normals:
+                self.discriminators[f'phong-{k}'] = Discriminator(self.config.phong_discriminator)
+                self.discriminators[f'depth_phong-{k}'] = Discriminator(self.config.phong_discriminator)
+                self.discriminators[f'normals-{k}'] = Discriminator(self.config.normals_discriminator)
+                self.discriminator_losses.update({f'd_loss_discriminator_phong-{k}': 0.0,
+                                                  f'd_loss_discriminator_depth_phong-{k}': 0.0,
+                                                  f'd_loss_discriminator_normals-{k}': 0.0})
+                self.discriminator_losses.update({f'd_loss_reg_discriminator_phong-{k}': 0.0,
+                                                  f'd_loss_reg_discriminator_depth_phong-{k}': 0.0,
+                                                  f'd_loss_reg_discriminator_normals-{k}': 0.0})
+                self.generator_losses.update({f'g_loss_discriminator_phong-{k}': 0.0, f'g_loss_discriminator_depth_phong-{k}': 0.0,
+                                              f'g_loss_discriminator_normals-{k}': 0.0})
+            self.discriminators[f'depth_image-{k}'] = Discriminator(self.config.depth_discriminator)
+            self.discriminator_losses.update({f'd_loss_discriminator_depth_img-{k}': 0.0,
+                                              f'd_loss_reg_discriminator_depth_img-{k}': 0.0})
+            self.generator_losses.update({f'g_loss_discriminator_depth_img-{k}': 0.0})
         opt = opts[self.config.discriminator_optimizer.lower()]
         self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
                                               lr=self.config.discriminator_lr))
@@ -262,26 +264,32 @@ class GAN(BaseModel):
             depth_phong = self.phong_renderer((depth_out, calculated_norms))
 
         if self.config.use_discriminator:
-            if self.config.use_feature_level:
-                feat_outs = encoder_outs_generated[::-1][:len(self.discriminators['features'])]
-                for idx, feature_out in enumerate(feat_outs):
-                    g_loss += self._apply_generator_discriminator_loss(feature_out, self.discriminators['features'][idx],
-                                                                       f'discriminator_feature_{idx}') \
-                              * self.config.feature_discriminator_factor
-            g_loss += self._apply_generator_discriminator_loss(depth_out, self.discriminators['depth_image'],
-                                                               'discriminator_depth_img') \
-                      * self.config.img_discriminator_factor
-            if self.config.predict_normals:
-                g_loss += self._apply_generator_discriminator_loss(original_phong_rendering,
-                                                                   self.discriminators['phong'],
-                                                                   'discriminator_phong') \
-                          * self.config.phong_discriminator_factor
-                g_loss += self._apply_generator_discriminator_loss(depth_phong, self.discriminators['depth_phong'],
-                                                                   'discriminator_depth_phong') \
-                          * self.config.phong_discriminator_factor
-                g_loss += self._apply_generator_discriminator_loss(normals_generated, self.discriminators['normals'],
-                                                                   'discriminator_normals') \
-                          * self.config.normals_discriminator_factor
+            discriminator_losses = []
+            for k in range(self.config.discriminator_ensemble_size):
+                if self.config.use_feature_level:
+                    feat_outs = encoder_outs_generated[::-1][:len(self.discriminators[f'features-{k}'])]
+                    for idx, feature_out in enumerate(feat_outs):
+                        discriminator_losses.append(
+                            self._apply_generator_discriminator_loss(feature_out, self.discriminators[f'features-{k}'][idx],
+                                                                     f'discriminator_feature-{k}_{idx}'))
+                discriminator_losses.append(
+                    self._apply_generator_discriminator_loss(depth_out, self.discriminators[f'depth_image-{k}'],
+                                                             f'discriminator_depth_img-{k}'))
+                if self.config.predict_normals:
+                    discriminator_losses.append(self._apply_generator_discriminator_loss(original_phong_rendering,
+                                                                                         self.discriminators[f'phong-{k}'],
+                                                                                         f'discriminator_phong-{k}'))
+                    discriminator_losses.append(
+                        self._apply_generator_discriminator_loss(depth_phong, self.discriminators[f'depth_phong-{k}'],
+                                                                 f'discriminator_depth_phong-{k}'))
+                    discriminator_losses.append(
+                        self._apply_generator_discriminator_loss(normals_generated, self.discriminators[f'normals-{k}'],
+                                                             f'discriminator_normals-{k}'))
+            discriminator_losses = torch.stack(discriminator_losses)
+            if self.config.hyper_volume_slack > 1.0:
+                factors = self.hypervolume_optimization_coefficients(discriminator_losses)
+                discriminator_losses = factors * discriminator_losses
+            g_loss += discriminator_losses.sum()
 
         if self.config.use_critic:
             if self.config.use_feature_level:
@@ -419,35 +427,36 @@ class GAN(BaseModel):
         encoder_outs_generated = predictions['encoder_outs_generated']
         encoder_outs_original = predictions['encoder_outs_original']
         loss: Tensor = 0.0
-        loss += self._apply_discriminator_loss(depth_generated,
-                                               depth_original,
-                                               self.discriminators['depth_image'],
-                                               'depth_img')
-        if self.config.use_feature_level:
-            feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
-            for idx, d_feat in enumerate(self.discriminators['features']):
-                feature_out_r, feature_out_s = next(feat_outs)
-                loss += self._apply_discriminator_loss(feature_out_r,
-                                                       feature_out_s,
-                                                       d_feat,
-                                                       f'feature_{idx}')
-        if self.config.predict_normals:
-            phong_generated = predictions['phong_generated']
-            phong_original = predictions['phong_original']
-            calculated_phong_generated = predictions['calculated_phong_generated']
-            calculated_phong_original = predictions['calculated_phong_original']
-            loss += self._apply_discriminator_loss(phong_generated,
-                                                   phong_original,
-                                                   self.discriminators['phong'],
-                                                   'phong')
-            loss += self._apply_discriminator_loss(calculated_phong_generated,
-                                                   calculated_phong_original,
-                                                   self.discriminators['depth_phong'],
-                                                   'depth_phong')
-            loss += self._apply_discriminator_loss(predictions['normals_generated'],
-                                                   predictions['normals_original'],
-                                                   self.discriminators['normals'],
-                                                   'normals')
+        for k in range(self.config.discriminator_ensemble_size):
+            loss += self._apply_discriminator_loss(depth_generated,
+                                                   depth_original,
+                                                   self.discriminators[f'depth_image-{k}'],
+                                                   f'depth_img-{k}')
+            if self.config.use_feature_level:
+                feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
+                for idx, d_feat in enumerate(self.discriminators[f'features-{k}']):
+                    feature_out_r, feature_out_s = next(feat_outs)
+                    loss += self._apply_discriminator_loss(feature_out_r,
+                                                           feature_out_s,
+                                                           d_feat,
+                                                           f'feature-{k}_{idx}')
+            if self.config.predict_normals:
+                phong_generated = predictions[f'phong_generated']
+                phong_original = predictions[f'phong_original']
+                calculated_phong_generated = predictions[f'calculated_phong_generated']
+                calculated_phong_original = predictions['calculated_phong_original']
+                loss += self._apply_discriminator_loss(phong_generated,
+                                                       phong_original,
+                                                       self.discriminators[f'phong-{k}'],
+                                                       f'phong-{k}')
+                loss += self._apply_discriminator_loss(calculated_phong_generated,
+                                                       calculated_phong_original,
+                                                       self.discriminators[f'depth_phong-{k}'],
+                                                       f'depth_phong-{k}')
+                loss += self._apply_discriminator_loss(predictions['normals_generated'],
+                                                       predictions['normals_original'],
+                                                       self.discriminators[f'normals-{k}'],
+                                                       f'normals-{k}')
         return loss
 
     def _critics(self, predictions: Predictions) -> Tensor:
@@ -541,7 +550,7 @@ class GAN(BaseModel):
                     phong_unadapted = None
                 self.unadapted_images_for_plotting = (depth_unadapted,
                                                       normals_unadapted.detach() if normals_unadapted
-                                                                                 is not None else normals_unadapted,
+                                                                                    is not None else normals_unadapted,
                                                       phong_unadapted.detach())
 
             depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
@@ -570,8 +579,11 @@ class GAN(BaseModel):
                     self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
                     plt.close(fig)
 
-    def test_step(self, batch, batch_idx):
-        pass
+    def hypervolume_optimization_coefficients(self, loss_vector):
+        # Multi-objective training of GANs with multiple discriminators
+        nadir_point = self.config.hyper_volume_slack * loss_vector.max()
+        T = (1 / (nadir_point - loss_vector)).sum()
+        return 1 / (T * (nadir_point - loss_vector))
 
     def configure_optimizers(self):
         return self._unwrapped_optimizers

@@ -40,6 +40,8 @@ gan_config:
   videos_folder:
     - /Users/peter/isys/videos
   image_output_folder: ./gan_data
+  hyper_volume_slack: 1.2
+  discriminator_ensemble_size: 3
 trainer_config:
   gpus: []
   strategy: null

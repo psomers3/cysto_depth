@@ -1,6 +1,6 @@
 log_directory: ./logs
 print_config: true
-mode: synthetic
+mode: gan
 training_stage: train
 split_save_dir: ./splits
 inverse_depth: false

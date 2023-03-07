@@ -189,6 +189,8 @@ class DepthNorm2ImageConfig:
     """ scaling factor for confidence of discriminators on generated data """
     normalize_discriminator_losses: bool = False
     """ Whether to scale all discriminator losses equally for generator pass """
+    hyper_volume_slack: float = 0.0
+    """ Must be greater than 1 """
 
 
 @dataclass
@@ -388,6 +390,10 @@ class GANTrainingConfig:
     """ how many steps to train the discriminator before training generator """
     sync_logging: bool = '${..sync_logging}'
     """ Whether to sync log calls between devices. Can lead to large communication overhead """
+    hyper_volume_slack: float = 0.0
+    """ Must be greater than 1 """
+    discriminator_ensemble_size: int = 1
+    """ How many copies of each discriminator to use """
 
 
 @dataclass

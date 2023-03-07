@@ -316,6 +316,12 @@ class DepthNormModel(pl.LightningModule):
                 self.val_denorm_color_images = torch.cat([self.validation_data[i][0] for i in self.validation_data],
                                                          dim=0)
 
+    def hypervolume_optimization_coefficients(self, loss_vector):
+        # Multi-objective training of GANs with multiple discriminators
+        nadir_point = self.config.hyper_volume_slack * loss_vector.max()
+        T = (1 / (nadir_point - loss_vector)).sum()
+        return 1/(T*(nadir_point - loss_vector))
+
     def on_validation_epoch_end(self) -> None:
         if self.val_batch_count > 0:
             self.log('val_loss', self.val_loss / self.val_batch_count)
