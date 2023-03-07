@@ -50,6 +50,7 @@ class GAN(BaseModel):
         self.depth_model.requires_grad = False
         self.imagenet_denorm = ImageNetNormalization(inverse=True)
         self.phong_renderer: PhongRender = None
+        self._num_feature_level_disc: int = 3
         self.discriminator_losses: Dict[str, Union[float, Tensor]] = {}
         self.generator_losses = {'g_loss': 0.0}
         self.critic_losses: Dict[str, Union[float, Tensor]] = {}
@@ -83,7 +84,7 @@ class GAN(BaseModel):
             # run some data through the network to initial dense layers in discriminators if needed
             encoder_outs, encoder_mare_outs, decoder_outs, normals = self(
                 torch.ones(1, 3, self.config.image_size, self.config.image_size, device=self.device))
-            feat_outs = encoder_outs[::-1][:len(self.discriminators['features'])]
+            feat_outs = encoder_outs[-len(self.discriminators['features']):]
 
             if self.config.use_discriminator:
                 if self.config.use_feature_level:
@@ -113,12 +114,11 @@ class GAN(BaseModel):
                                               lr=self.config.generator_lr))
 
     def setup_discriminators(self):
-        d_in_shapes = self.generator.feature_levels[::-1]
-        d_feat_list = []
         self.discriminator_losses['d_discriminators_loss'] = 0.0
         for k in range(self.config.discriminator_ensemble_size):
             if self.config.use_feature_level:
-                for d_in_shape in d_in_shapes[:-1]:
+                d_feat_list = []
+                for d_in_shape in self.generator.feature_levels[-self._num_feature_level_disc:]:
                     d_config: DiscriminatorConfig = self.config.feature_level_discriminator.copy()
                     d_config.in_channels = d_in_shape
                     d = Discriminator(d_config)
@@ -151,11 +151,10 @@ class GAN(BaseModel):
         self.discriminators_opt_idx = self.critic_opt_idx + 1
 
     def setup_critics(self):
-        d_in_shapes = self.generator.feature_levels[::-1]
-        d_feat_list = []
         self.critic_losses['d_critics_loss'] = 0.0
         if self.config.use_feature_level:
-            for d_in_shape in d_in_shapes[:-1]:
+            d_feat_list = []
+            for d_in_shape in self.generator.feature_levels[-self._num_feature_level_disc:]:
                 d_config: DiscriminatorConfig = self.config.feature_level_critic.copy()
                 d_config.in_channels = d_in_shape
                 d = Discriminator(d_config)
@@ -267,7 +266,7 @@ class GAN(BaseModel):
             discriminator_losses = []
             for k in range(self.config.discriminator_ensemble_size):
                 if self.config.use_feature_level:
-                    feat_outs = encoder_outs_generated[::-1][:len(self.discriminators[f'features-{k}'])]
+                    feat_outs = encoder_outs_generated[-len(self.discriminators[f'features-{k}']):]
                     for idx, feature_out in enumerate(feat_outs):
                         discriminator_losses.append(
                             self._apply_generator_discriminator_loss(feature_out, self.discriminators[f'features-{k}'][idx],
@@ -293,7 +292,7 @@ class GAN(BaseModel):
 
         if self.config.use_critic:
             if self.config.use_feature_level:
-                feat_outs = encoder_outs_generated[::-1][:len(self.critics['features'])]
+                feat_outs = encoder_outs_generated[-len(self.critics['features']):]
                 for idx, feature_out in enumerate(feat_outs):
                     generated_predicted = self.critics['features'][idx](feature_out).type_as(feature_out)
                     g_loss += self._apply_generator_critic_loss(generated_predicted, f'critic_feature_{idx}') \
@@ -433,7 +432,8 @@ class GAN(BaseModel):
                                                    self.discriminators[f'depth_image-{k}'],
                                                    f'depth_img-{k}')
             if self.config.use_feature_level:
-                feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
+                feat_outs = zip(encoder_outs_generated[-self._num_feature_level_disc:],
+                                encoder_outs_original[-self._num_feature_level_disc:])
                 for idx, d_feat in enumerate(self.discriminators[f'features-{k}']):
                     feature_out_r, feature_out_s = next(feat_outs)
                     loss += self._apply_discriminator_loss(feature_out_r,
@@ -468,7 +468,8 @@ class GAN(BaseModel):
         loss += self._apply_critic_loss(depth_generated, depth_original, self.critics['depth_image'],
                                         self.config.wasserstein_lambda, 'depth_img')
         if self.config.use_feature_level:
-            feat_outs = zip(encoder_outs_generated[::-1], encoder_outs_original[::-1])
+            feat_outs = zip(encoder_outs_generated[-self._num_feature_level_disc:],
+                            encoder_outs_original[-self._num_feature_level_disc:])
             for idx, feature_critic in enumerate(self.critics['features']):
                 feature_out_r, feature_out_s = next(feat_outs)
                 loss += self._apply_critic_loss(feature_out_r, feature_out_s, feature_critic,
