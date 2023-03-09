@@ -133,6 +133,7 @@ def binary_cross_entropy_loss_R1(critic_input: Tensor,
                                  discriminator: torch.nn.Module,
                                  factor: float = 2.0,
                                  *args, **kwargs) -> Tuple[Tensor, Tensor]:
+    critic_input = critic_input.detach()
     critic_input.requires_grad = True
     discriminated = discriminator(critic_input)
     if isinstance(ground_truth, float):
@@ -161,7 +162,7 @@ def wasserstein_gradient_penalty(generated_input: Tensor,
     batch_size = original_input.shape[0]
     alpha = torch.rand(batch_size, *[1] * (original_input.ndim - 1), device=original_input.device)
     differences = generated_input - original_input
-    interpolated_img = original_input + alpha*differences
+    interpolated_img = (original_input + alpha*differences).detach()
     interpolated_img.requires_grad = True
     interpolated_out = critic(interpolated_img)
     grad_penalty = wasserstein_lambda * ((compute_grad_norm(interpolated_out, interpolated_img) - 1) ** 2).mean()
