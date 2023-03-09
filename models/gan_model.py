@@ -552,7 +552,8 @@ class GAN(BaseModel):
                 self.unadapted_images_for_plotting = (depth_unadapted,
                                                       normals_unadapted.detach() if normals_unadapted
                                                                                     is not None else normals_unadapted,
-                                                      phong_unadapted.detach())
+                                                      phong_unadapted.detach()if phong_unadapted
+                                                                                    is not None else phong_unadapted)
 
             depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
             denormed_images = torch.clamp(self.imagenet_denorm(z).cpu(), 0, 1)
