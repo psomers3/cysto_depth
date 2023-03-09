@@ -29,11 +29,11 @@ def get_scalars_from_events(log_directory: str, scalar_tags: Union[str, List[str
         for e in EventFileLoader(str(file)).Load():
             for v in e.summary.value:
                 for i, _tag in enumerate(scalar_tags):
-                    if (_tag in v.tag) and (_tag in subdir):
+                    if (_tag == v.tag) and (_tag in subdir):
                         data_to_plot[i][subdir].append(tensor_util.MakeNdarray(v.tensor))
                         data_to_plot[i][f'{subdir}_step'].append(e.step)
                         data_to_plot[i][f'{subdir}_t'].append(e.wall_time)
-                    elif _tag in v.tag:
+                    elif _tag == v.tag:
                         data_to_plot[i][v.tag].append(tensor_util.MakeNdarray(v.tensor))
                         data_to_plot[i][f'{v.tag}_step'].append(e.step)
                         data_to_plot[i][f'{v.tag}_t'].append(e.wall_time)
@@ -41,6 +41,7 @@ def get_scalars_from_events(log_directory: str, scalar_tags: Union[str, List[str
     data_to_return = [{} for _ in scalar_tags]
     for i in range(len(scalar_tags)):
         for key in data_to_plot[i]:
-            data_to_return[i][key] = np.asarray(data_to_plot[i][key])
+            d = np.asarray(data_to_plot[i][key])
+            data_to_return[i][key] = d
 
     return [(scalar_tags[i], data_to_return[i]) for i in range(len(scalar_tags))]

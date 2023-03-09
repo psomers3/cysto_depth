@@ -33,21 +33,28 @@ class PlotData(TypedDict):
 
 def smooth(data:np.ndarray, tensorboard_factor: float = 0.6) -> np.ndarray:
     """ apply exponential weighted MA """
-    # alpha = 1 - tensorboard_factor
-    # alpha_rev = 1-alpha
-    # n = data.shape[0]
-    # pows = alpha_rev**(np.arange(n+1))
-    # scale_arr = 1/pows[:-1]
-    # offset = data[0]*pows[1:]
-    # pw0 = alpha*alpha_rev**(n-1)
-    # mult = data*pw0*scale_arr
-    # cumsums = mult.cumsum()
-    # out = offset + cumsums*scale_arr[::-1]
     df = pandas.DataFrame(data=data)
     return df.ewm(alpha=(1 - tensorboard_factor)).mean().to_numpy()
 
+def add_smoothing(ax: plt.Axes, smoothing_value: float = 0.6):
+    if 0 < smoothing_value < 1:
+        new_lines = []
+        for line in ax.lines:
+            line: plt.Line2D
+            x = line.get_xdata(orig=False)
+            y = line.get_ydata(orig=False)
+            line.set_alpha(0.2)
+            smoothed = smooth(y, smoothing_value)
+            nline = plt.Line2D(x, smoothed, linewidth=line.get_linewidth(),
+                                        linestyle=line.get_linestyle(), color=line.get_color(), label=line.get_label())
+            line.set_label(None)
+            new_lines.append(nline)
 
-def get_plots(log_directories, tags, width, log) -> Dict[str, PlotData]:
+        [ax.add_line(nline) for nline in new_lines]
+        plt.draw()
+
+
+def get_plots(log_directories, tags, width: float = 11.0, log: bool = False, line_styles: List[str] = None) -> Dict[str, PlotData]:
     return_plots = {}
     data = [get_scalars_from_events(directory, tags) for directory in log_directories]
     for tag in tags:
@@ -77,7 +84,7 @@ def get_plots(log_directories, tags, width, log) -> Dict[str, PlotData]:
                             for j, sub_tag in enumerate(sub_tags):
                                 y = scalar_tup[1][sub_tag]
                                 x = scalar_tup[1][f'{sub_tag}_step']
-                                ax.plot(x, y, label=f'{sub_tag}_{i}', color=colors[j], linestyle=linestyle_str[i])
+                                ax.plot(x, y, label=f'{sub_tag}_{i}', color=colors[j], linestyle=line_styles[i] if line_styles is not None else 'solid')
                     except ValueError as e:
                         print(e)
                         print('ERROR occured for directory:', i, tag)
@@ -105,8 +112,7 @@ if __name__ == '__main__':
     directories: List[str] = args.log_dirs
     [exit(1) for directory in directories if not os.path.isdir(directory)]
     linestyle_str = ['solid', 'dotted', 'dashed', 'dashdot']
-
-    for tag, items in get_plots(directories, tags, args.width, args.log).items():
+    for tag, items in get_plots(directories, tags, args.width, args.log, line_styles=linestyle_str).items():
         if 0 < args.smoothing < 1:
             new_lines = []
             for line in items['ax'].lines:
