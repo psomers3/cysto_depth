@@ -86,7 +86,7 @@ def get_plots(log_directories, tags, width, log) -> Dict[str, PlotData]:
         if log:
             plt.yscale('log')
         legend = ax.legend(loc='best')
-        return_plots['legend'] = legend
+        return_plots[tag]['legend'] = legend
         plt.draw()
     return return_plots
 
@@ -111,8 +111,8 @@ if __name__ == '__main__':
             new_lines = []
             for line in items['ax'].lines:
                 line: plt.Line2D
-                x = line.get_xdata()
-                y = line.get_ydata()
+                x = line.get_xdata(orig=False)
+                y = line.get_ydata(orig=False)
                 line.set_alpha(0.2)
                 smoothed = smooth(y, args.smoothing)
                 new_lines.append(plt.Line2D(x, smoothed, linewidth=line.get_linewidth(),
