@@ -1,25 +1,24 @@
 log_directory: ./logs
 print_config: true
-mode: gan
+mode: synthetic
 training_stage: train
 split_save_dir: ./splits
 inverse_depth: false
-predict_normals: true
+predict_normals: false
 val_check_interval: 1
 val_plot_interval: 1
-image_size: 64
+image_size: 256
 synthetic_config:
   max_epochs: 4000
-  resume_from_checkpoint: /Users/peter/isys/desktop_dump/64_synthetic/checkpoints/epoch=113-step=6154.ckpt
   batch_size: 2
   data_roles:
     - color
     - depth
-    - normals
+#    - normals
   data_directories:
     - /Users/peter/isys/2023_01_29/color
     - /Users/peter/isys/2023_01_29/depth
-    - /Users/peter/isys/2023_01_29/normals
+#    - /Users/peter/isys/2023_01_29/normals
   training_split: {'train': .33, 'validate': 0.33, 'test': .33}
 trainer_config:
   gpus: []

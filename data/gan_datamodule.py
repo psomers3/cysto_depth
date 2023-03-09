@@ -224,7 +224,9 @@ if __name__ == '__main__':
                        generate_output_directory=real_output,
                        generate_data=False,
                        video_directories=[video_dir],
-                       synth_split={'train': .6, 'validate': 0.3, 'test': .1})
+                       synth_split={'train': .6, 'validate': 0.3, 'test': .1},
+                       seed=43,
+                       add_random_blur=True)
     dm.prepare_data()
     dm.setup('fit')
     loader = dm.val_dataloader()

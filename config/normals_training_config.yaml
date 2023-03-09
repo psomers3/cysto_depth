@@ -5,7 +5,7 @@ mode: gan
 training_stage: train
 split_save_dir: ./splits
 num_workers: 0
-image_size: 64
+image_size: 256
 synthetic_config:
   data_roles:
     - color
@@ -16,7 +16,7 @@ synthetic_config:
     - /Users/peter/isys/2023_01_29/depth
     - /Users/peter/isys/2023_01_29/normals
   training_split: {'train': .8, 'validate': 0.18, 'test': .02}
-  resume_from_checkpoint: /Users/peter/isys/desktop_dump/64_synthetic/checkpoints/epoch=113-step=6154.ckpt
+  resume_from_checkpoint: /Users/peter/isys/desktop_dump/synthetic_256.ckpt
 gan_config:
   encoder:
     adaptive_gating: true
@@ -24,7 +24,7 @@ gan_config:
     res_layer_norm: instance
   use_critic: false
   use_discriminator: true
-  use_feature_level: false
+  use_feature_level: true
   generator_lr: 5e-4
   discriminator_lr: 5e-5
   discriminator_loss: cross_entropy_R1

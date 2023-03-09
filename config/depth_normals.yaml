@@ -20,23 +20,21 @@ depth_norm_config:
     load_imagenet_weights: True
     backbone: resnet18
   accumulate_grad_batches: 1
-  normalize_discriminator_losses: true
   L_loss: ''
   use_critic: false
-  critic_config:
-    single_out: false
-    output_activation: ''
-    single_out_reduction: mean
   use_discriminator: true
   discriminator_loss: cross_entropy_R1
+  hyper_volume_slack: 1.2
+  discriminator_ensemble_size: 3
   discriminator_config:
     single_out: false
     output_activation: 'sigmoid'
     single_out_reduction: sum
     add_coordinates: true
-  generator_lr: 1e-3
-  discriminator_lr: 1e-3
-  critic_lr: 5e-5
+  generator_lr: 2e-6
+  discriminator_lr: 2e-6
+  discriminator_generated_confidence: 0.0
+  discriminator_original_confidence: 1.0
   add_noise: false
   max_epochs: 300
   batch_size: 8
