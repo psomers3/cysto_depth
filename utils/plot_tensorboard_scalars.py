@@ -10,10 +10,6 @@ import pandas
 plt.style.use(Path(Path(__file__).parent, f'paper_style.mplstyle'))
 plt.rcParams.update()
 
-# Paper sizes
-single_column_width = 3.25  # inches
-double_column_width = 7.5  # inches
-height_per_plot = 3
 inches2cm = 2.54
 cm2inches = 1/inches2cm
 
@@ -23,12 +19,45 @@ light_blue = [0.0000, 0.7451, 1.0000]
 dark_blue = [0.0000, 0.3176, 0.6196]
 light_grey = [0.6235, 0.6000, 0.5961]
 yellow = [1.0000, 0.8353, 0.0000]
-colors = [light_blue, dark_blue, light_grey, yellow, anthracit]
+corporate_colors = [light_blue,light_grey, dark_blue, yellow, anthracit]
 
 
 class PlotData(TypedDict):
     fig: plt.Figure
     ax: plt.Axes
+
+def migrate_lines(original_axes: plt.Axes, new_axes: plt.Axes):
+    num_lines = len(original_axes.lines)
+    for i in range(num_lines):
+        line = original_axes.lines[0]
+        line.remove()
+        new_axes.add_line(line)
+        line.axes = new_axes
+        line.set_transform(new_axes.transData)
+
+
+def stack_plots(figures: List[plt.Figure], axes: List[plt.Axes], sharex: bool = True, hspace: float = 0.02) -> Tuple[plt.Figure, List[plt.Axes]]:
+    heights = [f.get_figheight() for f in figures]
+    total_height = sum(heights)
+    height_ratios = [(val/total_height)*min(heights) for val in heights]
+    combined_plot_fig, combined_plot_axes = plt.subplots(nrows=len(figures),
+                                                         ncols=1, sharex=sharex,
+                                                         gridspec_kw = {'height_ratios': height_ratios,
+                                                                        'hspace': hspace})
+    combined_plot_fig.set_figheight(total_height)
+    for i, ax in enumerate(axes):
+        combined_plot_axes[i].set_xlim(ax.get_xlim())
+        combined_plot_axes[i].set_ylim(ax.get_ylim())
+        combined_plot_axes[i].set_yscale(ax.get_yscale())
+        combined_plot_axes[i].set_ylabel(ax.get_ylabel())
+        combined_plot_axes[i].set_xlabel(ax.get_xlabel())
+        combined_plot_axes[i].yaxis.set_minor_formatter(ax.yaxis.get_minor_formatter())
+        combined_plot_axes[i].xaxis.set_minor_formatter(ax.xaxis.get_minor_formatter())
+        combined_plot_axes[i].yaxis.set_major_formatter(ax.yaxis.get_major_formatter())
+        combined_plot_axes[i].xaxis.set_major_formatter(ax.xaxis.get_major_formatter())
+        combined_plot_axes[i].set_xlabel(ax.get_xlabel())
+        migrate_lines(ax, combined_plot_axes[i])
+    return combined_plot_fig, combined_plot_axes
 
 
 def smooth(data:np.ndarray, tensorboard_factor: float = 0.6) -> np.ndarray:
@@ -47,19 +76,20 @@ def add_smoothing(ax: plt.Axes, smoothing_value: float = 0.6):
             smoothed = smooth(y, smoothing_value)
             nline = plt.Line2D(x, smoothed, linewidth=line.get_linewidth(),
                                         linestyle=line.get_linestyle(), color=line.get_color(), label=line.get_label())
-            line.set_label(None)
+            line.set_label(f'_{nline.get_label()}')
             new_lines.append(nline)
 
         [ax.add_line(nline) for nline in new_lines]
         plt.draw()
 
 
-def get_plots(log_directories, tags, width: float = 11.0, log: bool = False, line_styles: List[str] = None) -> Dict[str, PlotData]:
+def get_plots(log_directories, tags, width: float = 11.0,
+              height: float = 5, log: bool = False, line_styles: List[str] = None) -> Dict[str, PlotData]:
     return_plots = {}
     data = [get_scalars_from_events(directory, tags) for directory in log_directories]
     for tag in tags:
         return_plots[tag] = {}
-        fig = plt.figure(figsize=(width * cm2inches, height_per_plot))
+        fig = plt.figure(figsize=(width * cm2inches, height*cm2inches))
         ax: plt.Axes = fig.add_subplot(1, 1, 1)
         return_plots[tag]['fig'] = fig
         return_plots[tag]['ax'] = ax
@@ -78,13 +108,13 @@ def get_plots(log_directories, tags, width: float = 11.0, log: bool = False, lin
                         if tag in scalar_tup[1]:
                             y = scalar_tup[1][tag]
                             x = scalar_tup[1][f'{tag}_step']
-                            ax.plot(x, y, label=f'{tag}_{i}', color=colors[i])
+                            ax.plot(x, y, label=f'{tag}_{i}', color=corporate_colors[i])
                         else:
                             sub_tags = [key for key in scalar_tup[1] if ('_step' not in key and '_t' not in key)]
                             for j, sub_tag in enumerate(sub_tags):
                                 y = scalar_tup[1][sub_tag]
                                 x = scalar_tup[1][f'{sub_tag}_step']
-                                ax.plot(x, y, label=f'{sub_tag}_{i}', color=colors[j], linestyle=line_styles[i] if line_styles is not None else 'solid')
+                                ax.plot(x, y, label=f'{sub_tag}_{i}', color=corporate_colors[j], linestyle=line_styles[i] if line_styles is not None else 'solid')
                     except ValueError as e:
                         print(e)
                         print('ERROR occured for directory:', i, tag)
@@ -113,16 +143,5 @@ if __name__ == '__main__':
     [exit(1) for directory in directories if not os.path.isdir(directory)]
     linestyle_str = ['solid', 'dotted', 'dashed', 'dashdot']
     for tag, items in get_plots(directories, tags, args.width, args.log, line_styles=linestyle_str).items():
-        if 0 < args.smoothing < 1:
-            new_lines = []
-            for line in items['ax'].lines:
-                line: plt.Line2D
-                x = line.get_xdata(orig=False)
-                y = line.get_ydata(orig=False)
-                line.set_alpha(0.2)
-                smoothed = smooth(y, args.smoothing)
-                new_lines.append(plt.Line2D(x, smoothed, linewidth=line.get_linewidth(),
-                                            linestyle=line.get_linestyle(), color=line.get_color()))
-            [items['ax'].add_line(nline) for nline in new_lines]
-            plt.draw()
+        add_smoothing(items['ax'], args.smoothing)
         items['fig'].savefig(os.path.join(args.output, f'{tag}.pdf'), bbox_inches='tight', pad_inches=0.0, dpi='figure')

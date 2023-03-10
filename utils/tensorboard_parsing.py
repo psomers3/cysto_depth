@@ -42,6 +42,6 @@ def get_scalars_from_events(log_directory: str, scalar_tags: Union[str, List[str
     for i in range(len(scalar_tags)):
         for key in data_to_plot[i]:
             d = np.asarray(data_to_plot[i][key])
-            data_to_return[i][key] = d
+            data_to_return[i][key] = d 
 
     return [(scalar_tags[i], data_to_return[i]) for i in range(len(scalar_tags))]
