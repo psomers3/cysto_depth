@@ -235,6 +235,9 @@ class DepthEstimationModel(BaseModel):
     def test_step(self, batch, batch_idx):
         return self.shared_val_test_step(batch, batch_idx, "test")
 
+    def on_test_epoch_end(self) -> None:
+        self.plot('test')
+
     def validation_step(self, batch, batch_idx):
         return self.shared_val_test_step(batch, batch_idx, "val")
 
