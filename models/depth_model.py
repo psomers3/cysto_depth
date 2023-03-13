@@ -233,7 +233,7 @@ class DepthEstimationModel(BaseModel):
             else:
                 self.plot_minmax_val, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
-                self.denor = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
+                self.test_denorm_color_images = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
                 self.test_plottable_norms = (torch.nn.functional.normalize(self.test_images[2], dim=1) + 1) / 2 \
                     if self.config.predict_normals else None
         return metric_dict
@@ -258,7 +258,7 @@ class DepthEstimationModel(BaseModel):
 
         :param prefix: a string to prepend to the image tags. Usually "test" or "train"
         """
-        if self.validation_images is None and prefix == 'val':
+        if (self.validation_images is None) and (prefix == 'val'):
             return
         with torch.no_grad():
             if prefix == 'val':
