@@ -26,10 +26,12 @@ class PlotData(TypedDict):
     fig: plt.Figure
     ax: plt.Axes
 
+
 def migrate_lines(original_axes: plt.Axes, new_axes: plt.Axes):
     num_lines = len(original_axes.lines)
     for i in range(num_lines):
         line = original_axes.lines[0]
+        line: plt.Line2D
         line.remove()
         new_axes.add_line(line)
         line.axes = new_axes
@@ -42,8 +44,7 @@ def stack_plots(figures: List[plt.Figure], axes: List[plt.Axes], sharex: bool = 
     height_ratios = [(val/total_height)*min(heights) for val in heights]
     combined_plot_fig, combined_plot_axes = plt.subplots(nrows=len(figures),
                                                          ncols=1, sharex=sharex,
-                                                         gridspec_kw = {'height_ratios': height_ratios,
-                                                                        'hspace': hspace})
+                                                         gridspec_kw={'height_ratios': height_ratios, 'hspace': hspace})
     combined_plot_fig.set_figheight(total_height)
     for i, ax in enumerate(axes):
         combined_plot_axes[i].set_xlim(ax.get_xlim())
@@ -64,6 +65,7 @@ def smooth(data:np.ndarray, tensorboard_factor: float = 0.6) -> np.ndarray:
     """ apply exponential weighted MA """
     df = pandas.DataFrame(data=data)
     return df.ewm(alpha=(1 - tensorboard_factor)).mean().to_numpy()
+
 
 def add_smoothing(ax: plt.Axes, smoothing_value: float = 0.6):
     if 0 < smoothing_value < 1:
