@@ -62,10 +62,13 @@ class DepthEstimationModel(BaseModel):
         self.test_images = None
         self.train_denorm_color_images = None
         self.val_denorm_color_images = None
+        self.test_denorm_color_images =None
         self.plot_minmax_train = None
+        self.plot_minmax_test = None
         self.plot_minmax_val = None
         self.val_plottable_norms = None
         self.train_plottable_norms = None
+        self.test_plottable_norms = None
         self._val_epoch_count = 0
         self.max_num_image_samples = 7
         """ number of images to track and plot during training """
@@ -220,11 +223,18 @@ class DepthEstimationModel(BaseModel):
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
         if self.validation_images is None:
-            self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
-                                                                               self.config.predict_normals)
-            self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
-            self.val_plottable_norms = (torch.nn.functional.normalize(self.validation_images[2], dim=1) + 1) / 2 \
-                if self.config.predict_normals else None
+            if prefix=='val':
+                self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
+                                                                                   self.config.predict_normals)
+                self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
+                self.val_plottable_norms = (torch.nn.functional.normalize(self.validation_images[2], dim=1) + 1) / 2 \
+                    if self.config.predict_normals else None
+            else:
+                self.plot_minmax_val, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
+                                                                                   self.config.predict_normals)
+                self.denor = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
+                self.val_plottable_norms = (torch.nn.functional.normalize(self.test_images[2], dim=1) + 1) / 2 \
+                    if self.config.predict_normals else None
         return metric_dict
 
     def on_validation_epoch_end(self) -> None:
