@@ -258,7 +258,7 @@ class DepthEstimationModel(BaseModel):
 
         :param prefix: a string to prepend to the image tags. Usually "test" or "train"
         """
-        if self.validation_images is None:
+        if self.validation_images is None and prefix == 'val':
             return
         with torch.no_grad():
             if prefix == 'val':
