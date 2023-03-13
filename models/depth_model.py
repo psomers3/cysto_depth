@@ -224,14 +224,14 @@ class DepthEstimationModel(BaseModel):
         metric_dict, _ = self.calculate_metrics(prefix, y_hat_depth[-1], synth_depth)
         self.log_dict(metric_dict)
         if self.validation_images is None:
-            if prefix=='val':
+            if prefix == 'val':
                 self.plot_minmax_val, self.validation_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
                 self.val_denorm_color_images = torch.clamp(imagenet_denorm(self.validation_images[0]), 0, 1)
                 self.val_plottable_norms = (torch.nn.functional.normalize(self.validation_images[2], dim=1) + 1) / 2 \
                     if self.config.predict_normals else None
             else:
-                self.plot_minmax_val, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
+                self.plot_minmax_test, self.test_images = self.prepare_images(batch, self.max_num_image_samples,
                                                                                    self.config.predict_normals)
                 self.test_denorm_color_images = torch.clamp(imagenet_denorm(self.test_images[0]), 0, 1)
                 self.test_plottable_norms = (torch.nn.functional.normalize(self.test_images[2], dim=1) + 1) / 2 \
