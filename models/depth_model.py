@@ -293,9 +293,12 @@ class DepthEstimationModel(BaseModel):
             else:
                 y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
-            self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth.detach().cpu(), synth_depths),
+            y_hat_depth = y_hat_depth.detach().cpu()
+            differences = synth_depths - y_hat_depth
+            minmax.append(0)
+            self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth.detach().cpu(), synth_depths, differences),
                                  f"{prefix}-synth-depth",
-                                 labels=["Synth Image", "Predicted", "Ground Truth"],
+                                 labels=["Synth Image", "Predicted", "Ground Truth", "Error"],
                                  minmax=minmax)
 
     def gen_phong_plots(self, images, prefix, labels):
