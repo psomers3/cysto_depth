@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torchvision.transforms import Compose, Normalize
 import matplotlib.pyplot as plt
+from matplotlib.patches import Shadow
 import seaborn as sns
 import os
 from scipy.interpolate import LinearNDInterpolator
@@ -136,6 +137,7 @@ def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_sca
             patch: plt.Rectangle = axs[idx].patch
             patch.set_edgecolor('black')
             patch.set_linewidth(1)
+            [p.remove() for p in axs[idx].patches if isinstance(p, Shadow)]
         kwargs = {}
         if img.ndim == 2:
             shrink = .7
