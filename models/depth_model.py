@@ -299,10 +299,8 @@ class DepthEstimationModel(BaseModel):
 
             # TODO: tie this to a flag of synchronized gradient plots
             minmax = [[None] for _ in range(self.max_num_image_samples)]
-            # minimums = [min(x.min().cpu(), y.min().cpu()) for x, y in zip(y_hat_depth, synth_depths)]
             maximums = [max(x.max().cpu(), y.max().cpu()) for x, y in zip(y_hat_depth, synth_depths)]
             [minmax[i].extend([(0, m), (0, m)]) for i, m in enumerate(maximums)]
-            print(minmax)
             [minmax[i].append((differences[i].min(), differences[i].max())) for i in range(self.max_num_image_samples)]
             self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth, synth_depths, differences),
                                  f"{prefix}-synth-depth",
