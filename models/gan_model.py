@@ -84,9 +84,10 @@ class GAN(BaseModel):
             # run some data through the network to initial dense layers in discriminators if needed
             encoder_outs, encoder_mare_outs, decoder_outs, normals = self(
                 torch.ones(1, 3, self.config.image_size, self.config.image_size, device=self.device))
-            feat_outs = encoder_outs[-len(self.discriminators['features']):]
 
             for k in range(self.config.discriminator_ensemble_size):
+                feat_outs = encoder_outs[-len(self.discriminators['features-0']):]
+
                 if self.config.use_discriminator:
                     if self.config.use_feature_level:
                         for idx, feature_out in enumerate(feat_outs):
@@ -98,6 +99,7 @@ class GAN(BaseModel):
                         self.discriminators[f'normals-{k}'](normals)
 
             if self.config.use_critic:
+                feat_outs = encoder_outs[-len(self.critic_losses['features']):]
                 if self.config.use_feature_level:
                     for idx, feature_out in enumerate(feat_outs):
                         self.critics['features'][idx](feature_out)
