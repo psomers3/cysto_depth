@@ -113,9 +113,11 @@ class PhongDataModule(FileLoadingDataModule):
         """
         imagenet_norm = d_transforms.ImageNetNormalization()
         to_mm = d_transforms.ElementWiseScale(1e3)
-        mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
+        mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0],
+                                                                                  rng=self.rng),
                                                   num_synchros=self.num_synchros,
-                                                  additional_args=[[None, self.add_random_blur], [0], [0], [0]])
+                                                  additional_args=[[None, self.add_random_blur], [0], [0], [0]],
+                                                  rng=self.rng)
         normals_depth_squarify = d_transforms.Squarify(image_size=self.image_size,
                                                        interpolation=torch_transforms.InterpolationMode.BICUBIC)
         colors_squarify = d_transforms.Squarify(image_size=self.image_size,
@@ -128,11 +130,14 @@ class PhongDataModule(FileLoadingDataModule):
         if split_stage == "train":
             affine = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
                                                                                  translate=(0, 0),
-                                                                                 image_size=self.image_size),
+                                                                                 image_size=self.image_size,
+                                                                                 rng=self.rng),
                                                         num_synchros=self.num_synchros,
                                                         additional_args=[[True],
                                                                          [False, True],
-                                                                         [False, True]])
+                                                                         [False, True]],
+                                                        rng=self.rng)
+            # TODO: color jitter is currently not managed by random seed
             color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
             color_transforms.insert(0, color_jitter)
             color_transforms.append(affine)
@@ -153,15 +158,19 @@ class PhongDataModule(FileLoadingDataModule):
         self.data_train = PhongDataSet(**shared_params,
                                        config=self.phong_config,
                                        files=list(zip(*self.split_files['train'].values())),
-                                       transforms=self.get_transforms('train'))
+                                       transforms=self.get_transforms('train'),
+                                       seed=self.seed,
+                                       randomize=True)
         self.data_val = PhongDataSet(**shared_params,
                                      config=self.phong_config,
                                      files=list(zip(*self.split_files['validate'].values())),
-                                     transforms=self.get_transforms('validate'))
+                                     transforms=self.get_transforms('validate'),
+                                     seed=self.seed)
         self.data_test = PhongDataSet(**shared_params,
                                       config=self.phong_config,
                                       files=list(zip(*self.split_files['test'].values())),
-                                      transforms=self.get_transforms('test'))
+                                      transforms=self.get_transforms('test'),
+                                      seed=self.seed)
 
         if self.memorize_check:
             dl = self.train_dataloader()
@@ -175,48 +184,53 @@ if __name__ == '__main__':
     from utils.rendering import depth_to_normals, depth_to_3d
     from utils.loss import PhongLoss, CosineSimilarity
     from pytorch_lightning.trainer.trainer import DataLoader
-
+    import torch
     color_dir = r'/Users/peter/isys/2023_01_29/color'
     depth_dir = r'/Users/peter/isys/2023_01_29/depth'
     normals_dir = r'/Users/peter/isys/2023_01_29/normals'
-    phong = PhongConfig(attenuation=0.01,
+    torch.manual_seed(50)
+    phong = PhongConfig(attenuation=0.00,
                         material_shininess=100,
                         camera_intrinsics=[[1038.1696, 0.0, 0],
                                            [0.0, 1039.8075, 0],
-                                           [878.9617, 572.9404, 1]])
+                                           [878.9617, 572.9404, 1]],
+                        diffusion_color=(1, 0.25, 0.25),
+                        specular_color=(0,0,0),
+                        ambient_color=(0,0,0))
     dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
                          normals_image_directory=normals_dir,
                          split={'train': .9, 'validate': 0.05, 'test': 0.05},
-                         phong_config=phong)
+                         phong_config=phong,
+                         seed=4242)
     dm.setup('fit')
     loader: DataLoader = dm.train_dataloader()
     loader_iter = iter(loader)
     denorm = d_transforms.ImageNetNormalization(inverse=True)
     loss = PhongLoss(phong, device='cpu')
-    while True:
-        sample = next(loader_iter)
-        # loss_value, prediction = loss((sample[2], sample[3]), sample[1])
-        # print(loss_value)
-        sample[-1] = sample[-1]
-        sample[0] = denorm(sample[0])
-        # matplotlib_show(*sample)
-        pixel_loc = loader.dataset.resized_pixel_locations
-        prediction = depth_to_normals(sample[2], loss.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
-        # matplotlib_show(prediction)
-        norm_loss = CosineSimilarity()
-        normals_loss = norm_loss(prediction, sample[2])
-        print(normals_loss)
-        normals_loss = norm_loss(sample[2], sample[2])
-        print(normals_loss)
-        break
+
+    sample = next(loader_iter)
+    # loss_value, prediction = loss((sample[2], sample[3]), sample[1])
+    # print(loss_value)
+    sample[-1] = sample[-1]
+    sample[0] = denorm(sample[0])
+    matplotlib_show(*sample)
+    pixel_loc = loader.dataset.resized_pixel_locations
+    prediction = depth_to_normals(sample[2], loss.phong_renderer.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
+    matplotlib_show(prediction)
+    norm_loss = CosineSimilarity()
+    normals_loss = norm_loss(prediction, sample[2])
+    print(normals_loss)
+    normals_loss = norm_loss(sample[2], sample[2])
+    print(normals_loss)
+
         # fig = plt.figure()
         # ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
         # x = depth_to_3d(sample[2], loss.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
         # x = x.reshape((x.shape[0]*x.shape[1], 3))
         # ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
-        # plt.show(block=True)
+    plt.show(block=True)
         # plt.pause(5)
         # input("")
         # for i in plt.get_fignums():

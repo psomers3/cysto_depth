@@ -1,5 +1,3 @@
-import torchvision.transforms
-
 from utils.image_utils import create_circular_mask
 import numpy as np
 import torch
@@ -7,6 +5,7 @@ from torchvision import transforms as torch_transforms
 from torchvision.transforms import functional as torch_transforms_func
 from typing import *
 from scipy.spatial.transform import Rotation
+from data.picklable_generator import TorchPicklableGenerator
 
 
 class FlipBRGRGB:
@@ -49,7 +48,8 @@ class SynchronizedTransform:
     def __init__(self,
                  transform: Callable,
                  num_synchros=2,
-                 additional_args: List[List[Any]] = None):
+                 additional_args: List[List[Any]] = None,
+                 rng: TorchPicklableGenerator = None):
         """
 
         :param transform: The transform to be applied
@@ -59,28 +59,40 @@ class SynchronizedTransform:
         """
         self.transform = transform
         self.num_synchros = num_synchros
-        self._generator_state = torch.get_rng_state()
+        self.rng: TorchPicklableGenerator = rng if rng is not None else None
+        self._generator_state = self.rng.rng.get_state() if self.rng is not None else torch.get_rng_state()
         self._sync_count = 0
         self.additional_args = additional_args if additional_args else [[] for _ in range(num_synchros)]
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        current_gen_state = torch.get_rng_state()
+        current_gen_state = torch.get_rng_state() if self.rng is None else self.rng.rng.get_state()
         if self._sync_count < self.num_synchros:
-            torch.set_rng_state(self._generator_state)
+            if self.rng is None:
+                torch.set_rng_state(self._generator_state)
+            else:
+                self.rng.rng.set_state(self._generator_state)
         else:
             self._sync_count = 0
-            self._generator_state = torch.get_rng_state()
+            self._generator_state = torch.get_rng_state() if self.rng is None else self.rng.rng.get_state()
         transformed = self.transform(data, *self.additional_args[self._sync_count])
         self._sync_count += 1
-        torch.set_rng_state(current_gen_state)
+        if self.rng is None:
+            torch.set_rng_state(current_gen_state)
+        else:
+            self.rng.rng.set_state(current_gen_state)
         return transformed
 
 
 class RandomAffine:
-    def __init__(self, degrees: Tuple[float, float], translate: Tuple[float, float], use_corner_as_fill: bool = None):
+    def __init__(self,
+                 degrees: Tuple[float, float],
+                 translate: Tuple[float, float],
+                 use_corner_as_fill: bool = None,
+                 rng: TorchPicklableGenerator = None):
         self.degrees = degrees
         self.translate = translate
         self.use_corner_as_fill = use_corner_as_fill
+        self.rng: TorchPicklableGenerator = None if rng is None else rng
 
     def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False) -> torch.Tensor:
         border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
@@ -88,7 +100,13 @@ class RandomAffine:
             fill = border_color.tolist() if use_corner_as_fill else 0
         else:
             fill = border_color.tolist() if self.use_corner_as_fill else 0
+        if self.rng is not None:
+            rng_state = torch.get_rng_state()
+            torch.set_rng_state(self.rng.rng.get_state())
         affine = torch_transforms.RandomAffine(degrees=self.degrees, translate=self.translate, fill=fill)
+        if self.rng is not None:
+            torch.randint(0, 5, [5], generator=self.rng.rng)
+            torch.set_rng_state(rng_state)
         return affine(data)
 
 
@@ -102,7 +120,8 @@ class EndoMask:
                  radius_factor: Union[float, List[float]] = 1.0,
                  blur_kernel_range: Tuple[int, int] = (51, 81),
                  blur_sigma: float = 30,
-                 add_random_blur: bool = False
+                 add_random_blur: bool = False,
+                 rng: TorchPicklableGenerator = None
                  ):
         """
         :param mask_color: color to use for mask. If left as none, a randomized dark color is used per image.
@@ -114,13 +133,15 @@ class EndoMask:
         self.blur_kernel_range = blur_kernel_range
         self.blur_sigma = blur_sigma
         self.add_random_blur = add_random_blur
+        self.rng = rng if rng is not None else None
 
     def __call__(self,
                  data: torch.Tensor,
                  mask_color: Any = None,
                  blur: bool = False) -> torch.Tensor:
-        randomized_color = torch.rand((3, 1), dtype=torch.float) / 10
-        randomized_radius = torch.rand(1, dtype=torch.float).numpy()
+        rng = None if self.rng is None else self.rng.rng
+        randomized_color = torch.rand((3, 1), dtype=torch.float, generator=rng) / 10
+        randomized_radius = torch.rand(1, dtype=torch.float, generator=rng).numpy()
 
         if mask_color is None:
             if self.mask_color is None:
@@ -137,7 +158,7 @@ class EndoMask:
         blur = True if self.add_random_blur else blur
         if blur and torch.rand(1) > 0.5:
             invert_mask = torch.Tensor(1 - mask)
-            kernel_size = int((torch.randint(*self.blur_kernel_range, (1,)).numpy()[0] // 2) * 2 + 1)
+            kernel_size = int((torch.randint(*self.blur_kernel_range, (1,), generator=rng).numpy()[0] // 2) * 2 + 1)
             pad_size = int((kernel_size // 2 + 1))
             invert_mask = torch.nn.functional.pad(invert_mask[None], [pad_size] * 4, mode='constant', value=0)
             blurred_mask = torch_transforms_func.gaussian_blur(invert_mask, kernel_size=kernel_size, sigma=self.blur_sigma)
@@ -227,7 +248,8 @@ class PhongAffine:
                  degrees: Tuple[float, float],
                  translate: Tuple[float, float],
                  use_corner_as_fill: bool = None,
-                 image_size: int = 256):
+                 image_size: int = 256,
+                 rng: TorchPicklableGenerator = None):
         """
         TODO: implement translation properly... for now DO NOT TRANSLATE
         :param degrees:
@@ -239,6 +261,7 @@ class PhongAffine:
         self.translate = translate
         self.use_corner_as_fill = use_corner_as_fill
         self.image_size = (image_size, image_size)
+        self.rng: TorchPicklableGenerator = None if rng is None else rng
 
     def __call__(self, data: torch.Tensor, use_corner_as_fill: bool = False, is_normals: bool = False) -> torch.Tensor:
         border_color = torch.mean(data[:, [0, -1, 0, 1], [0, -1, 0, 1]], dim=-1)
@@ -246,6 +269,10 @@ class PhongAffine:
             fill = border_color.tolist() if use_corner_as_fill else 0
         else:
             fill = border_color.tolist() if self.use_corner_as_fill else 0
+        if self.rng is not None:
+            rng_state = torch.get_rng_state()
+            torch.set_rng_state(self.rng.rng.get_state())
+
         degrees, translation, scale, shear = torch_transforms.RandomAffine.get_params(degrees=self.degrees,
                                                                                       translate=self.translate,
                                                                                       img_size=self.image_size,
@@ -259,4 +286,8 @@ class PhongAffine:
             data = rotated.permute((1, 0)).reshape(data.shape)
 
         transformed = torch_transforms_func.affine(data, degrees, translation, scale, shear, fill=fill)
+
+        if self.rng is not None:
+            torch.randint(0, 5, [5], generator=self.rng.rng)
+            torch.set_rng_state(rng_state)
         return transformed

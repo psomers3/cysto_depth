@@ -10,17 +10,18 @@ from typing import *
 
 class EndlessDataset(Dataset):
     """ A Dataset wrapper to keep feeding its own randomized contents regardless of the length set. """
-    def __init__(self, torch_dataset: Dataset, length: int):
+    def __init__(self, torch_dataset: Dataset, length: int, seed: int = None):
         self.dataset: Union[Sized, Dataset] = torch_dataset
         self.length = length
-        self._rand_buffer = np.random.permutation(np.linspace(0, len(self.dataset) - 1, len(self.dataset)))
+        self.rng = np.random.default_rng(seed)
+        self._rand_buffer = self.rng.permutation(np.linspace(0, len(self.dataset) - 1, len(self.dataset)))
         self._rand_index = -1
 
     def __len__(self):
         return self.length
 
     def _reset_randomization(self):
-        self._rand_buffer = np.random.permutation(np.linspace(0, len(self.dataset) - 1, len(self.dataset)))
+        self._rand_buffer = self.rng.permutation(np.linspace(0, len(self.dataset) - 1, len(self.dataset)))
         self._rand_index = -1
 
     def _get_random_index(self):
@@ -40,6 +41,7 @@ class ImageDataset(Dataset):
                  transforms: Union[Callable, List[Callable]] = None,
                  randomize: bool = False,
                  device: torch.device = torch.device('cpu'),
+                 seed: int = None
                  ):
         """ A pytorch dataset that returns images or associated images with modifications (if desired). Accepts files of
         types: png, jpeg, exr, npy, npz.  Expects all images to be stored channels last on disk (note for numpy files).
@@ -56,6 +58,7 @@ class ImageDataset(Dataset):
         self._rand_index: int = -1
         self._rand_buffer: np.ndarray = None
         self.device = device
+        self.rng = np.random.default_rng(seed)
         num_images = 1
         if isinstance(files[0], tuple) and len(files[0]) > 1:
             num_images = len(files[0])
@@ -71,7 +74,7 @@ class ImageDataset(Dataset):
         return len(self.files)
 
     def _reset_randomization(self):
-        self._rand_buffer = np.random.permutation(np.linspace(0, len(self) - 1, len(self)))
+        self._rand_buffer = self.rng.permutation(np.linspace(0, len(self) - 1, len(self)))
         self._rand_index = -1
 
     def _get_random_index(self):
@@ -115,22 +118,26 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from utils.image_utils import matplotlib_show
     from torch.utils.data import DataLoader
-    from data.data_transforms import SynchronizedTransform
+    from data.data_transforms import SynchronizedTransform, RandomAffine
+    from data.picklable_generator import TorchPicklableGenerator
 
-    test_directory = r'/Users/peter/isys/test_img'
-    image_files = [(str(p), str(p)) for p in Path(test_directory).rglob('*')]
+    test_directory = r'/Users/peter/isys/2023_01_29/color'
+    image_files = [(str(p), str(p)) for p in Path(test_directory).rglob('*') if p.is_file() and p.name[0] != '.']
 
-    random_shift = SynchronizedTransform(torch_transforms.RandomAffine(degrees=(0, 0), translate=(.2, .2)),
-                                         num_synchros=2)
-    random_rotations = SynchronizedTransform(torch_transforms.RandomRotation(degrees=360),
-                                             num_synchros=2)
+    rng = TorchPicklableGenerator(4242)
+
+    random_shift = SynchronizedTransform(RandomAffine(degrees=(0, 0), translate=(.2, .2), rng=rng),
+                                         num_synchros=2,
+                                         rng=rng)
+    # random_rotations = SynchronizedTransform(torch_transforms.RandomRotation(degrees=360),
+    #                                          num_synchros=2)
 
     color_transforms = torch_transforms.Compose([torch_transforms.RandomGrayscale(.5),
                                                  random_shift,
-                                                 random_rotations,
+                                                 # random_rotations,
                                                  torch_transforms.Resize((150, 150))])
     depth_transforms = torch_transforms.Compose([random_shift,
-                                                 random_rotations,
+                                                 # random_rotations,
                                                  torch_transforms.Resize((150, 150))])
 
     dataset = ImageDataset(files=image_files,
@@ -138,6 +145,6 @@ if __name__ == '__main__':
                            randomize=True)
     data_loader = DataLoader(dataset, batch_size=3, num_workers=3, pin_memory=True)
     img = dataset[5]
-    matplotlib_show(torch.stack(dataset[5], dim=0))
+    matplotlib_show(torch.stack(img, dim=0))
     matplotlib_show(*next(iter(data_loader)))
     plt.show(block=True)

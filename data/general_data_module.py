@@ -2,6 +2,7 @@ import os.path
 from pathlib import Path
 import numpy as np
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.utils.data import DataLoader
 import re
@@ -9,6 +10,7 @@ import json
 from typing import *
 from omegaconf import ListConfig
 from data.image_dataset import ImageDataset
+from data.picklable_generator import TorchPicklableGenerator
 
 _mac_regex = re.compile(r'^(?!.*\._|.*\.DS)')
 
@@ -66,6 +68,8 @@ class FileLoadingDataModule(pl.LightningDataModule):
         self.data_train: ImageDataset = None
         self.data_val: ImageDataset = None
         self.data_test: ImageDataset = None
+        self.rng: TorchPicklableGenerator = TorchPicklableGenerator(seed)
+        self.seed = seed
 
     @staticmethod
     def create_file_split(directories: Dict[str, Union[List[str], str]],
@@ -139,7 +143,7 @@ class FileLoadingDataModule(pl.LightningDataModule):
         return DataLoader(self.data_train,
                           batch_size=self.batch_size,
                           num_workers=self.workers_per_loader,
-                          shuffle=True,
+                          shuffle=False,
                           pin_memory=self.pin_memory)
 
     def val_dataloader(self) -> DataLoader:

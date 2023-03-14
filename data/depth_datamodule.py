@@ -1,9 +1,10 @@
 from typing import *
+
+import torch
 from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
-from data.memorize import MemorizeCheck
 from scipy.spatial.transform import Rotation
 
 
@@ -57,18 +58,22 @@ class EndoDepthDataModule(FileLoadingDataModule):
         normalize = d_transforms.ImageNetNormalization()
         img_squarify = d_transforms.Squarify(image_size=self.image_size, clamp_values=True)
         depth_squarify = d_transforms.Squarify(image_size=self.image_size)
-        mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0]),
+        mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0], rng=self.rng),
                                                   num_synchros=num_synchros,
                                                   additional_args=[[None, self.add_random_blur],
                                                                    [0],
-                                                                   [0]])
+                                                                   [0]],
+                                                  rng=self.rng)
         affine_transform = d_transforms.SynchronizedTransform(d_transforms.PhongAffine(degrees=(0, 359),
                                                                                        translate=(0, 0),
-                                                                                       image_size=self.image_size),
+                                                                                       image_size=self.image_size,
+                                                                                       rng=self.rng),
                                                               num_synchros=num_synchros,
                                                               additional_args=[[True],
                                                                                [False],
-                                                                               [False, True]])
+                                                                               [False, True]],
+                                                              rng=self.rng)
+        # TODO: color jitter is currently not managed by random seed
         color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
         to_mm = d_transforms.ElementWiseScale(self.scale_factor)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
@@ -102,11 +107,15 @@ class EndoDepthDataModule(FileLoadingDataModule):
 
     def setup(self, stage: str = None):
         self.data_train = ImageDataset(files=list(zip(*self.split_files['train'].values())),
-                                       transforms=self.get_transforms('train'))
+                                       transforms=self.get_transforms('train'),
+                                       seed=self.seed,
+                                       randomize=True)
         self.data_val = ImageDataset(files=list(zip(*self.split_files['validate'].values())),
-                                     transforms=self.get_transforms('validate'))
+                                     transforms=self.get_transforms('validate'),
+                                     seed=self.seed)
         self.data_test = ImageDataset(files=list(zip(*self.split_files['test'].values())),
-                                      transforms=self.get_transforms('test'))
+                                      transforms=self.get_transforms('test'),
+                                      seed=self.seed)
 
 
 if __name__ == '__main__':
@@ -123,9 +132,12 @@ if __name__ == '__main__':
                              data_directories=[color_dir, depth_dir, normals_dir],
                              split={'train': .6, 'validate': 0.3, 'test': .1},
                              inverse_depth=True,
-                             memorize_check=False)
+                             memorize_check=False,
+                             add_random_blur=True,
+                             workers_per_loader=1,
+                             seed=4242)
     dm.setup('fit')
-    loader = dm.train_dataloader()
+    loader = dm.val_dataloader()
     samples = next(iter(loader))
     samples[0] = denorm(samples[0])
     matplotlib_show(*samples)
