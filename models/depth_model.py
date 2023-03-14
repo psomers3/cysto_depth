@@ -293,10 +293,18 @@ class DepthEstimationModel(BaseModel):
             else:
                 y_hat_depth = self(synth_imgs.to(self.device))[-1]
 
-            y_hat_depth = y_hat_depth.detach().cpu()
+            y_hat_depth = y_hat_depth.detach().cpu()[:self.max_num_image_samples]
+            synth_depths = synth_depths[:self.max_num_image_samples]
             differences = synth_depths - y_hat_depth
+
+            # TODO: tie this to a flag of synchronized gradient plots
+            minmax = [[0]]*self.max_num_image_samples
+            minimums = [min(x, y) for x, y in zip(y_hat_depth, synth_depths)]
+            maximums = [max(x, y) for x, y in zip(y_hat_depth, synth_depths)]
+            [minmax[i].append((minimums[i], maximums[i])) for i in range(self.max_num_image_samples)]
+            [minmax[i].append((minimums[i], maximums[i])) for i in range(self.max_num_image_samples)]
             [minmax[i].append((differences[i].min(), differences[i].max())) for i in range(self.max_num_image_samples)]
-            self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth.detach().cpu(), synth_depths, differences),
+            self.gen_depth_plots(zip(denormed_synth_imgs, y_hat_depth, synth_depths, differences),
                                  f"{prefix}-synth-depth",
                                  labels=["Synth Image", "Predicted", "Ground Truth", "Error"],
                                  minmax=minmax,
