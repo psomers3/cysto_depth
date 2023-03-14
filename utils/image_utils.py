@@ -85,7 +85,8 @@ def generate_normals_fig(img_tensors, labels) -> plt.Figure:
     return generate_img_fig(ready_to_plot_images, labels)
     
 
-def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_scales=False, colorbars=None):
+def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_scales=False, colorbars=None,
+                         with_border: bool = True):
     # width of images
     ratios = []
     imgs = []
@@ -129,12 +130,15 @@ def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_sca
     for idx, data in enumerate(zip(imgs, minmax, centers)):
         img, minmax, center = data
         axs[idx].set_title(labels[idx])
+        if with_border:
+            axs[idx].patch.set_edgecolor('black')
+            axs[idx].patch.set_linwidth(1)
         kwargs = {}
         if img.ndim == 2:
             shrink = .7
             if center is not None:
                 vmin, vmax = (None, None)
-                cmap = "coolwarm"
+                cmap = "seismic"
             # prediction scale should start at 1 regardless of the task if the center is not at 0/modified
             else:
                 if align_scales:
