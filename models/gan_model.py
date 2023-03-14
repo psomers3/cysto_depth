@@ -86,15 +86,16 @@ class GAN(BaseModel):
                 torch.ones(1, 3, self.config.image_size, self.config.image_size, device=self.device))
             feat_outs = encoder_outs[-len(self.discriminators['features']):]
 
-            if self.config.use_discriminator:
-                if self.config.use_feature_level:
-                    for idx, feature_out in enumerate(feat_outs):
-                        self.discriminators['features'][idx](feature_out)
-                self.discriminators['depth_image'](decoder_outs[-1])
-                if self.config.predict_normals:
-                    self.discriminators['phong'](normals)
-                    self.discriminators['depth_phong'](normals)
-                    self.discriminators['normals'](normals)
+            for k in range(self.config.discriminator_ensemble_size):
+                if self.config.use_discriminator:
+                    if self.config.use_feature_level:
+                        for idx, feature_out in enumerate(feat_outs):
+                            self.discriminators[f'features-{k}'][idx](feature_out)
+                    self.discriminators[f'depth_image-{k}'](decoder_outs[-1])
+                    if self.config.predict_normals:
+                        self.discriminators[f'phong-{k}'](normals)
+                        self.discriminators[f'depth_phong-{k}'](normals)
+                        self.discriminators[f'normals-{k}'](normals)
 
             if self.config.use_critic:
                 if self.config.use_feature_level:
