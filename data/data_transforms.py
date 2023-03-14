@@ -156,7 +156,7 @@ class EndoMask:
         data[:, mask] = mask_color
 
         blur = True if self.add_random_blur else blur
-        if blur and torch.rand(1) > 0.5:
+        if blur and torch.rand(1, generator=rng) > 0.5:
             invert_mask = torch.Tensor(1 - mask)
             kernel_size = int((torch.randint(*self.blur_kernel_range, (1,), generator=rng).numpy()[0] // 2) * 2 + 1)
             pad_size = int((kernel_size // 2 + 1))
