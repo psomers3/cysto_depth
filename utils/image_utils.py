@@ -127,12 +127,15 @@ def generate_heatmap_fig(img_tensors, labels, centers=None, minmax=[], align_sca
 
     width = np.sum(5 * ratios)
     fig, axs = plt.subplots(ncols=len(ratios), figsize=(width, 6), gridspec_kw={'width_ratios': ratios}, num=1)
+    fig: plt.Figure
+    axs: List[plt.Axes]
     for idx, data in enumerate(zip(imgs, minmax, centers)):
         img, minmax, center = data
         axs[idx].set_title(labels[idx])
         if with_border:
-            axs[idx].patch.set_edgecolor('black')
-            axs[idx].patch.set_linwidth(1)
+            patch: plt.Rectangle = axs[idx].patch
+            patch.set_edgecolor('black')
+            patch.set_linewidth(1)
         kwargs = {}
         if img.ndim == 2:
             shrink = .7
