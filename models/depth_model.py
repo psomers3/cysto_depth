@@ -263,17 +263,17 @@ class DepthEstimationModel(BaseModel):
         with torch.no_grad():
             if prefix == 'val':
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.validation_images
-                minmax = self.plot_minmax_val
+                minmax = self.plot_minmax_val.copy()
                 denormed_synth_imgs = self.val_denorm_color_images
                 plottable_norms = self.val_plottable_norms
             elif prefix == 'train':
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.train_images
-                minmax = self.plot_minmax_train
+                minmax = self.plot_minmax_train.copy()
                 denormed_synth_imgs = self.train_denorm_color_images
                 plottable_norms = self.train_plottable_norms
             else:
                 synth_imgs, synth_depths, synth_normals, synth_phong = self.test_images
-                minmax = self.plot_minmax_test
+                minmax = self.plot_minmax_test.copy()
                 denormed_synth_imgs = self.test_denorm_color_images
                 plottable_norms = self.test_plottable_norms
             if self.config.predict_normals:
