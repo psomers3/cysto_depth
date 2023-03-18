@@ -184,10 +184,12 @@ def wasserstein_gp_discriminator_loss(generated_input: Tensor,
 GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {
     'wasserstein_gp': wasserstein_gp_discriminator_loss,
     'cross_entropy': binary_cross_entropy_loss,
-    'cross_entropy_r': binary_cross_entropy_loss_R,
+    'cross_entropy_r1': binary_cross_entropy_loss_R,
+    'cross_entropy_r2': binary_cross_entropy_loss_R,
     'wasserstein': wasserstein_discriminator_loss}
 GANGeneratorLoss: Dict[str, Callable[..., Tensor]] = {
     'wasserstein': wasserstein_generator_loss,
     'cross_entropy': binary_cross_entropy_loss,
-    'cross_entropy_r': binary_cross_entropy_loss,
+    'cross_entropy_r1': binary_cross_entropy_loss,
+    'cross_entropy_r2': binary_cross_entropy_loss,
     'wasserstein_gp': wasserstein_generator_loss}
