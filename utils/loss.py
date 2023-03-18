@@ -128,11 +128,14 @@ def binary_cross_entropy_loss(input_data: Tensor, ground_truth: Union[Tensor, fl
     return F.binary_cross_entropy(discriminated, ground_truth), torch.tensor(0.0, device=input_data.device)
 
 
-def binary_cross_entropy_loss_R1(critic_input: Tensor,
-                                 ground_truth: Union[Tensor, float],
-                                 discriminator: torch.nn.Module,
-                                 factor: float = 2.0,
-                                 *args, **kwargs) -> Tuple[Tensor, Tensor]:
+def binary_cross_entropy_loss_R(critic_input: Tensor,
+                                ground_truth: Union[Tensor, float],
+                                discriminator: torch.nn.Module,
+                                factor: float = 2.0,
+                                apply_regularization: bool = True,
+                                *args, **kwargs) -> Tuple[Tensor, Tensor]:
+    if not apply_regularization:
+        return binary_cross_entropy_loss(critic_input, ground_truth, discriminator)
     critic_input = critic_input.detach()
     critic_input.requires_grad = True
     discriminated = discriminator(critic_input)
@@ -181,10 +184,10 @@ def wasserstein_gp_discriminator_loss(generated_input: Tensor,
 GANDiscriminatorLoss: Dict[str, Callable[..., Tensor]] = {
     'wasserstein_gp': wasserstein_gp_discriminator_loss,
     'cross_entropy': binary_cross_entropy_loss,
-    'cross_entropy_R1': binary_cross_entropy_loss_R1,
+    'cross_entropy_r': binary_cross_entropy_loss_R,
     'wasserstein': wasserstein_discriminator_loss}
 GANGeneratorLoss: Dict[str, Callable[..., Tensor]] = {
     'wasserstein': wasserstein_generator_loss,
     'cross_entropy': binary_cross_entropy_loss,
-    'cross_entropy_R1': binary_cross_entropy_loss,
+    'cross_entropy_r': binary_cross_entropy_loss,
     'wasserstein_gp': wasserstein_generator_loss}

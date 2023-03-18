@@ -1,8 +1,9 @@
 import torch
 
 
-class TorchPicklableGenerator:
+class TorchPicklableGenerator(torch.Generator):
     def __init__(self, seed: int = None):
+        # Don't call super on purpose. Inheritance is just for property auto-completion
         self.__dict__['_wrapped_rng'] = torch.Generator()
         if seed is not None:
             self.manual_seed(seed)

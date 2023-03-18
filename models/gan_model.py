@@ -72,10 +72,10 @@ class GAN(BaseModel):
         self.batches_accumulated = 0
         self._generator_training = False
         self.unadapted_images_for_plotting = None
-        self.discriminator_loss = GANDiscriminatorLoss[gan_config.discriminator_loss]
-        self.critic_loss = GANDiscriminatorLoss[gan_config.critic_loss]
-        self.generator_critic_loss = GANGeneratorLoss[gan_config.critic_loss]
-        self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss]
+        self.discriminator_loss = GANDiscriminatorLoss[gan_config.discriminator_loss.lower()]
+        self.critic_loss = GANDiscriminatorLoss[gan_config.critic_loss.lower()]
+        self.generator_critic_loss = GANGeneratorLoss[gan_config.critic_loss.lower()]
+        self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss.lower()]
         if gan_config.resume_from_checkpoint:
             self._resume_from_checkpoint(ckpt)
 
@@ -142,7 +142,8 @@ class GAN(BaseModel):
                 self.discriminator_losses.update({f'd_loss_reg_discriminator_phong-{k}': 0.0,
                                                   f'd_loss_reg_discriminator_depth_phong-{k}': 0.0,
                                                   f'd_loss_reg_discriminator_normals-{k}': 0.0})
-                self.generator_losses.update({f'g_loss_discriminator_phong-{k}': 0.0, f'g_loss_discriminator_depth_phong-{k}': 0.0,
+                self.generator_losses.update({f'g_loss_discriminator_phong-{k}': 0.0,
+                                              f'g_loss_discriminator_depth_phong-{k}': 0.0,
                                               f'g_loss_discriminator_normals-{k}': 0.0})
             self.discriminators[f'depth_image-{k}'] = Discriminator(self.config.depth_discriminator)
             self.discriminator_losses.update({f'd_loss_discriminator_depth_img-{k}': 0.0,
@@ -272,7 +273,8 @@ class GAN(BaseModel):
                     feat_outs = encoder_outs_generated[-len(self.discriminators[f'features-{k}']):]
                     for idx, feature_out in enumerate(feat_outs):
                         discriminator_losses.append(
-                            self._apply_generator_discriminator_loss(feature_out, self.discriminators[f'features-{k}'][idx],
+                            self._apply_generator_discriminator_loss(feature_out,
+                                                                     self.discriminators[f'features-{k}'][idx],
                                                                      f'discriminator_feature-{k}_{idx}'))
                 discriminator_losses.append(
                     self._apply_generator_discriminator_loss(depth_out, self.discriminators[f'depth_image-{k}'],
@@ -513,8 +515,17 @@ class GAN(BaseModel):
                                   original: Tensor,
                                   discriminator: torch.nn.Module,
                                   name: str) -> Tensor:
-        loss_generated, gen_penalty = self.discriminator_loss(generated, 0.0, discriminator)
-        loss_original, org_penalty = self.discriminator_loss(original, 1.0, discriminator)
+        apply_original_reg = False
+        apply_generated_reg = False
+        if 'r1' in self.config.discriminator_loss.lower():
+            apply_original_reg = True
+        elif 'r2' in self.config.discriminator_loss.lower():
+            apply_generated_reg = True
+
+        loss_generated, gen_penalty = self.discriminator_loss(generated, 0.0, discriminator,
+                                                              apply_regularization=apply_generated_reg)
+        loss_original, org_penalty = self.discriminator_loss(original, 1.0, discriminator,
+                                                             apply_regularization=apply_original_reg)
         combined_loss = loss_original + loss_generated
         combined_penalty = gen_penalty + org_penalty
         self.discriminator_losses[f'd_loss_discriminator_{name}'] += combined_loss.detach()
