@@ -121,13 +121,12 @@ class DepthEstimationModel(BaseModel):
                                                        device=self.device)
 
     def training_step(self, batch, batch_idx):
-        real_images = None
         if isinstance(batch, dict):
-            batch = batch['synth']
             # run real images through network to update any batch norm statistics
-            real_images = batch['real']
+            real_images = batch['real'][0]
             with torch.no_grad():
                 self(real_images)
+            batch = batch['synth']
 
         if self.config.predict_normals:
             synth_img, synth_phong, synth_depth, synth_normals = batch
@@ -222,6 +221,8 @@ class DepthEstimationModel(BaseModel):
 
     def shared_val_test_step(self, batch: List[torch.Tensor], batch_idx: int, prefix: str):
         self.setup_losses()
+        if isinstance(batch, dict):
+            batch = batch['synth']
         if self.config.predict_normals:
             synth_img, _, synth_depth, _ = batch
             y_hat_depth, _ = self(synth_img)
