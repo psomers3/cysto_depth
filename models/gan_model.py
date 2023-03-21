@@ -246,7 +246,7 @@ class GAN(BaseModel):
             self.discriminator_critic_train_step(batch, batch_idx)
 
     def generator_train_step(self, batch, batch_idx) -> None:
-        # x = originaletic image, z = generated image
+        # x = original image, z = generated image
         _, z = batch
         # set discriminators to eval so that any normalization statistics don't get updated
         self.discriminators.eval()

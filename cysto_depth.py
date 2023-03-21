@@ -97,6 +97,19 @@ def cysto_depth(cfg: CystoDepthConfig) -> None:
                                     add_random_blur=config.add_mask_blur,
                                     pin_memory=config.pin_dataloader_memory,
                                     seed=config.global_seed)
+        if config.synthetic_config.balance_batchnorm_with_real:
+            real_data_module = GANDataModule(batch_size=config.synthetic_config.batch_size,
+                                             color_image_directories=config.gan_config.source_images,
+                                             video_directories=config.gan_config.videos_folder,
+                                             generate_output_directory=config.gan_config.image_output_folder,
+                                             generate_data=config.gan_config.generate_data,
+                                             synth_split=split,
+                                             image_size=config.image_size,
+                                             workers_per_loader=config.num_workers,
+                                             add_random_blur=config.add_mask_blur,
+                                             real_only=True,
+                                             pin_memory=config.pin_dataloader_memory)
+            data_module = DictDataLoaderCombine({'synth': data_module, 'real': real_data_module})
         model = GAN(synth_config=config.synthetic_config.copy(), gan_config=config.gan_config.copy())
         config.gan_config.accumulate_grad_batches = 1  # This is manually handled within the model.
         [trainer_dict.update({key: val}) for key, val in config.gan_config.items() if key in trainer_dict]

@@ -1,12 +1,13 @@
 log_directory: ./logs
 predict_normals: true
 print_config: true
-mode: gan
+mode: synthetic
 training_stage: train
 split_save_dir: ./splits
 num_workers: 0
 image_size: 256
 synthetic_config:
+  balance_batchnorm_with_real: true
   data_roles:
     - color
     - depth
@@ -16,7 +17,7 @@ synthetic_config:
     - /Users/peter/isys/2023_01_29/depth
     - /Users/peter/isys/2023_01_29/normals
   training_split: {'train': .8, 'validate': 0.18, 'test': .02}
-  resume_from_checkpoint: /Users/peter/isys/desktop_dump/synthetic_256.ckpt
+  # resume_from_checkpoint: /Users/peter/isys/desktop_dump/synthetic_256.ckpt
 gan_config:
   encoder:
     adaptive_gating: true

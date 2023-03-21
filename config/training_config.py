@@ -273,6 +273,9 @@ class SyntheticTrainingConfig:
     """ Extra convolutions after depth before predicting normals """
     decoder_calculate_norms: bool = False
     """ Whether to calculate the normals from depth before giving to normals extra layers """
+    balance_batchnorm_with_real: bool = False
+    """ Whether to load the real data from the GANConfig and feed through the network during training only
+        to influence batch norm statistics """
 
 
 @dataclass
@@ -296,8 +299,8 @@ class GANTrainingConfig:
     """ learning rate for critics """
     critic_loss: str = 'wasserstein_gp'
     """ Which loss to use for training the critics [wasserstein_gp, wasserstein] """
-    discriminator_loss: str = 'cross_entropy'
-    """ Which loss to use for training the discriminators [cross_entropy, cross_entropy_R] """
+    discriminator_loss: str = 'cross_entropy_R1'
+    """ Which loss to use for training the discriminators [cross_entropy, cross_entropy_R1, cross_entropy_R2] """
     wasserstein_lambda: float = 10.0
     """ lambda factor for wasserstein gradient penalty """
     wasserstein_critic_updates: int = 5

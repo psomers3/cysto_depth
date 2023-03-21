@@ -60,26 +60,26 @@ class SynchronizedTransform:
         self.transform = transform
         self.num_synchros = num_synchros
         self.rng: TorchPicklableGenerator = rng if rng is not None else None
-        self._generator_state = self.rng.rng.get_state() if self.rng is not None else torch.get_rng_state()
+        self._generator_state = self.rng.get_state() if self.rng is not None else torch.get_rng_state()
         self._sync_count = 0
         self.additional_args = additional_args if additional_args else [[] for _ in range(num_synchros)]
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        current_gen_state = torch.get_rng_state() if self.rng is None else self.rng.rng.get_state()
+        current_gen_state = torch.get_rng_state() if self.rng is None else self.rng.get_state()
         if self._sync_count < self.num_synchros:
             if self.rng is None:
                 torch.set_rng_state(self._generator_state)
             else:
-                self.rng.rng.set_state(self._generator_state)
+                self.rng.set_state(self._generator_state)
         else:
             self._sync_count = 0
-            self._generator_state = torch.get_rng_state() if self.rng is None else self.rng.rng.get_state()
+            self._generator_state = torch.get_rng_state() if self.rng is None else self.rng.get_state()
         transformed = self.transform(data, *self.additional_args[self._sync_count])
         self._sync_count += 1
         if self.rng is None:
             torch.set_rng_state(current_gen_state)
         else:
-            self.rng.rng.set_state(current_gen_state)
+            self.rng.set_state(current_gen_state)
         return transformed
 
 
@@ -102,10 +102,10 @@ class RandomAffine:
             fill = border_color.tolist() if self.use_corner_as_fill else 0
         if self.rng is not None:
             rng_state = torch.get_rng_state()
-            torch.set_rng_state(self.rng.rng.get_state())
+            torch.set_rng_state(self.rng.get_state())
         affine = torch_transforms.RandomAffine(degrees=self.degrees, translate=self.translate, fill=fill)
         if self.rng is not None:
-            torch.randint(0, 5, [5], generator=self.rng.rng)
+            torch.randint(0, 5, [5], generator=self.rng())
             torch.set_rng_state(rng_state)
         return affine(data)
 
@@ -139,7 +139,7 @@ class EndoMask:
                  data: torch.Tensor,
                  mask_color: Any = None,
                  blur: bool = False) -> torch.Tensor:
-        rng = None if self.rng is None else self.rng.rng
+        rng = None if self.rng is None else self.rng()
         randomized_color = torch.rand((3, 1), dtype=torch.float, generator=rng) / 10
         randomized_radius = torch.rand(1, dtype=torch.float, generator=rng).numpy()
 
@@ -271,7 +271,7 @@ class PhongAffine:
             fill = border_color.tolist() if self.use_corner_as_fill else 0
         if self.rng is not None:
             rng_state = torch.get_rng_state()
-            torch.set_rng_state(self.rng.rng.get_state())
+            torch.set_rng_state(self.rng.get_state())
 
         degrees, translation, scale, shear = torch_transforms.RandomAffine.get_params(degrees=self.degrees,
                                                                                       translate=self.translate,
@@ -288,6 +288,6 @@ class PhongAffine:
         transformed = torch_transforms_func.affine(data, degrees, translation, scale, shear, fill=fill)
 
         if self.rng is not None:
-            torch.randint(0, 5, [5], generator=self.rng.rng)
+            torch.randint(0, 5, [5], generator=self.rng())
             torch.set_rng_state(rng_state)
         return transformed

@@ -1,6 +1,5 @@
 from typing import *
 
-import torch
 from torchvision import transforms as torch_transforms
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
