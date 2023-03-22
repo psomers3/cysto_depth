@@ -44,12 +44,14 @@ class DepthEstimationModel(BaseModel):
                                extra_normals_layers=config.normals_extra_layers,
                                phong_renderer=PhongRender(config=config.phong_config,
                                                           image_size=config.image_size,
-                                                          device=self.device)
-                               if config.decoder_calculate_norms else None)
+                                                          device=self.device,)
+                               if config.decoder_calculate_norms else None,
+                               use_skip_connections=config.use_skip_connections)
         if config.predict_normals and not config.merged_decoder:
             self.normals_decoder = Decoder(feature_levels=self.encoder.feature_levels,
                                            num_output_channels=3,
-                                           output_each_level=False)
+                                           output_each_level=False,
+                                           use_skip_connections=config.use_skip_connections)
         else:
             self.normals_decoder = None
         self.pixel_locations = None

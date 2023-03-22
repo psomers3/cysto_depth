@@ -36,23 +36,23 @@ class VanillaEncoder(torch.nn.Module):
 
         self.layer0 = torch.nn.Sequential(*base_layers[:3])  # shape=(N, num_feat, x.H/2, x.W/2)
         self.feature_levels.append(self.layer0._modules['1'].num_features)
-        self.layer0_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
+        self.layer0_coordconv = CoordConv2dELU(*[self.feature_levels[-1]] * 2, 3, padding=1)
 
         self.layer1 = torch.nn.Sequential(*base_layers[3:5])  # shape=(N, num_feat, x.H/4, x.W/4)
         self.feature_levels.append(_get_output_features(self.layer1))
-        self.layer1_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
+        self.layer1_coordconv = CoordConv2dELU(*[self.feature_levels[-1]] * 2, 3, padding=1)
 
         self.layer2 = base_layers[5]  # shape=(N, num_feat, x.H/8, x.W/8)
         self.feature_levels.append(_get_output_features(self.layer2))
-        self.layer2_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
+        self.layer2_coordconv = CoordConv2dELU(*[self.feature_levels[-1]] * 2, 3, padding=1)
 
         self.layer3 = base_layers[6]  # shape=(N, num_feat, x.H/16, x.W/16)
         self.feature_levels.append(_get_output_features(self.layer3))
-        self.layer3_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
+        self.layer3_coordconv = CoordConv2dELU(*[self.feature_levels[-1]] * 2, 3, padding=1)
 
         self.layer4 = base_layers[7]  # shape=(N, num_feat, x.H/32, x.W/32)
         self.feature_levels.append(_get_output_features(self.layer4))
-        self.layer4_skip = CoordConv2dELU(*[self.feature_levels[-1]]*2, 3, padding=1)
+        self.layer4_coordconv = CoordConv2dELU(*[self.feature_levels[-1]] * 2, 3, padding=1)
 
     def forward(self, encoder_input) -> Tuple[List[torch.Tensor], List]:
         x_original = self.conv_original_size0(encoder_input)
@@ -62,11 +62,11 @@ class VanillaEncoder(torch.nn.Module):
         layer2 = self.layer2(layer1)
         layer3 = self.layer3(layer2)
         layer4 = self.layer4(layer3)
-        layer0 = self.layer0_skip(layer0)
-        layer1 = self.layer1_skip(layer1)
-        layer2 = self.layer2_skip(layer2)
-        layer3 = self.layer3_skip(layer3)
-        layer4 = self.layer4_skip(layer4)
+        layer0 = self.layer0_coordconv(layer0)
+        layer1 = self.layer1_coordconv(layer1)
+        layer2 = self.layer2_coordconv(layer2)
+        layer3 = self.layer3_coordconv(layer3)
+        layer4 = self.layer4_coordconv(layer4)
         # return outs and residual outs (no residual outs for the standard encoder)
         return [x_original, layer0, layer1, layer2, layer3, layer4], []
 

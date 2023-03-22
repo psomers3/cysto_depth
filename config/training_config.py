@@ -276,6 +276,8 @@ class SyntheticTrainingConfig:
     balance_batchnorm_with_real: bool = False
     """ Whether to load the real data from the GANConfig and feed through the network during training only
         to influence batch norm statistics """
+    use_skip_connections: bool = True
+    """ Whether to use U-Net skip connections in decoder """
 
 
 @dataclass

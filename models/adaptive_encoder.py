@@ -107,11 +107,11 @@ class AdaptiveEncoder(VanillaEncoder):
         layer3_mare = self.criterion(res_layer3)
         layer4_mare = self.criterion(res_layer4)
 
-        layer0 = self.layer0_skip(layer0)
-        layer1 = self.layer1_skip(layer1)
-        layer2 = self.layer2_skip(layer2)
-        layer3 = self.layer3_skip(layer3)
-        layer4 = self.layer4_skip(layer4)
+        layer0 = self.layer0_coordconv(layer0)
+        layer1 = self.layer1_coordconv(layer1)
+        layer2 = self.layer2_coordconv(layer2)
+        layer3 = self.layer3_coordconv(layer3)
+        layer4 = self.layer4_coordconv(layer4)
         return ([x_original, layer0, layer1, layer2, layer3, layer4],
                 [layer0_mare, layer1_mare, layer2_mare, layer3_mare, layer4_mare])
 

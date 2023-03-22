@@ -38,7 +38,8 @@ class Decoder(torch.nn.Module):
                  num_output_channels: int = 1,
                  output_each_level: bool = False,
                  extra_normals_layers: int = 0,
-                 phong_renderer: PhongRender = None) -> None:
+                 phong_renderer: PhongRender = None,
+                 use_skip_connections: bool = True) -> None:
         """
 
         :param feature_levels: bottleneck to output
@@ -52,21 +53,33 @@ class Decoder(torch.nn.Module):
         self.output_each_level = output_each_level
         self.num_output_channels = num_output_channels
         self.phong_renderer = phong_renderer
+        self.use_skip_connections = use_skip_connections
 
         # self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         feature_levels_doubled = feature_levels[:-2] * 2
         feature_levels_doubled.sort(reverse=True)
-        self.upsamples = torch.nn.ModuleList([UpsampleShuffle(nfeat, nfeat) for nfeat in feature_levels_doubled[:-1]])
-
-        self.conv_ups = torch.nn.ModuleList([convrelu(feature_levels[i + 1] + feature_levels_doubled[i], nfeat, 3, 1)
-                                             for i, nfeat in enumerate(feature_levels_doubled[1:-1])])
+        if self.use_skip_connections:
+            self.upsamples = torch.nn.ModuleList(
+                [UpsampleShuffle(nfeat, nfeat) for nfeat in feature_levels_doubled[:-1]])
+            self.conv_ups = torch.nn.ModuleList([convrelu(feature_levels[i + 1] + feature_levels_doubled[i], nfeat, 3, 1)
+                                                 for i, nfeat in enumerate(feature_levels_doubled[1:-1])])
+            self.conv_original_size2 = convrelu(feature_levels[-3], feature_levels[-1], 3, 1)
+        else:
+            self.upsamples = torch.nn.ModuleList(
+                [UpsampleShuffle(nfeat, feature_levels[i+1]) for i, nfeat in enumerate(feature_levels[:-1])])
+            self.upsamples.append(UpsampleShuffle(feature_levels[-1], feature_levels[-1]))
+            self.conv_ups = torch.nn.ModuleList([convrelu(nfeat, nfeat, 3, 1)
+                 for i, nfeat in enumerate(feature_levels[1:])])
+            self.conv_original_size2 = convrelu(feature_levels[-2], feature_levels[-1], 3, 1)
 
         if self.output_each_level:
-            self.conv_ups_out = torch.nn.ModuleList([convrelu(nfeat, 1, 3, 1)
-                                                     for nfeat in feature_levels_doubled[-4:-1]])
+            if self.use_skip_connections:
+                self.conv_ups_out = torch.nn.ModuleList([convrelu(nfeat, 1, 3, 1)
+                                                         for nfeat in feature_levels_doubled[-4:-1]])
+            else:
+                self.conv_ups_out = torch.nn.ModuleList([convrelu(nfeat, 1, 3, 1)
+                                                         for nfeat in feature_levels[2:]])
 
-        self.conv_original_size2 = convrelu(feature_levels[-3], feature_levels[-1], 3, 1)
-        # self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         if num_output_channels != 4 or extra_normals_layers == 0:
             self.conv_last = nn.Conv2d(feature_levels[-1], num_output_channels, 1)
             self.normals_out = None
@@ -77,25 +90,33 @@ class Decoder(torch.nn.Module):
             self.normals_out = nn.Conv2d(extra_normals_layers + 1, 3, 3, 1, padding=1)
 
     def forward(self, _input):
-        x_original, layer0, layer1, layer2, layer3, layer4 = _input
-        x = self.upsamples[0](layer4)
-        x = torch.cat([x, layer3], dim=1)
+        # 4 = bottleneck, 0 = image_level
+        if isinstance(_input, list):
+            x_original, layer0, layer1, layer2, layer3, bottleneck = _input
+        else:
+            x_original, layer0, layer1, layer2, layer3, bottleneck = None, None, None, None, None, _input
+        x = self.upsamples[0](bottleneck)
+        if self.use_skip_connections:
+            x = torch.cat([x, layer3], dim=1)
         x = self.conv_ups[0](x)
 
         x = self.upsamples[1](x)
-        x = torch.cat([x, layer2], dim=1)
+        if self.use_skip_connections:
+            x = torch.cat([x, layer2], dim=1)
         x = self.conv_ups[1](x)
         if self.output_each_level:
             out1 = self.conv_ups_out[0](x)
 
         x = self.upsamples[2](x)
-        x = torch.cat([x, layer1], dim=1)
+        if self.use_skip_connections:
+            x = torch.cat([x, layer1], dim=1)
         x = self.conv_ups[2](x)
         if self.output_each_level:
             out2 = self.conv_ups_out[1](x)
 
         x = self.upsamples[3](x)
-        x = torch.cat([x, layer0], dim=1)
+        if self.use_skip_connections:
+            x = torch.cat([x, layer0], dim=1)
         x = self.conv_ups[3](x)
         if self.output_each_level:
             out3 = self.conv_ups_out[2](x)
