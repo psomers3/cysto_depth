@@ -70,7 +70,7 @@ class Decoder(torch.nn.Module):
             self.upsamples.append(UpsampleShuffle(feature_levels[-1], feature_levels[-1]))
             self.conv_ups = torch.nn.ModuleList([convrelu(nfeat, nfeat, 3, 1)
                  for i, nfeat in enumerate(feature_levels[1:])])
-            self.conv_original_size2 = convrelu(feature_levels[-2], feature_levels[-1], 3, 1)
+            self.conv_original_size2 = convrelu(feature_levels[-1], feature_levels[-1], 3, 1)
 
         if self.output_each_level:
             if self.use_skip_connections:
