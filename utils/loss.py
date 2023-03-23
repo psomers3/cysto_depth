@@ -26,11 +26,14 @@ class CosineSimilarity(nn.Module):
         non_zero_norm = torch.linalg.norm(target, dim=1) > 0.0
         if self.ignore_direction:
             epsilon = 1e-6
-            return (1 - torch.where(non_zero_norm, self.loss(predicted, target) + 1 + epsilon,
-                                    torch.ones([1], device=self.device)).abs()).mean()
+            similarity = torch.where(non_zero_norm, self.loss(predicted, target),
+                                     torch.tensor([1], device=self.device))
+            similarity = torch.where(similarity != 0, similarity,
+                                     torch.tensor([epsilon], device=self.device)).abs()
+            return 1-similarity.mean()
         else:
             return (1 - torch.where(non_zero_norm, self.loss(predicted, target),
-                                    torch.ones([1], device=self.device))).mean()
+                                    torch.tensor([1], device=self.device))).mean()
 
 
 class BerHu(nn.Module):

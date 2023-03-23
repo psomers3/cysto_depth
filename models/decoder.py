@@ -125,25 +125,25 @@ class Decoder(torch.nn.Module):
         # x = torch.cat([x, x_original], dim=1)
         x = self.conv_original_size2(x)
 
-        out4 = self.conv_last(x)
+        depth = self.conv_last(x)
         if self.normals_out is not None:
             if self.phong_renderer is not None:
                 if self.phong_renderer.device != x.device:
                     self.phong_renderer = PhongRender(self.phong_renderer.config,
                                                       image_size=self.phong_renderer.image_size,
                                                       device=x.device)
-                x2 = depth_to_normals(out4,
-                                      self.phong_renderer.camera_intrinsics[None],
-                                      self.phong_renderer.resized_pixel_locations,
-                                      normalize_points=True)
-                x = torch.cat([x, x2], dim=1)
+                calculated_normals = depth_to_normals(depth,
+                                                      self.phong_renderer.camera_intrinsics[None],
+                                                      self.phong_renderer.resized_pixel_locations,
+                                                      normalize_points=True)
+                x = torch.cat([x, calculated_normals], dim=1)
             else:
-                x = torch.cat([out4, x], dim=1)
+                x = torch.cat([depth, x], dim=1)
             x = self.normals_learn_layers(x)
-            x = self.normals_out(torch.cat([out4, x], dim=1))
-            out4 = torch.cat([out4, x], dim=1)
+            normals = self.normals_out(torch.cat([depth, x], dim=1))
+            depth = torch.cat([depth, normals], dim=1)
 
         if self.output_each_level:
-            return [out1, out2, out3, out4]
+            return [out1, out2, out3, depth]
         else:
-            return out4
+            return depth
