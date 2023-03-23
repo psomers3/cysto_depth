@@ -137,8 +137,7 @@ class PhongDataModule(FileLoadingDataModule):
                                                                          [False, True],
                                                                          [False, True]],
                                                         rng=self.rng)
-            # TODO: color jitter is currently not managed by random seed
-            color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
+            color_jitter = d_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, rng=self.rng)
             color_transforms.insert(0, color_jitter)
             color_transforms.append(affine)
             depth_transforms.append(affine)

@@ -72,8 +72,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
                                                                                [False],
                                                                                [False, True]],
                                                               rng=self.rng)
-        # TODO: color jitter is currently not managed by random seed
-        color_jitter = torch_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
+        color_jitter = d_transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, rng=self.rng)
         to_mm = d_transforms.ElementWiseScale(self.scale_factor)
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         depth_transforms = [channel_slice, to_mm, mask, depth_squarify]

@@ -25,6 +25,29 @@ class DepthInvert:
         return torch.clamp(inverted, 0, self.clamp_max)
 
 
+class ColorJitter:
+    def __init__(self,
+                 rng: TorchPicklableGenerator = None,
+                 brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1):
+        self.rng = rng
+        self.jitter = torch_transforms.ColorJitter(brightness=brightness,
+                                                   contrast=contrast,
+                                                   saturation=saturation,
+                                                   hue=hue)
+
+    def __call__(self, data: torch.Tensor):
+        if self.rng is not None:
+            rng_state = torch.get_rng_state()
+            torch.set_rng_state(self.rng.get_state())
+
+        transformed = self.jitter(data)
+
+        if self.rng is not None:
+            torch.randint(0, 5, [5], generator=self.rng())
+            torch.set_rng_state(rng_state)
+        return transformed
+
+
 class ImageNetNormalization:
     def __init__(self, inverse: bool = False):
         if not inverse:
