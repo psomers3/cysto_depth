@@ -73,7 +73,7 @@ class DepthEstimationModel(BaseModel):
         self.train_plottable_norms = None
         self.test_plottable_norms = None
         self._val_epoch_count = 0
-        self.max_num_image_samples = 7
+        self.max_num_image_samples = min(7, config.batch_size)
         """ number of images to track and plot during training """
         if ckpt is not None:
             self._resume_from_checkpoint(ckpt)
