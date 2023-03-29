@@ -68,7 +68,6 @@ class ImageDataset(Dataset):
             assert len(self.transforms) == num_images
         else:
             self.transforms = [[] for _ in range(num_images)]
-        self.transform_to_float_tensor = torch_transforms.ConvertImageDtype(torch.float)
 
     def __len__(self):
         return len(self.files)
@@ -104,8 +103,7 @@ class ImageDataset(Dataset):
                     raw_image = torch.permute(raw_image, [2, 0, 1])
             else:
                 raw_image = read_image(image_file)
-
-            image = self.transform_to_float_tensor(raw_image)
+            image = raw_image
             if self.transforms[i]:
                 image = self.transforms[i](image)
             final_images.append(image)

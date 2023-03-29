@@ -7,8 +7,15 @@ split_save_dir: ./splits
 num_workers: 0
 image_size: 256
 synthetic_config:
+  encoder:
+    backbone: resnet18
   use_skip_connections: false
   balance_batchnorm_with_real: true
+  phong_loss_epochs: [0, 10000]
+  normals_loss_epochs: [0, 10000]
+  depth_gradient_loss_epochs: [0,10000]
+  normals_depth_regularization_loss_epochs: [0, 10000]
+  batch_size: 4
   data_roles:
     - color
     - depth
