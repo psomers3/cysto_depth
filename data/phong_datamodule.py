@@ -111,6 +111,7 @@ class PhongDataModule(FileLoadingDataModule):
 
             :param split_stage: one of 'train', 'validate', 'test'
         """
+        image_normalize = torch_transforms.ConvertImageDtype(torch.float)
         imagenet_norm = d_transforms.ImageNetNormalization()
         to_mm = d_transforms.ElementWiseScale(1e3)
         mask = d_transforms.SynchronizedTransform(transform=d_transforms.EndoMask(radius_factor=[0.9, 1.0],
@@ -122,7 +123,7 @@ class PhongDataModule(FileLoadingDataModule):
                                                        interpolation=torch_transforms.InterpolationMode.BICUBIC)
         colors_squarify = d_transforms.Squarify(image_size=self.image_size,
                                                 interpolation=torch_transforms.InterpolationMode.BICUBIC)
-        color_transforms = [colors_squarify, mask]
+        color_transforms = [image_normalize, colors_squarify, mask]
         channel_slice = d_transforms.TensorSlice((0, ...))  # depth exr saves depth in each RGB channel
         depth_transforms = [channel_slice, to_mm, normals_depth_squarify, mask]
         normals_rotation = d_transforms.MatrixRotation(Rotation.from_euler('XYZ', [0, 180, 0], degrees=True).as_matrix())
@@ -194,8 +195,8 @@ if __name__ == '__main__':
                                            [0.0, 1039.8075, 0],
                                            [878.9617, 572.9404, 1]],
                         diffusion_color=(1, 0.25, 0.25),
-                        specular_color=(0,0,0),
-                        ambient_color=(0,0,0))
+                        specular_color=(0, 0, 0),
+                        ambient_color=(0, 0, 0))
     dm = PhongDataModule(batch_size=4,
                          color_image_directory=color_dir,
                          depth_image_directory=depth_dir,
@@ -212,23 +213,23 @@ if __name__ == '__main__':
     sample = next(loader_iter)
     # loss_value, prediction = loss((sample[2], sample[3]), sample[1])
     # print(loss_value)
-    sample[-1] = sample[-1]
+    sample[-1] = (sample[-1]+1)*.5
     sample[0] = denorm(sample[0])
     matplotlib_show(*sample)
     pixel_loc = loader.dataset.resized_pixel_locations
     prediction = depth_to_normals(sample[2], loss.phong_renderer.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
-    matplotlib_show(prediction)
+    matplotlib_show(.5*(1+prediction))
     norm_loss = CosineSimilarity()
     normals_loss = norm_loss(prediction, sample[2])
     print(normals_loss)
     normals_loss = norm_loss(sample[2], sample[2])
     print(normals_loss)
 
-        # fig = plt.figure()
-        # ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
-        # x = depth_to_3d(sample[2], loss.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
-        # x = x.reshape((x.shape[0]*x.shape[1], 3))
-        # ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
+    x = depth_to_3d(sample[2], loss.phong_renderer.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
+    x = x.reshape((x.shape[0]*x.shape[1], 3))
+    ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
     plt.show(block=True)
         # plt.pause(5)
         # input("")

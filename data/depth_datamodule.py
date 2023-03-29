@@ -1,6 +1,7 @@
 from typing import *
 
 from torchvision import transforms as torch_transforms
+import torch
 from data.image_dataset import ImageDataset
 import data.data_transforms as d_transforms
 from data.general_data_module import FileLoadingDataModule
@@ -53,7 +54,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
             :param stage: one of 'train', 'val', 'test'
         """
         num_synchros = len(self.data_roles)
-
+        image_to_float = torch_transforms.ConvertImageDtype(torch.float)
         normalize = d_transforms.ImageNetNormalization()
         img_squarify = d_transforms.Squarify(image_size=self.image_size, clamp_values=True)
         depth_squarify = d_transforms.Squarify(image_size=self.image_size)
@@ -79,7 +80,7 @@ class EndoDepthDataModule(FileLoadingDataModule):
         if self.invert_depth:
             depth_transforms.insert(2, d_transforms.DepthInvert())
 
-        color_transforms = [mask, img_squarify]
+        color_transforms = [image_to_float, mask, img_squarify]
 
         if stage.lower() == 'train':
             color_transforms.insert(0, color_jitter)

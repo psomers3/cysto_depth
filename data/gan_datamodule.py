@@ -144,12 +144,13 @@ class GANDataModule(pl.LightningDataModule):
 
     def get_transforms(self, stage: str) -> List[torch_transforms.Compose]:
         real_transforms, synth_transforms = [], []
+        image_to_float = torch_transforms.ConvertImageDtype(torch.float)
         squarify = d_transforms.Squarify(image_size=self.image_size)
         mask = d_transforms.EndoMask(radius_factor=[0.9, 1.0], add_random_blur=self.add_random_blur)
         imagenet_norm = d_transforms.ImageNetNormalization()
         affine_transform = d_transforms.RandomAffine(degrees=(0, 360), translate=(.05, .05), use_corner_as_fill=True)
-        synth_transforms.extend([mask, squarify])
-        real_transforms.extend([squarify])
+        synth_transforms.extend([image_to_float, mask, squarify])
+        real_transforms.extend([image_to_float, squarify])
         if stage.lower() == 'train':
             synth_transforms.append(affine_transform)
             real_transforms.append(affine_transform)
