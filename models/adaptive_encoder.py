@@ -88,22 +88,23 @@ class AdaptiveEncoder(VanillaEncoder):
 
         res_layer0 = self.res_layer0(encoder_input)
         layer0 = self.layer0(self._gate(encoder_input, res_layer0, 0))
-        layer0coordconv = self.layer0_coordconv(layer0)
+        layer0coordconv = self.layer0_skip(layer0)
 
         res_layer1 = self.res_layer1(layer0)
-        layer1 = self.layer1(self._gate(layer0coordconv, res_layer1, 1))
-        layer1coordconv = self.layer1_coordconv(layer1)
+        layer1 = self.layer1(self._gate(layer0, res_layer1, 1))
+        layer1coordconv = self.layer1_skip(layer1)
 
         res_layer2 = self.res_layer2(layer1coordconv)
-        layer2 = self.layer2(self._gate(layer1coordconv, res_layer2, 2))
-        layer2coordconv = self.layer2_coordconv(layer2)
+        layer2 = self.layer2(self._gate(layer1, res_layer2, 2))
+        layer2coordconv = self.layer2_skip(layer2)
 
         res_layer3 = self.res_layer3(layer2coordconv)
-        layer3 = self.layer3(self._gate(layer2coordconv, res_layer3, 3))
-        layer3coordconv = self.layer3_coordconv(layer3)
+        layer3 = self.layer3(self._gate(layer2, res_layer3, 3))
+        layer3coordconv = self.layer3_skip(layer3)
 
         res_layer4 = self.res_layer4(layer3coordconv)
-        layer4 = self.layer4(self._gate(layer3coordconv, res_layer4, 4))
+        layer4 = self.layer4(self._gate(layer3, res_layer4, 4))
+        layer4coordconv = self.layer4_skip(layer4)
 
         layer0_mare = self.criterion(res_layer0)
         layer1_mare = self.criterion(res_layer1)
@@ -111,7 +112,7 @@ class AdaptiveEncoder(VanillaEncoder):
         layer3_mare = self.criterion(res_layer3)
         layer4_mare = self.criterion(res_layer4)
 
-        return ([x_original, layer0coordconv, layer1coordconv, layer2coordconv, layer3coordconv, layer4],
+        return ([x_original, layer0coordconv, layer1coordconv, layer2coordconv, layer3coordconv, layer4coordconv],
                 [layer0_mare, layer1_mare, layer2_mare, layer3_mare, layer4_mare])
 
 
