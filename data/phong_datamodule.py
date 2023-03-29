@@ -1,13 +1,13 @@
 from typing import *
 import torch
 from torchvision import transforms as torch_transforms
-from data.image_dataset import ImageDataset
-import data.data_transforms as d_transforms
-from data.general_data_module import FileLoadingDataModule
+from image_dataset import ImageDataset
+import data_transforms as d_transforms
+from general_data_module import FileLoadingDataModule
 from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
 from scipy.spatial.transform import Rotation
-from data.memorize import MemorizeCheck
+from memorize import MemorizeCheck
 
 
 class PhongDataSet(ImageDataset):
@@ -180,13 +180,17 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from mpl_toolkits import mplot3d
     from utils.image_utils import matplotlib_show
+    from utils.plotoptix_utils import plot_spheres
     from utils.rendering import depth_to_normals, depth_to_3d
     from utils.loss import PhongLoss, CosineSimilarity
     from pytorch_lightning.trainer.trainer import DataLoader
     import torch
-    color_dir = r'/Users/peter/isys/2023_01_29/color'
-    depth_dir = r'/Users/peter/isys/2023_01_29/depth'
-    normals_dir = r'/Users/peter/isys/2023_01_29/normals'
+    from utils.plotoptix_utils import plot_spheres
+    import numpy as np
+
+    color_dir = r'../trajectory_1/color/bladder_wall'  # r'/b1/peter/2023_01_29/color'
+    depth_dir = r'../trajectory_1/depth'  # r'/b1/peter/2023_01_29/depth'
+    normals_dir = r'../trajectory_1/normals'  # r'/b1/peter/2023_01_29/normals'
     torch.manual_seed(50)
     phong = PhongConfig(attenuation=0.00,
                         material_shininess=100,
@@ -202,7 +206,7 @@ if __name__ == '__main__':
                          normals_image_directory=normals_dir,
                          split={'train': .9, 'validate': 0.05, 'test': 0.05},
                          phong_config=phong,
-                         seed=4242)
+                         seed=681)
     dm.setup('fit')
     loader: DataLoader = dm.train_dataloader()
     loader_iter = iter(loader)
@@ -214,22 +218,26 @@ if __name__ == '__main__':
     # print(loss_value)
     sample[-1] = sample[-1]
     sample[0] = denorm(sample[0])
-    matplotlib_show(*sample)
+    # matplotlib_show(*sample)
     pixel_loc = loader.dataset.resized_pixel_locations
     prediction = depth_to_normals(sample[2], loss.phong_renderer.camera_intrinsics[None], pixel_grid=pixel_loc, normalize_points=False)
-    matplotlib_show(prediction)
+    # matplotlib_show(prediction)
     norm_loss = CosineSimilarity()
     normals_loss = norm_loss(prediction, sample[2])
     print(normals_loss)
     normals_loss = norm_loss(sample[2], sample[2])
     print(normals_loss)
 
-        # fig = plt.figure()
-        # ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
-        # x = depth_to_3d(sample[2], loss.camera_intrinsics[None], pixel_loc).permute([0, 2, 3, 1])[0]
-        # x = x.reshape((x.shape[0]*x.shape[1], 3))
-        # ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
-    plt.show(block=True)
+    x = depth_to_3d(sample[2], loss.phong_renderer.camera_intrinsics[None], pixel_loc, normalize_points=False).permute([0, 2, 3, 1])[0]
+    x = x.reshape((x.shape[0]*x.shape[1], 3)).numpy()
+    colors = sample[0][0].permute(1,2,0).numpy()
+    colors = colors.reshape((colors.size//3,3))
+    # fig = plt.figure()
+    # ax = plt.axes(projection='3d')  # type: mplot3d.Axes3D
+    # ax.scatter3D(x[:, 0], x[:, 1], x[:, 2])
+    # plt.show(block=True)
+    plot_spheres(x, colors, radii=0.03)
+
         # plt.pause(5)
         # input("")
         # for i in plt.get_fignums():
