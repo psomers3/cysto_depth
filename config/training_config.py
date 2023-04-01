@@ -399,6 +399,10 @@ class GANTrainingConfig:
     """ Must be greater than 1 """
     discriminator_ensemble_size: int = 1
     """ How many copies of each discriminator to use """
+    lr_scheduler_step_size: [None, int] = 10
+    """ number of epochs before stepping scheduler. None turns it off """
+    lr_scheduler_gamma: [None, float] = 0.8
+    """ gamma value for decreasing learning rate [0-1], None turns it off """
 
 
 @dataclass

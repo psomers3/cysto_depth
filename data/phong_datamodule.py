@@ -1,13 +1,13 @@
 from typing import *
 import torch
 from torchvision import transforms as torch_transforms
-from image_dataset import ImageDataset
-import data_transforms as d_transforms
-from general_data_module import FileLoadingDataModule
+from data.image_dataset import ImageDataset
+import data.data_transforms as d_transforms
+from data.general_data_module import FileLoadingDataModule
 from utils.rendering import get_pixel_locations, get_image_size_from_intrisics, render_rgbd, PointLights, Materials
 from config.training_config import PhongConfig
 from scipy.spatial.transform import Rotation
-from memorize import MemorizeCheck
+from data.memorize import MemorizeCheck
 
 
 class PhongDataSet(ImageDataset):

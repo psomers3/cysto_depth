@@ -6,7 +6,7 @@ from models.adaptive_encoder import AdaptiveEncoder
 from models.discriminator import Discriminator
 from models.depth_model import DepthEstimationModel
 from data.data_transforms import ImageNetNormalization
-from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_final_imgs, generate_img_fig
+from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_img_fig
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig, DiscriminatorConfig
 from argparse import Namespace
 from utils.rendering import PhongRender, depth_to_normals
@@ -35,8 +35,10 @@ class GAN(BaseModel):
         super().__init__()
         self.automatic_optimization = False
         ckpt = None
+        self._start_step = -1
         if gan_config.resume_from_checkpoint:
             ckpt = torch.load(gan_config.resume_from_checkpoint, map_location=self.device)
+            self._start_step = ckpt['global_step']
             hparams = ckpt['hyper_parameters']
             hparams['resume_from_checkpoint'] = gan_config.resume_from_checkpoint
             [setattr(gan_config, key, val) for key, val in hparams.items() if key in gan_config]
@@ -59,6 +61,7 @@ class GAN(BaseModel):
         self.critic_opt_idx = 0
         self.discriminators_opt_idx = 0
         self._unwrapped_optimizers = []
+        self._unwrapped_optimizer_sched = []
         self.setup_generator_optimizer()
         if self.config.use_critic:
             self.setup_critics()
@@ -113,8 +116,14 @@ class GAN(BaseModel):
 
     def setup_generator_optimizer(self):
         opt = opts[self.config.generator_optimizer.lower()]
-        self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.generator.parameters()),
-                                              lr=self.config.generator_lr))
+        gen_optimizer = opt(filter(lambda p: p.requires_grad, self.generator.parameters()),
+                            lr=self.config.generator_lr)
+        self._unwrapped_optimizers.append(gen_optimizer)
+        last_epoch = self._start_step
+        if None not in [self.config.lr_scheduler_step_size, self.config.lr_scheduler_gamma]:
+            gen_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, step_size=self.config.lr_scheduler_step_size,
+                                                            gamma=self.config.lr_scheduler_gamma, last_epoch=last_epoch)
+            self._unwrapped_optimizer_sched.append(gen_scheduler)
 
     def setup_discriminators(self):
         self.discriminator_losses['d_discriminators_loss'] = 0.0
@@ -131,7 +140,8 @@ class GAN(BaseModel):
                     {f'd_loss_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
                 self.discriminator_losses.update(
                     {f'd_loss_reg_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
-                self.generator_losses.update({f'g_loss_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
+                self.generator_losses.update(
+                    {f'g_loss_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
             if self.config.predict_normals:
                 self.discriminators[f'phong-{k}'] = Discriminator(self.config.phong_discriminator)
                 self.discriminators[f'depth_phong-{k}'] = Discriminator(self.config.phong_discriminator)
@@ -150,9 +160,16 @@ class GAN(BaseModel):
                                               f'd_loss_reg_discriminator_depth_img-{k}': 0.0})
             self.generator_losses.update({f'g_loss_discriminator_depth_img-{k}': 0.0})
         opt = opts[self.config.discriminator_optimizer.lower()]
-        self._unwrapped_optimizers.append(opt(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
-                                              lr=self.config.discriminator_lr))
+        disc_opt = opt(filter(lambda p: p.requires_grad, self.discriminators.parameters()),
+                       lr=self.config.discriminator_lr)
+        self._unwrapped_optimizers.append(disc_opt)
         self.discriminators_opt_idx = self.critic_opt_idx + 1
+        last_epoch = self._start_step
+        if None not in [self.config.lr_scheduler_step_size, self.config.lr_scheduler_gamma]:
+            disc_scheduler = torch.optim.lr_scheduler.StepLR(disc_opt, step_size=self.config.lr_scheduler_step_size,
+                                                             gamma=self.config.lr_scheduler_gamma,
+                                                             last_epoch=last_epoch)
+            self._unwrapped_optimizer_sched.append(disc_scheduler)
 
     def setup_critics(self):
         self.critic_losses['d_critics_loss'] = 0.0
@@ -281,14 +298,15 @@ class GAN(BaseModel):
                                                              f'discriminator_depth_img-{k}'))
                 if self.config.predict_normals:
                     discriminator_losses.append(self._apply_generator_discriminator_loss(original_phong_rendering,
-                                                                                         self.discriminators[f'phong-{k}'],
+                                                                                         self.discriminators[
+                                                                                             f'phong-{k}'],
                                                                                          f'discriminator_phong-{k}'))
                     discriminator_losses.append(
                         self._apply_generator_discriminator_loss(depth_phong, self.discriminators[f'depth_phong-{k}'],
                                                                  f'discriminator_depth_phong-{k}'))
                     discriminator_losses.append(
                         self._apply_generator_discriminator_loss(normals_generated, self.discriminators[f'normals-{k}'],
-                                                             f'discriminator_normals-{k}'))
+                                                                 f'discriminator_normals-{k}'))
             discriminator_losses = torch.stack(discriminator_losses)
             if self.config.hyper_volume_slack > 1.0:
                 factors = self.hypervolume_optimization_coefficients(discriminator_losses)
@@ -330,6 +348,10 @@ class GAN(BaseModel):
             self.zero_grad()
             self.log_dict(self.generator_losses)
             self.reset_log_dict(self.generator_losses)
+            schedulers = self.lr_schedulers()
+            if schedulers is not None:
+                scheduler = schedulers[0]
+                scheduler.step()
 
     def discriminator_critic_train_step(self, batch, batch_idx) -> None:
         self.generator.eval()
@@ -360,6 +382,10 @@ class GAN(BaseModel):
                                                   for k in self.discriminator_losses.keys()})
                 self.log_dict(self.discriminator_losses)
                 self.reset_log_dict(self.discriminator_losses)
+                schedulers = self.lr_schedulers()
+                if schedulers is not None:
+                    scheduler = schedulers[self.discriminators_opt_idx]
+                    scheduler.step()
 
         if self.config.use_critic:
             # print('critic')
@@ -566,8 +592,8 @@ class GAN(BaseModel):
                 self.unadapted_images_for_plotting = (depth_unadapted,
                                                       normals_unadapted.detach() if normals_unadapted
                                                                                     is not None else normals_unadapted,
-                                                      phong_unadapted.detach()if phong_unadapted
-                                                                                    is not None else phong_unadapted)
+                                                      phong_unadapted.detach() if phong_unadapted
+                                                                                  is not None else phong_unadapted)
 
             depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
             denormed_images = torch.clamp(self.imagenet_denorm(z).cpu(), 0, 1)
