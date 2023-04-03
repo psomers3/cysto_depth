@@ -19,7 +19,7 @@ def get_default_args(func) -> dict:
     }
 
 
-def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
+def get_callbacks(configuration: Union[dict, CallbackConfig]) -> List[pl.Callback]:
     """
     Parses a CallbackConfig object to return the desired list of training callbacks
 
@@ -42,5 +42,10 @@ def get_callbacks(configuration: CallbackConfig) -> List[pl.Callback]:
                                                       filename='latest-{epoch}-{step}',
                                                       save_top_k=1,
                                                       every_n_epochs=configuration.ckpt_every_n_epochs,
+                                                      save_weights_only=configuration.get('save_weights_only', False)))
+    if configuration.get('save_every_n_epochs', None) is not None:
+        callbacks.append(pl.callbacks.ModelCheckpoint(filename='{epoch}-{step}',
+                                                      save_top_k=-1,
+                                                      every_n_epochs=configuration.save_every_n_epochs,
                                                       save_weights_only=configuration.get('save_weights_only', False)))
     return callbacks

@@ -89,6 +89,8 @@ class CallbackConfig:
     """ Only save model weights on checkpoints """
     save_last_ckpt: bool = True
     """ Always save latest epoch """
+    save_every_n_epochs: Union[int, None] = None
+    """ Save the full model every n epochs """
 
 
 @dataclass
