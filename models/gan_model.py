@@ -628,7 +628,10 @@ class GAN(BaseModel):
         return 1 / (T * (nadir_point - loss_vector))
 
     def configure_optimizers(self):
-        return self._unwrapped_optimizers
+        if self._unwrapped_optimizer_sched:
+            return self._unwrapped_optimizers, self._unwrapped_optimizer_sched
+        else:
+            return self._unwrapped_optimizers
 
     def _on_epoch_end(self):
         if self.lr_schedulers() is not None:
