@@ -633,7 +633,7 @@ class GAN(BaseModel):
     def _on_epoch_end(self):
         if self.lr_schedulers() is not None:
             self.log("generator_lr", self.lr_schedulers()[0].get_last_lr()[0])
-            self.log("discriminator_lr", self.lr_schedulers()[1].get_last_lr()[0])
+            self.log("discriminator_lr", self.lr_schedulers()[self.discriminators_opt_idx].get_last_lr()[0])
 
     def on_validation_epoch_end(self) -> None:
         self.validation_epoch += 1
