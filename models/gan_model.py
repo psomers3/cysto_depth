@@ -290,6 +290,8 @@ class GAN(BaseModel):
             calculated_norms = depth_to_normals(depth_out, self.phong_renderer.camera_intrinsics[None],
                                                 self.phong_renderer.resized_pixel_locations)
             # depth_phong = self.phong_renderer((depth_out, calculated_norms))
+            normalized_generated = torch.nn.functional.normalize(normals_generated, dim=1)
+            normals_generated = torch.where(normals_generated == 0, normals_generated, normalized_generated)
             normals_similarity += self.calculated_normals_loss(calculated_norms, normals_generated)
             self.generator_losses['g_normals_similarity'] += normals_similarity
             g_loss += normals_similarity
