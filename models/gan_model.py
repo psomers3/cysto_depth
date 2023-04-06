@@ -284,7 +284,7 @@ class GAN(BaseModel):
         depth_out = decoder_outs_generated[-1]
 
         g_loss: Tensor = 0.0
-        normals_similarity = 0.0
+        normals_similarity_loss = 0.0
         if self.config.predict_normals:
             original_phong_rendering = self.phong_renderer((depth_out, normals_generated))
             calculated_norms = depth_to_normals(depth_out, self.phong_renderer.camera_intrinsics[None],
@@ -292,9 +292,9 @@ class GAN(BaseModel):
             # depth_phong = self.phong_renderer((depth_out, calculated_norms))
             normalized_generated = torch.nn.functional.normalize(normals_generated, dim=1)
             normals_generated = torch.where(normals_generated == 0, normals_generated, normalized_generated)
-            normals_similarity += self.calculated_normals_loss(calculated_norms, normals_generated)
-            self.generator_losses['g_normals_similarity'] += normals_similarity
-            g_loss += normals_similarity
+            normals_similarity_loss += self.calculated_normals_loss(calculated_norms, normals_generated)
+            self.generator_losses['g_normals_similarity'] += normals_similarity_loss
+            # g_loss += normals_similarity_loss
 
         if self.config.use_discriminator:
             discriminator_losses = []
@@ -320,7 +320,7 @@ class GAN(BaseModel):
                     discriminator_losses.append(
                         self._apply_generator_discriminator_loss(normals_generated, self.discriminators[f'normals-{k}'],
                                                                  f'discriminator_normals-{k}'))
-            # discriminator_losses.append(normals_similarity)
+            discriminator_losses.append(normals_similarity_loss)
             discriminator_losses = torch.stack(discriminator_losses)
             if self.config.hyper_volume_slack > 1.0:
                 factors = self.hypervolume_optimization_coefficients(discriminator_losses)
