@@ -255,6 +255,7 @@ class GAN(BaseModel):
         return encoder_outs, encoder_mare_outs, decoder_outs, normals
 
     def training_step(self, batch, batch_idx):
+        self.setup_losses()
         # start by freezing all batchnorm layers throughout the networks that shouldn't update statistics
         self.train()
         self.depth_model.apply(freeze_batchnorm)
