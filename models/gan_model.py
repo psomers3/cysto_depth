@@ -10,7 +10,7 @@ from utils.image_utils import generate_heatmap_fig, freeze_batchnorm, generate_i
 from config.training_config import SyntheticTrainingConfig, GANTrainingConfig, DiscriminatorConfig
 from argparse import Namespace
 from utils.rendering import PhongRender, depth_to_normals
-from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss
+from utils.loss import GANDiscriminatorLoss, GANGeneratorLoss, CosineSimilarity
 from typing import *
 
 opts = {'adam': torch.optim.Adam, 'radam': torch.optim.RAdam, 'rmsprop': torch.optim.RMSprop}
@@ -55,6 +55,8 @@ class GAN(BaseModel):
         self._num_feature_level_disc: int = 3
         self.discriminator_losses: Dict[str, Union[float, Tensor]] = {}
         self.generator_losses = {'g_loss': 0.0}
+        if gan_config.predict_normals:
+            self.generator_losses['g_normals_similarity'] = 0.0
         self.critic_losses: Dict[str, Union[float, Tensor]] = {}
         self.discriminators: torch.nn.ModuleDict = torch.nn.ModuleDict()
         self.critics: torch.nn.ModuleDict = torch.nn.ModuleDict()
@@ -67,7 +69,7 @@ class GAN(BaseModel):
             self.setup_critics()
         if self.config.use_discriminator:
             self.setup_discriminators()
-
+        self.calculated_normals_loss: CosineSimilarity = None
         self.validation_epoch = 0
         self.generator_global_step = -1
         self.critic_global_step = 0
@@ -144,16 +146,16 @@ class GAN(BaseModel):
                     {f'g_loss_discriminator_feature-{k}_{i}': 0.0 for i in range(len(d_feat_list))})
             if self.config.predict_normals:
                 self.discriminators[f'phong-{k}'] = Discriminator(self.config.phong_discriminator)
-                self.discriminators[f'depth_phong-{k}'] = Discriminator(self.config.phong_discriminator)
+                # self.discriminators[f'depth_phong-{k}'] = Discriminator(self.config.phong_discriminator)
                 self.discriminators[f'normals-{k}'] = Discriminator(self.config.normals_discriminator)
                 self.discriminator_losses.update({f'd_loss_discriminator_phong-{k}': 0.0,
-                                                  f'd_loss_discriminator_depth_phong-{k}': 0.0,
+                                                  # f'd_loss_discriminator_depth_phong-{k}': 0.0,
                                                   f'd_loss_discriminator_normals-{k}': 0.0})
                 self.discriminator_losses.update({f'd_loss_reg_discriminator_phong-{k}': 0.0,
-                                                  f'd_loss_reg_discriminator_depth_phong-{k}': 0.0,
+                                                  # f'd_loss_reg_discriminator_depth_phong-{k}': 0.0,
                                                   f'd_loss_reg_discriminator_normals-{k}': 0.0})
                 self.generator_losses.update({f'g_loss_discriminator_phong-{k}': 0.0,
-                                              f'g_loss_discriminator_depth_phong-{k}': 0.0,
+                                              # f'g_loss_discriminator_depth_phong-{k}': 0.0,
                                               f'g_loss_discriminator_normals-{k}': 0.0})
             self.discriminators[f'depth_image-{k}'] = Discriminator(self.config.depth_discriminator)
             self.discriminator_losses.update({f'd_loss_discriminator_depth_img-{k}': 0.0,
@@ -170,6 +172,10 @@ class GAN(BaseModel):
                                                              gamma=self.config.lr_scheduler_gamma,
                                                              last_epoch=last_epoch)
             self._unwrapped_optimizer_sched.append(disc_scheduler)
+
+    def setup_losses(self):
+        if self.calculated_normals_loss is None:
+            self.calculated_normals_loss = CosineSimilarity(device=self.device, ignore_direction=True)
 
     def setup_critics(self):
         self.critic_losses['d_critics_loss'] = 0.0
@@ -281,7 +287,10 @@ class GAN(BaseModel):
             original_phong_rendering = self.phong_renderer((depth_out, normals_generated))
             calculated_norms = depth_to_normals(depth_out, self.phong_renderer.camera_intrinsics[None],
                                                 self.phong_renderer.resized_pixel_locations)
-            depth_phong = self.phong_renderer((depth_out, calculated_norms))
+            # depth_phong = self.phong_renderer((depth_out, calculated_norms))
+            normals_similarity = self.calculated_normals_loss(normals_generated, calculated_norms)
+            self.generator_losses['g_normals_similarity'] += normals_similarity
+            g_loss += normals_similarity
 
         if self.config.use_discriminator:
             discriminator_losses = []
@@ -301,9 +310,9 @@ class GAN(BaseModel):
                                                                                          self.discriminators[
                                                                                              f'phong-{k}'],
                                                                                          f'discriminator_phong-{k}'))
-                    discriminator_losses.append(
-                        self._apply_generator_discriminator_loss(depth_phong, self.discriminators[f'depth_phong-{k}'],
-                                                                 f'discriminator_depth_phong-{k}'))
+                    # discriminator_losses.append(
+                    #     self._apply_generator_discriminator_loss(depth_phong, self.discriminators[f'depth_phong-{k}'],
+                    #                                              f'discriminator_depth_phong-{k}'))
                     discriminator_losses.append(
                         self._apply_generator_discriminator_loss(normals_generated, self.discriminators[f'normals-{k}'],
                                                                  f'discriminator_normals-{k}'))
@@ -328,9 +337,9 @@ class GAN(BaseModel):
                 phong_discrimination = self.critics['phong'](original_phong_rendering)
                 g_loss += self._apply_generator_critic_loss(phong_discrimination, 'critic_phong') \
                           * self.config.phong_discriminator_factor
-                g_loss += self._apply_generator_critic_loss(self.critics['depth_phong'](depth_phong),
-                                                            'critic_depth_phong') \
-                          * self.config.phong_discriminator_factor
+                # g_loss += self._apply_generator_critic_loss(self.critics['depth_phong'](depth_phong),
+                #                                             'critic_depth_phong') \
+                #           * self.config.phong_discriminator_factor
                 g_loss += self._apply_generator_critic_loss(self.critics['normals'](normals_generated),
                                                             'critic_normals') \
                           * self.config.normals_discriminator_factor
@@ -480,10 +489,10 @@ class GAN(BaseModel):
                                                        phong_original,
                                                        self.discriminators[f'phong-{k}'],
                                                        f'phong-{k}')
-                loss += self._apply_discriminator_loss(calculated_phong_generated,
-                                                       calculated_phong_original,
-                                                       self.discriminators[f'depth_phong-{k}'],
-                                                       f'depth_phong-{k}')
+                # loss += self._apply_discriminator_loss(calculated_phong_generated,
+                #                                        calculated_phong_original,
+                #                                        self.discriminators[f'depth_phong-{k}'],
+                #                                        f'depth_phong-{k}')
                 loss += self._apply_discriminator_loss(predictions['normals_generated'],
                                                        predictions['normals_original'],
                                                        self.discriminators[f'normals-{k}'],
