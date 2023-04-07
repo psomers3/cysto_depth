@@ -320,7 +320,8 @@ class GAN(BaseModel):
                     discriminator_losses.append(
                         self._apply_generator_discriminator_loss(normals_generated, self.discriminators[f'normals-{k}'],
                                                                  f'discriminator_normals-{k}'))
-            discriminator_losses.append(normals_similarity_loss)
+            if self.config.predict_normals:
+                discriminator_losses.append(normals_similarity_loss)
             discriminator_losses = torch.stack(discriminator_losses)
             if self.config.hyper_volume_slack > 1.0:
                 factors = self.hypervolume_optimization_coefficients(discriminator_losses)
