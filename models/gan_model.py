@@ -83,6 +83,8 @@ class GAN(BaseModel):
         self.generator_discriminator_loss = GANGeneratorLoss[gan_config.discriminator_loss.lower()]
         if gan_config.resume_from_checkpoint:
             self._resume_from_checkpoint(ckpt)
+        self.setup_generator_scheduler()
+        self.setup_discriminator_scheduler()
 
     def _resume_from_checkpoint(self, ckpt: dict):
         with torch.no_grad():
@@ -121,6 +123,9 @@ class GAN(BaseModel):
         gen_optimizer = opt(filter(lambda p: p.requires_grad, self.generator.parameters()),
                             lr=self.config.generator_lr)
         self._unwrapped_optimizers.append(gen_optimizer)
+
+    def setup_generator_scheduler(self):
+        gen_optimizer = self._unwrapped_optimizers[0]
         last_epoch = self._start_step
         if None not in [self.config.lr_scheduler_step_size, self.config.lr_scheduler_gamma]:
             gen_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, step_size=self.config.lr_scheduler_step_size,
@@ -166,6 +171,9 @@ class GAN(BaseModel):
                        lr=self.config.discriminator_lr)
         self._unwrapped_optimizers.append(disc_opt)
         self.discriminators_opt_idx = self.critic_opt_idx + 1
+
+    def setup_discriminator_scheduler(self):
+        disc_opt = self._unwrapped_optimizers[self.discriminators_opt_idx]
         last_epoch = self._start_step
         if None not in [self.config.lr_scheduler_step_size, self.config.lr_scheduler_gamma]:
             disc_scheduler = torch.optim.lr_scheduler.StepLR(disc_opt, step_size=self.config.lr_scheduler_step_size,
