@@ -636,6 +636,52 @@ class GAN(BaseModel):
                     self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
                     plt.close(fig)
 
+    def test_step(self, batch, batch_idx):
+        self.eval()
+        with torch.no_grad():
+            x, z = batch
+            # predictions with generated images through generator
+            _, _, decoder_outs_adapted, normals_adapted = self(z, generator=True)
+            depth_adapted = decoder_outs_adapted[-1]
+
+            if self.unadapted_images_for_plotting is None:
+                _, _, decoder_outs_unadapted, normals_unadapted = self(z, generator=False)
+                depth_unadapted = decoder_outs_unadapted[-1].detach()
+                if normals_unadapted is not None:
+                    phong_unadapted = self.phong_renderer((depth_unadapted, normals_unadapted)).cpu()
+                else:
+                    phong_unadapted = None
+                self.unadapted_images_for_plotting = (depth_unadapted,
+                                                      normals_unadapted.detach() if normals_unadapted
+                                                                                    is not None else normals_unadapted,
+                                                      phong_unadapted.detach() if phong_unadapted
+                                                                                  is not None else phong_unadapted)
+
+            depth_unadapted, normals_unadapted, phong_unadapted = self.unadapted_images_for_plotting
+            denormed_images = torch.clamp(self.imagenet_denorm(z).cpu(), 0, 1)
+            plot_tensors = [denormed_images]
+            labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted", "Diff"]
+            centers = [None, None, None, 0]
+            minmax = []
+            plot_tensors.append(depth_adapted)
+            plot_tensors.append(depth_unadapted.cpu())
+            plot_tensors.append((depth_adapted - depth_unadapted).cpu())
+
+            for idx, imgs in enumerate(zip(*plot_tensors)):
+                fig = generate_heatmap_fig(imgs, labels=labels, centers=centers, minmax=minmax,
+                                           align_scales=True)
+                self.logger.experiment.add_figure(f"GAN Prediction test-{batch_idx}-{idx}", fig, self.global_step)
+                plt.close(fig)
+
+            if normals_adapted is not None:
+                phong_adapted = self.phong_renderer((depth_adapted, normals_adapted)).cpu()
+
+                labels = ["Input Image", "Predicted Adapted", "Predicted Unadapted"]
+                for idx, img_set in enumerate(zip(denormed_images, phong_adapted, phong_unadapted)):
+                    fig = generate_img_fig(img_set, labels)
+                    self.logger.experiment.add_figure(f'GAN-phong-test-{batch_idx}-{idx}', fig, self.global_step)
+                    plt.close(fig)
+
     def hypervolume_optimization_coefficients(self, loss_vector):
         # Multi-objective training of GANs with multiple discriminators
         nadir_point = self.config.hyper_volume_slack * loss_vector.max()
