@@ -128,6 +128,8 @@ class GAN(BaseModel):
         gen_optimizer = self._unwrapped_optimizers[0]
         last_epoch = self._start_step
         if None not in [self.config.lr_scheduler_step_size, self.config.lr_scheduler_gamma]:
+            for param_group in gen_optimizer.param_groups:
+                param_group['initial_lr'] = self.config.generator_lr
             gen_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, step_size=self.config.lr_scheduler_step_size,
                                                             gamma=self.config.lr_scheduler_gamma, last_epoch=last_epoch)
             self._unwrapped_optimizer_sched.append(gen_scheduler)
@@ -176,6 +178,8 @@ class GAN(BaseModel):
         disc_opt = self._unwrapped_optimizers[self.discriminators_opt_idx]
         last_epoch = self._start_step
         if None not in [self.config.lr_scheduler_step_size, self.config.lr_scheduler_gamma]:
+            for param_group in disc_opt.param_groups:
+                param_group['initial_lr'] = self.config.discriminator_lr
             disc_scheduler = torch.optim.lr_scheduler.StepLR(disc_opt, step_size=self.config.lr_scheduler_step_size,
                                                              gamma=self.config.lr_scheduler_gamma,
                                                              last_epoch=last_epoch)
