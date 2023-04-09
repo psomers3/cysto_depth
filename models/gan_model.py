@@ -648,6 +648,12 @@ class GAN(BaseModel):
                     self.logger.experiment.add_figure(f'GAN-phong-{idx}', fig, self.global_step)
                     plt.close(fig)
 
+    def on_test_epoch_start(self) -> None:
+        if self.config.predict_normals:
+            self.phong_renderer = PhongRender(config=self.config.phong_config,
+                                              image_size=self.config.image_size,
+                                              device=self.device)
+
     def test_step(self, batch, batch_idx):
         self.setup_losses()
         self.eval()
