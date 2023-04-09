@@ -102,7 +102,7 @@ class GAN(BaseModel):
                     self.discriminators[f'depth_image-{k}'](decoder_outs[-1])
                     if self.config.predict_normals:
                         self.discriminators[f'phong-{k}'](normals)
-                        self.discriminators[f'depth_phong-{k}'](normals)
+                        # self.discriminators[f'depth_phong-{k}'](normals)
                         self.discriminators[f'normals-{k}'](normals)
 
             if self.config.use_critic:
@@ -113,7 +113,7 @@ class GAN(BaseModel):
                 self.critics['depth_image'](decoder_outs[-1])
                 if self.config.predict_normals:
                     self.critics['phong'](normals)
-                    self.critics['depth_phong'](normals)
+                    # self.critics['depth_phong'](normals)
                     self.critics['normals'](normals)
 
         self.load_state_dict(ckpt['state_dict'], strict=False)
@@ -719,7 +719,7 @@ class GAN(BaseModel):
         self._on_epoch_end()
 
     def on_test_epoch_end(self) -> None:
-        self._on_epoch_end()
+        pass
 
     def log_gate_coefficients(self, step=None):
         if step is None:
