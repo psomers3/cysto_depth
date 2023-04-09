@@ -649,6 +649,7 @@ class GAN(BaseModel):
                     plt.close(fig)
 
     def test_step(self, batch, batch_idx):
+        self.setup_losses()
         self.eval()
         with torch.no_grad():
             x, z = batch
