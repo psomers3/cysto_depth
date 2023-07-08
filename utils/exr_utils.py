@@ -67,7 +67,7 @@ def draw_circles(img, circles):
     return res
 
 
-def crop_img_opencv(img, size=256):
+def crop_img_opencv(img, size=256, real_depth=None):
     height = img.shape[0]
     max_height = 512
     # only shrink if img is bigger than required
@@ -76,14 +76,15 @@ def crop_img_opencv(img, size=256):
         scaling_factor = max_height / float(height)
         # resize image
         img = cv2.resize(img, None, fx=scaling_factor, fy=scaling_factor, interpolation=cv2.INTER_AREA)
+        real_depth = cv2.resize(real_depth, None, fx=scaling_factor, fy=scaling_factor, interpolation=cv2.INTER_AREA)
 
     gray_img = rgb2gray(img)
     black_val = np.mean(gray_img[:20, :20])
     # threshold = black_val+2
     ret, thresh_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
     filter_error = filter(img[thresh_img == 255])
-    if filter_error is not None:
-        raise ImageCroppingException(img, filter_error)
+    # if filter_error is not None:
+    #     raise ImageCroppingException(img, filter_error)
     img_height = thresh_img.shape[0]
     img_width = thresh_img.shape[1]
     points = []
@@ -117,12 +118,14 @@ def crop_img_opencv(img, size=256):
     x_high = min(img_width - 1, max_circle[0] + max_circle[2])
     y_high = min(img_height - 1, max_circle[1] + max_circle[2])
     img_copy = img_copy[y_low:y_high, x_low:x_high, :]
+    real_depth_copy = real_depth.copy()[y_low:y_high, x_low:x_high, :]
     img_square = squarify(img_copy, black_val)
-    circle_mask = create_circular_mask(h=img_height, w=img_width, center=max_circle[0:2], radius=max_circle[-1])
-    circle_mask = squarify(circle_mask[y_low:y_high, x_low:x_high], 0).astype(np.int8)
-    if not blur_check(img_square, circle_mask):
-        raise ImageCroppingException(img, "Image too blurry")
-    return cv2.resize(img_square, (size, size))
+    real_depth_square = squarify(real_depth_copy, 0)
+    # circle_mask = create_circular_mask(h=img_height, w=img_width, center=max_circle[0:2], radius=max_circle[-1])
+    # circle_mask = squarify(circle_mask[y_low:y_high, x_low:x_high], 0).astype(np.int8)
+    # if not blur_check(img_square, circle_mask):
+    #     raise ImageCroppingException(img, "Image too blurry")
+    return cv2.resize(img_square, (size, size)), cv2.resize(real_depth_square, (size, size))
 
 
 def create_circular_mask(h, w, center=None, radius=None) -> np.ndarray:

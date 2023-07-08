@@ -1,0 +1,88 @@
+log_directory: /scratch/peter/gan_logs/phong
+predict_normals: true
+print_config: true
+global_seed: 41424357
+mode: gan
+training_stage: test
+num_workers: 6
+split_save_dir: ./splits
+inverse_depth: false
+add_mask_blur: true
+val_check_interval: 30
+val_plot_interval: 3
+image_size: 256
+train_plot_interval: 1000
+synthetic_config:
+  use_skip_connections: true
+  balance_batchnorm_with_real: false
+  data_roles:
+    - color
+    - depth
+    - normals
+  data_directories:
+    -
+      - /b1/peter/2023_01_29_final/color
+      - /b1/peter/icp/output/color
+      - /b1/peter/icp/output_no_tool/color
+    -
+      - /b1/peter/2023_01_29_final/depth
+      - /b1/peter/icp/output/depth
+      - /b1/peter/icp/output_no_tool/depth
+    -
+      - /b1/peter/2023_01_29_final/normals
+      - /b1/peter/icp/output/normals
+      - /b1/peter/icp/output_no_tool/normals
+  training_split: {'train': .85, 'validate': 0.14, 'test': .01}
+  resume_from_checkpoint: /Users/peter/isys/diss_runs/synthetic_256_phong/4/checkpoints/epoch=410-step=43960.ckpt
+  callbacks:
+    ckpt_metric_mode: min
+    ckpt_metric: val_rmse
+    early_stop_patience: null
+gan_config:
+  resume_from_checkpoint: /Users/peter/isys/diss_runs/final_gan_phong/epoch=9-step=693.ckpt
+#  resume_from_checkpoint: /Users/peter/isys/diss_runs/gan_ensemble_phong_1/3/checkpoints/latest-epoch=2795-step=75490.ckpt
+  callbacks:
+    save_every_n_epochs: 5
+  lr_scheduler_step_size: 200
+  lr_scheduler_gamma: 0.99
+  max_epochs: 10000
+  val_check_interval: 10
+  use_feature_level: true
+  encoder:
+    adaptive_gating: true
+    residual_learning: true
+    res_layer_norm: batch
+  generator_lr: 1e-4
+  use_discriminator: true
+  hyper_volume_slack: 1.1
+  discriminator_ensemble_size: 1
+  discriminator_lr: 1e-4
+  discriminator_loss: cross_entropy_R1
+  use_critic: false
+  freeze_batch_norm: true
+  batch_size: 48
+  accumulate_grad_batches: 2
+  depth_discriminator:
+    single_out: false
+    single_out_reduction: max
+  phong_discriminator:
+    single_out: false
+    single_out_reduction: max
+  feature_level_discriminator:
+    single_out: false
+    single_out_reduction: dense
+  warmup_steps: 0
+  source_images:
+    - /b1/peter/2023_01_29_final/color
+    - /b1/peter/icp/output/color
+    - /b1/peter/icp/output_no_tool/color
+  synth_split: {'train': .98, 'validate': .01, 'test': .01}
+  generate_data: False
+  videos_folder:
+   - /Users/peter/isys/videos
+  image_output_folder: /b3/mdeutschmann/datasets/gan_data
+trainer_config:
+  gpus: [1]
+  strategy: ddp
+  accelerator: gpu
+  log_every_n_steps: 5
